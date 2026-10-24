@@ -1,0 +1,52 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const MAIN = [
+  { href: "/", label: "Resumen" },
+  { href: "/clients", label: "Clientes" },
+  { href: "/stores", label: "Tiendas" },
+  { href: "/coupons", label: "Cupones" },
+  { href: "/pages", label: "Páginas" },
+  { href: "/clicks", label: "Clics" },
+];
+const SECONDARY = [
+  { href: "/awin", label: "Redes de afiliación" },
+];
+const ADMIN = [
+  { href: "/costs", label: "Costes de IA" },
+];
+
+export function Nav({ admin = false }: { admin?: boolean }) {
+  return <NavList path={usePathname()} admin={admin} />;
+}
+
+function NavLink({ href, label, path }: { href: string; label: string; path: string }) {
+  const active = href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`flex min-h-11 items-center rounded-lg px-3 text-sm ${
+        active
+          ? "bg-indigo-100 font-semibold text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200"
+          : "text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
+// Also rendered without a path as the Suspense fallback while the pathname streams in
+export function NavList({ path = "", admin = false }: { path?: string; admin?: boolean }) {
+  return (
+    <nav aria-label="Principal" className="flex flex-col gap-1">
+      {MAIN.map((i) => <NavLink key={i.href} {...i} path={path} />)}
+      <div className="mx-3 my-3 h-px bg-neutral-200 dark:bg-neutral-800" />
+      {SECONDARY.map((i) => <NavLink key={i.href} {...i} path={path} />)}
+      {admin && ADMIN.map((i) => <NavLink key={i.href} {...i} path={path} />)}
+    </nav>
+  );
+}
