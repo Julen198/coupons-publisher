@@ -64,8 +64,10 @@ export type PageWithNames = Page & { client_slug: string; client_name: string; s
 // Lazy so `next build` doesn't need DATABASE_URL.
 // Supabase pooler: session mode (5432) caps clients at ~15 in total, which serverless instances on Vercel
 // exhaust as soon as a page fires several requests (e.g. 15 store logos) → EMAXCONNSESSION. On Vercel we use
-// the transaction pooler (6543), built for that; prepare:false keeps postgres.js compatible with it
-// (40 concurrent queries over 24 clients tested OK). Local dev stays on session mode.
+// the transaction pooler (6543), built for that. Two postgres.js settings make it work there:
+// prepare:false (no prepared statements) and max_pipeline:0 — when a page fires more queries than the pool
+// has connections, postgres.js otherwise pipelines them on one connection and the pooler never answers
+// (reproduced: the Resumen's 9 parallel queries hung >20s with pipelining, 0.7s without). Local dev stays on session mode.
 // The pool lives on globalThis so dev hot reloads reuse it instead of leaking a new one per reload.
 const globalForDb = globalThis as typeof globalThis & { __cpSql?: postgres.Sql };
 
@@ -73,7 +75,9 @@ export function sql(): postgres.Sql {
   if (!globalForDb.__cpSql) {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL no está configurada");
-    globalForDb.__cpSql = postgres(poolerUrl(url, Boolean(process.env.VERCEL)), { prepare: false, max: 3, idle_timeout: 10 });
+    // max_pipeline is a real postgres.js 3.4 option (src/index.js) missing from its type definitions
+    const options = { prepare: false, max: 3, max_pipeline: 0, idle_timeout: 10 } as postgres.Options<Record<string, never>>;
+    globalForDb.__cpSql = postgres(poolerUrl(url, Boolean(process.env.VERCEL)), options);
   }
   return globalForDb.__cpSql;
 }
