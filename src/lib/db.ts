@@ -1,3 +1,4 @@
+import { poolerUrl } from "./pooler.ts";
 import postgres from "postgres";
 import { io } from "next/cache";
 
@@ -61,17 +62,18 @@ export type Page = {
 export type PageWithNames = Page & { client_slug: string; client_name: string; store_slug: string; store_name: string };
 
 // Lazy so `next build` doesn't need DATABASE_URL.
-// Use Supabase's *session* pooler (port 5432): with the transaction pooler (6543) postgres.js hangs
-// as soon as queries queue for a connection. idle_timeout hands idle connections back to the pooler.
-// ponytail: session mode caps total connections (~15 on free); move to the transaction pooler with a driver that supports it if traffic grows
-// The pool lives on globalThis so dev hot reloads reuse it instead of leaking a new one per reload
-// (session mode allows only ~15 connections in total, shared with production).
+// Supabase pooler: session mode (5432) caps clients at ~15 in total, which serverless instances on Vercel
+// exhaust as soon as a page fires several requests (e.g. 15 store logos) → EMAXCONNSESSION. On Vercel we use
+// the transaction pooler (6543), built for that; prepare:false keeps postgres.js compatible with it
+// (40 concurrent queries over 24 clients tested OK). Local dev stays on session mode.
+// The pool lives on globalThis so dev hot reloads reuse it instead of leaking a new one per reload.
 const globalForDb = globalThis as typeof globalThis & { __cpSql?: postgres.Sql };
+
 export function sql(): postgres.Sql {
   if (!globalForDb.__cpSql) {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL no está configurada");
-    globalForDb.__cpSql = postgres(url, { prepare: false, max: 3, idle_timeout: 10 });
+    globalForDb.__cpSql = postgres(poolerUrl(url, Boolean(process.env.VERCEL)), { prepare: false, max: 3, idle_timeout: 10 });
   }
   return globalForDb.__cpSql;
 }
