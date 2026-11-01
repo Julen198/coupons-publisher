@@ -21,7 +21,7 @@ export function iconCandidates(html: string, pageUrl: string): string[] {
   return [...new Set([...found, `${origin}/apple-touch-icon.png`, `${origin}/favicon.ico`].filter((u): u is string => !!u))];
 }
 
-const UA = { "User-Agent": "Mozilla/5.0 (compatible; TesseraCoupons/0.1)" };
+const UA = { "User-Agent": "Mozilla/5.0 (compatible; CuponLab/0.1)" };
 const MAX_BYTES = 120_000;
 
 // Fetches the first candidate that really is a small image. "" when none works (blocked site, no icon…).

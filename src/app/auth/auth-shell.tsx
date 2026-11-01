@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 const WORDS: Record<number, string> = { 3: "15%", 9: "10€", 15: "2×1", 20: "-30%", 26: "5€", 31: "50%", 37: "ENVÍO", 44: "20%", 50: "3×2", 57: "12€" };
 const TONES = ["#1e3a8a", "#1d4ed8", "#2563eb", "#172554", "#1e40af", "#3b82f6"];
-// every coupon a tile (tessera), every media site its mosaic
+// every coupon a tile, every media site its mosaic
 const TILES = Array.from({ length: 63 }, (_, i) => ({
   text: WORDS[i] ?? "",
   background: WORDS[i] ? "#2563eb" : TONES[(i * 7 + (i % 5) * 3) % TONES.length],
@@ -31,10 +31,10 @@ export function AuthShell({ headline, children }: { headline: string; children: 
       {/* phones: compact brand bar */}
       <header className="flex items-center gap-2.5 bg-[#0b1f5c] px-5 py-4 text-indigo-50 md:hidden dark:bg-[#0b1430]">
         <Logo size={32} />
-        <span className="font-bold tracking-tight">Tessera Coupons</span>
+        <span className="font-bold tracking-tight">CuponLab</span>
       </header>
 
-      <aside aria-label="Tessera Coupons" className="relative hidden flex-1 flex-col justify-between overflow-hidden bg-[#0b1f5c] px-10 py-12 text-indigo-50 md:flex lg:px-14 dark:bg-[#0b1430]">
+      <aside aria-label="CuponLab" className="relative hidden flex-1 flex-col justify-between overflow-hidden bg-[#0b1f5c] px-10 py-12 text-indigo-50 md:flex lg:px-14 dark:bg-[#0b1430]">
         <div aria-hidden="true" className="absolute -top-3 -right-10 grid w-[520px] origin-top-right -rotate-8 grid-cols-7 gap-2">
           {TILES.map((t, i) => (
             <span
@@ -50,7 +50,7 @@ export function AuthShell({ headline, children }: { headline: string; children: 
 
         <div className="relative flex items-center gap-3">
           <Logo />
-          <span className="text-lg font-bold tracking-tight">Tessera Coupons</span>
+          <span className="text-lg font-bold tracking-tight">CuponLab</span>
         </div>
         <div className="relative flex max-w-md flex-col gap-5">
           <h2 className="text-3xl leading-tight font-bold tracking-tight lg:text-4xl">{headline}</h2>
@@ -61,7 +61,7 @@ export function AuthShell({ headline, children }: { headline: string; children: 
             ))}
           </ul>
         </div>
-        <span className="relative text-xs text-indigo-300">© Tessera Coupons</span>
+        <span className="relative text-xs text-indigo-300">© CuponLab</span>
       </aside>
 
       <main className="flex flex-1 items-start justify-center px-5 py-10 sm:items-center sm:px-8 md:py-12">

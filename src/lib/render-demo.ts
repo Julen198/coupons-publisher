@@ -85,7 +85,7 @@ ${shop ? shopHeader(logo, color) : `<header>${logo}<div class="date">${esc(new D
     <div class="ad">[PUBLICIDAD 300×250]</div>
   </aside>
 </div>
-<footer>© ${name} · Cupones gestionados por Tessera Coupons</footer>
+<footer>© ${name} · Cupones gestionados por CuponLab</footer>
 <script>
   // srcdoc is same-origin: grow the iframe to its content so the page scrolls as one
   var f = document.getElementById('cp');

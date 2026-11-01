@@ -51,7 +51,7 @@ async function Invite({ params }: { params: Promise<{ token: string }> }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2.5">
-        <span className="self-start rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200">Invitación a Tessera Coupons</span>
+        <span className="self-start rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-900 dark:bg-indigo-950 dark:text-indigo-200">Invitación a CuponLab</span>
         <h1 className="text-[26px] font-bold tracking-tight">Hola, {first}. Crea tu contraseña</h1>
         <p className="text-[15px] leading-relaxed text-neutral-600 dark:text-neutral-400">
           Entrarás con <strong className="font-semibold text-neutral-900 dark:text-neutral-100">{invite.email}</strong>. Es lo único que falta para empezar.

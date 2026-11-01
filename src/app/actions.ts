@@ -57,7 +57,7 @@ async function fetchDisguise(domain: string): Promise<Disguise> {
   }
   const home = `https://${host}/`;
   const res = await fetch(home, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; TesseraCoupons/0.1)" },
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; CuponLab/0.1)" },
     signal: AbortSignal.timeout(10_000),
     redirect: "follow",
   });
@@ -111,7 +111,7 @@ function checkedLogo(v: string) {
 async function darkenedWhiteLogo(url: string): Promise<string | undefined> {
   if (!isSvgUrl(url)) return undefined;
   try {
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; TesseraCoupons/0.1)" }, signal: AbortSignal.timeout(5_000) });
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; CuponLab/0.1)" }, signal: AbortSignal.timeout(5_000) });
     const svg = res.ok ? await res.text() : "";
     return svg.length <= MAX_SVG_LOGO && isWhiteSvg(svg) ? darkSvgDataUri(svg) : undefined;
   } catch (e) {

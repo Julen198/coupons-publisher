@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tessera Coupons",
+  title: "CuponLab",
   description: "Panel para generar páginas de cupones para medios",
   robots: { index: false, follow: false },
 };
