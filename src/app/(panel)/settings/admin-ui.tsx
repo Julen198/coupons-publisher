@@ -56,7 +56,9 @@ function InviteLink({ state, onDone }: { state: InviteState; onDone: () => void 
   return (
     <div className="flex flex-col gap-3 px-5 py-5">
       <p className="text-sm">
-        Invitación creada para <strong>{state.email}</strong>. Envíale este enlace: con él elige su contraseña. Caduca en 7 días.
+        {state.emailed
+          ? <>Le hemos enviado la invitación a <strong>{state.email}</strong> por email. Si no le llega, cópiale este enlace: con él elige su contraseña. Caduca en 7 días.</>
+          : <>Invitación creada para <strong>{state.email}</strong>, pero no pudimos enviar el email. Envíale este enlace: con él elige su contraseña. Caduca en 7 días.</>}
       </p>
       <div className="flex gap-2">
         <input readOnly value={link} aria-label="Enlace de invitación" onFocus={(e) => e.target.select()} className={`${inputCls} font-mono text-xs`} />

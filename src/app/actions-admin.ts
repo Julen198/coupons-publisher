@@ -11,6 +11,7 @@ import { errorMessage, required, str, type FormState } from "@/lib/form";
 import { hashPassword, MIN_PASSWORD_LENGTH, newToken } from "@/lib/password";
 import { WIPE_DATA_SQL } from "@/lib/schema";
 import { startSession } from "@/lib/start-session";
+import { appUrl, inviteEmail, sendEmail } from "@/lib/email";
 
 // Every action here is admin-only except acceptInvite, which is the invitee proving they hold the link.
 
@@ -18,7 +19,18 @@ const ROLES: Role[] = ["admin", "editor", "viewer"];
 const INVITE_DAYS = 7;
 const MAX_IMPORT_BYTES = 2_000_000;
 
-export type InviteState = FormState & { invitePath?: string; email?: string };
+export type InviteState = FormState & { invitePath?: string; email?: string; emailed?: boolean };
+
+// The copyable link stays the source of truth; the email is a convenience, so a send failure never fails the invite
+async function emailInvite(to: string, name: string, inviter: string, token: string): Promise<boolean> {
+  try {
+    await sendEmail(to, inviteEmail(name, inviter, `${appUrl()}/invite/${token}`, INVITE_DAYS));
+    return true;
+  } catch (e) {
+    console.error("[invite] email failed", e);
+    return false;
+  }
+}
 
 function parseRole(f: FormData): Role {
   const r = str(f, "role") as Role;
@@ -35,7 +47,7 @@ function parseClients(f: FormData, role: Role): number[] {
 
 export async function inviteUser(_prev: InviteState, f: FormData): Promise<InviteState> {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const name = required(f, "name", "el nombre");
     const email = required(f, "email", "el email").toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email)) throw new Error("El email no es válido");
@@ -46,7 +58,7 @@ export async function inviteUser(_prev: InviteState, f: FormData): Promise<Invit
       VALUES (${name}, ${email}, ${role}, ${parseClients(f, role)}, 'pending', ${token}, now() + ${INVITE_DAYS} * interval '1 day')`;
     await logActivity(`Invitación creada para ${email}`);
     revalidatePath("/settings");
-    return { invitePath: `/invite/${token}`, email };
+    return { invitePath: `/invite/${token}`, email, emailed: await emailInvite(email, name, admin.name, token) };
   } catch (e) {
     const msg = errorMessage(e);
     return { error: msg === "Ya existe uno con ese nombre" ? "Ya hay un usuario con ese email" : msg };
@@ -56,13 +68,13 @@ export async function inviteUser(_prev: InviteState, f: FormData): Promise<Invit
 // New link for a pending invitation (the old one stops working)
 export async function regenerateInvite(_prev: InviteState, f: FormData): Promise<InviteState> {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
     const token = newToken();
-    const [u] = await sql()<{ email: string }[]>`
+    const [u] = await sql()<{ email: string; name: string }[]>`
       UPDATE users SET invite_token = ${token}, invite_expires_at = now() + ${INVITE_DAYS} * interval '1 day'
-      WHERE id = ${Number(required(f, "id"))} AND status = 'pending' RETURNING email`;
+      WHERE id = ${Number(required(f, "id"))} AND status = 'pending' RETURNING email, name`;
     if (!u) throw new Error("Esta invitación ya no está pendiente");
-    return { invitePath: `/invite/${token}`, email: u.email };
+    return { invitePath: `/invite/${token}`, email: u.email, emailed: await emailInvite(u.email, u.name, admin.name, token) };
   } catch (e) {
     return { error: errorMessage(e) };
   }

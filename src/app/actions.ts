@@ -17,7 +17,7 @@ import {
 } from "@/lib/form";
 import { canSeeClient, requireAdmin, requireEditor } from "@/lib/auth";
 import { newToken, verifyPassword } from "@/lib/password";
-import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, magicLinkEmail, sendEmail } from "@/lib/magic-link";
+import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, magicLinkEmail, sendEmail } from "@/lib/email";
 import { SESSION_COOKIE, safeNext } from "@/lib/session";
 import { startSession } from "@/lib/start-session";
 
