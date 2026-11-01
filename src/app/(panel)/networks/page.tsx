@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { canEdit, requireUser } from "@/lib/auth";
-import { listClients, sql } from "@/lib/db";
+import { listClients, listStores, sql, type Coupon } from "@/lib/db";
 import { ADAPTERS, adapterFor } from "@/lib/networks/index";
 import { decryptJson } from "@/lib/secrets";
 import type { Credentials } from "@/lib/networks/types";
 import { cardCls, fmtDateTime, PageHeader } from "@/app/ui";
+import { LinkFormats, type LinkExample } from "./link-formats";
 import { AccountDialog, DeleteAccountButton, SyncButton, type AccountDefaults, type NetworkOption } from "./network-ui";
 
 interface AccountRow {
@@ -33,12 +34,30 @@ export default async function NetworksPage() {
   const user = await requireUser();
   if (!canEdit(user)) redirect("/");
   const admin = user.role === "admin";
-  const [accounts, clients, stores, coupons] = await Promise.all([
+  const [accounts, clients, stores, coupons, allStores, sampleCoupons] = await Promise.all([
     sql()<AccountRow[]>`SELECT * FROM network_accounts ORDER BY network, client_id NULLS FIRST`,
     listClients(),
     sql()<{ network: string; n: number }[]>`SELECT network, count(*)::int AS n FROM stores WHERE merchant_id <> '' GROUP BY network`,
     sql()<{ source: string; n: number }[]>`SELECT source, count(*)::int AS n FROM coupons WHERE archived = 0 GROUP BY source`,
+    listStores(),
+    // one live coupon per network, from a store that is tied to its advertiser, for the example links
+    sql()<(Pick<Coupon, "id" | "target_url" | "title" | "store_id"> & { network: string })[]>`
+      SELECT DISTINCT ON (s.network) c.id, c.target_url, c.title, c.store_id, s.network
+      FROM coupons c JOIN stores s ON s.id = c.store_id
+      WHERE c.archived = 0 AND s.merchant_id <> ''
+      ORDER BY s.network, c.verified DESC, c.id DESC`,
   ]);
+  const examples: LinkExample[] = sampleCoupons.flatMap(({ network, store_id, ...coupon }) => {
+    const store = allStores.find((st) => st.id === store_id);
+    return store ? [{ network, store, coupon }] : [];
+  });
+  // our own accounts' non-secret ids (Awin publisher, Admitad ad space, Webgains campaign)
+  const ourIds = Object.fromEntries(
+    accounts.filter((a) => a.client_id === null).map((a) => {
+      const v = publicValues(a);
+      return [a.network, v.campaignId ?? v.websiteId ?? v.publisherId ?? ""];
+    }),
+  );
   const clientName = new Map(clients.map((c) => [c.id, c.name]));
   const storesBy = new Map(stores.map((r) => [r.network, r.n]));
   const couponsBy = new Map(coupons.map((r) => [r.source, r.n]));
@@ -112,6 +131,8 @@ export default async function NetworksPage() {
           </ul>
         )}
       </section>
+
+      <LinkFormats clients={clients} examples={examples} ourIds={ourIds} />
     </div>
   );
 }
