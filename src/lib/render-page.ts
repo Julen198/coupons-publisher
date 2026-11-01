@@ -28,18 +28,23 @@ export function couponAffiliateUrl(client: Client, store: Store, c: Pick<Coupon,
 
 // Standalone HTML the client pastes into their CMS or serves as-is.
 // With trackBase (absolute origin), buttons go through /go so the click is counted before redirecting to Awin.
-export function renderPage(client: Client, store: Store, coupons: Coupon[], now: Date, trackBase?: string): string {
+// With logoBase (our absolute origin), each card shows the store's icon from /store-logo/<slug>.
+export function renderPage(client: Client, store: Store, coupons: Coupon[], now: Date, trackBase?: string, logoBase?: string): string {
   const title = pageTitle(store.name, coupons.map((c) => c.discount), now);
   const faqs = parseFaqs(store.faqs);
   const updated = now.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
   const link = (c: Coupon) =>
     trackBase ? `${trackBase}/go/${encodeURIComponent(client.slug)}/${c.id}` : couponAffiliateUrl(client, store, c);
+  const logo =
+    store.has_logo && logoBase
+      ? `<img class="cp-logo" src="${esc(`${logoBase}/store-logo/${encodeURIComponent(store.slug)}`)}" alt="${esc(store.name)}" loading="lazy" onerror="this.remove()">`
+      : "";
 
   const cards = coupons
     .map(
       (c) => `
     <article class="cp">
-      <div class="cp-off${badge(c).length > 5 ? " sm" : ""}">${esc(badge(c))}</div>
+      <div class="cp-off${badge(c).length > 5 ? " sm" : ""}">${logo}${esc(badge(c))}</div>
       <div class="cp-body">
         <h3>${esc(c.title)}</h3>
         ${c.description ? `<p>${esc(c.description)}</p>` : ""}
@@ -72,6 +77,7 @@ ${clientFont(client).link}
   .cp{display:flex;gap:16px;align-items:center;border:1px solid #e5e5e5;border-radius:10px;padding:14px;margin:12px 0}
   .cp-off{min-width:72px;max-width:96px;text-align:center;font-weight:700;font-size:20px;line-height:1.15;color:${esc(client.brand_color)}}
   .cp-off.sm{font-size:15px}
+  .cp-logo{display:block;width:48px;height:48px;margin:0 auto 6px;object-fit:contain;border:1px solid #eee;border-radius:8px;padding:4px;background:#fff;box-sizing:border-box}
   .cp-body{flex:1}.cp-body h3{margin:0;font-size:16px}.cp-body p{margin:4px 0;font-size:14px}.cp-body small{color:#2a7a2a}
   .cp-btn{background:${esc(client.brand_color)};color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600;white-space:nowrap}
   .cp-btn.revealed{background:#fff;color:#1a1a1a;border:2px dashed ${esc(client.brand_color)};font-family:monospace}

@@ -9,5 +9,5 @@ export async function publicPageHtml(client: Client, store: Store, trackBase?: s
   const now = new Date();
   const [all, unverified] = await Promise.all([listCoupons(store.id), publishUnverified()]);
   const coupons = all.filter((c) => isPublic(c, today(now), unverified));
-  return renderPage(client, store, coupons, now, client.id > 0 ? trackBase : undefined);
+  return renderPage(client, store, coupons, now, client.id > 0 ? trackBase : undefined, trackBase);
 }

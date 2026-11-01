@@ -28,3 +28,9 @@ test("the module uses the client's web font when known", () => {
   assert.match(html, /font-family:'Montserrat',/);
   assert.doesNotMatch(renderPage(client, store, [], new Date("2026-10-01")), /fonts\.googleapis/);
 });
+
+test("cards show the store's icon when it has one and we know our origin", () => {
+  const html = renderPage(client, { ...store, has_logo: true }, [coupon], NOW, undefined, "https://demo.example");
+  assert.match(html, /<img class="cp-logo" src="https:\/\/demo\.example\/store-logo\/adidas" alt="adidas"/);
+  assert.doesNotMatch(renderPage(client, store, [coupon], NOW, undefined, "https://demo.example"), /cp-logo"/);
+});
