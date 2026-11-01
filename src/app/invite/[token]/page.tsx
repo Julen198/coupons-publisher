@@ -81,7 +81,7 @@ async function Invite({ params }: { params: Promise<{ token: string }> }) {
 
 export default function InvitePage({ params }: PageProps<"/invite/[token]">) {
   return (
-    <AuthShell headline="Te estábamos esperando para completar el mosaico.">
+    <AuthShell headline="Te estábamos esperando en el laboratorio.">
       <Suspense fallback={<p className="text-sm text-neutral-500">Comprobando la invitación…</p>}>
         <Invite params={params} />
       </Suspense>

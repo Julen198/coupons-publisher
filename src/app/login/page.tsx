@@ -4,7 +4,7 @@ import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
   return (
-    <AuthShell headline="Cada cupón, una tesela. Cada medio, su mosaico.">
+    <AuthShell headline="Cada medio, sus cupones. Hechos a su medida.">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-[26px] font-bold tracking-tight">Entra en tu panel</h1>
