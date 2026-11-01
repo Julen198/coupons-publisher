@@ -80,6 +80,21 @@ export async function regenerateInvite(_prev: InviteState, f: FormData): Promise
   }
 }
 
+// Only pending invitations can be deleted; active accounts are disabled instead, so their history stays attributed
+export async function cancelInvite(_prev: FormState, f: FormData): Promise<FormState> {
+  try {
+    await requireAdmin();
+    const [u] = await sql()<{ email: string }[]>`
+      DELETE FROM users WHERE id = ${Number(required(f, "id"))} AND status = 'pending' RETURNING email`;
+    if (!u) throw new Error("Esta invitación ya no está pendiente");
+    await logActivity(`Invitación cancelada para ${u.email}`);
+    revalidatePath("/settings");
+    return {};
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}
+
 export async function updateUser(_prev: FormState, f: FormData): Promise<FormState & { saved?: boolean }> {
   try {
     const me = await requireAdmin();
