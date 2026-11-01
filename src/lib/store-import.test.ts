@@ -15,9 +15,9 @@ test("pasted store lines: any separator, any order, name from the domain", () =>
     ].join("\n"),
   );
   assert.deepEqual(stores, [
-    { name: "Decathlon", slug: "decathlon", website: "https://www.decathlon.es", awin_merchant_id: "1234" },
-    { name: "Zalando", slug: "zalando", website: "https://zalando.es", awin_merchant_id: "5678" },
-    { name: "El Corte Inglés", slug: "el-corte-ingles", website: "https://elcorteingles.es/ofertas", awin_merchant_id: "17001" },
+    { name: "Decathlon", slug: "decathlon", website: "https://www.decathlon.es", merchant_id: "1234" },
+    { name: "Zalando", slug: "zalando", website: "https://zalando.es", merchant_id: "5678" },
+    { name: "El Corte Inglés", slug: "el-corte-ingles", website: "https://elcorteingles.es/ofertas", merchant_id: "17001" },
   ]);
   assert.deepEqual(rejected, ["Sin web", "Decathlon España; decathlon.es"]);
   assert.deepEqual(errors, ["Línea 6: falta la web (p. ej. sinweb.es)", "Línea 7: «Decathlon España» repite una tienda de la lista"]);

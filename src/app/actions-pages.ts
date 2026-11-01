@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { sql, type Client, type Coupon, type Store } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
-import { fetchOffers } from "@/lib/awin-demo";
 import { faqsToText, generateStoreContent } from "@/lib/ai-content";
 import { errorMessage, required, str } from "@/lib/form";
 import { DELIVERY_LABEL } from "@/lib/page-status";
@@ -52,24 +51,6 @@ export async function removePage(f: FormData) {
   await sql()`DELETE FROM pages WHERE client_id = ${client.id} AND store_id = ${store.id}`;
   await logActivity(`Página ${store.name} retirada de ${client.name}`);
   redirect(`/clients/${client.slug}`);
-}
-
-// ---------- Awin (demo catalogue) ----------
-
-export async function importAwinOffers(f: FormData) {
-  await requireEditor();
-  const [store] = await sql()<Store[]>`SELECT * FROM stores WHERE slug = ${required(f, "store")}`;
-  if (!store?.awin_merchant_id) throw new Error("La tienda no tiene merchant ID de Awin");
-  const wanted = new Set(f.getAll("offers").map(String));
-  const offers = fetchOffers(store.awin_merchant_id).filter((o) => wanted.has(o.id));
-  if (!offers.length) return;
-  const rows = offers.map((o) => ({
-    store_id: store.id, kind: o.kind, title: o.title, code: o.code, discount: o.discount, description: o.description,
-    target_url: o.url, expires_at: o.expires, verified: 1, source: "awin", awin_offer_id: o.id,
-  }));
-  const inserted = await sql()`INSERT INTO coupons ${sql()(rows)} ON CONFLICT (awin_offer_id) DO NOTHING RETURNING id`;
-  await logActivity(`${inserted.length} oferta(s) de Awin importadas en ${store.name}`);
-  revalidatePath("/", "layout");
 }
 
 // ---------- AI content ----------

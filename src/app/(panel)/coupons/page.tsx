@@ -94,7 +94,7 @@ export default async function CouponsPage({ searchParams }: PageProps<"/coupons"
           <h1 className="text-2xl font-semibold">Cupones</h1>
         </div>
         {editable && <div className="flex flex-wrap gap-2">
-          <Link href="/awin" className={btnSecondaryCls}>Importar de redes de afiliación</Link>
+          <Link href="/networks" className={btnSecondaryCls}>Importar de redes de afiliación</Link>
           <FindCouponsButton stores={stores.map((s) => ({ id: s.id, name: s.name, coupons: coupons.filter((c) => c.store_id === s.id && !c.archived).length }))} />
           <Link href={{ query: { ...here, new: "" } }} className={btnCls}>+ Nuevo cupón</Link>
         </div>}

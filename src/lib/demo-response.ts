@@ -67,7 +67,7 @@ const SAMPLE_STORE: Store = {
   name: "Tienda de ejemplo",
   slug: "ejemplo",
   website: "https://www.example.com",
-  awin_merchant_id: "",
+  merchant_id: "",
   network: "awin",
   tracking_url: "",
   has_logo: false,
@@ -77,7 +77,7 @@ const SAMPLE_STORE: Store = {
 
 const sample = (id: number, kind: Coupon["kind"], discount: string, title: string, code = ""): Coupon => ({
   id, store_id: -1, kind, title, code, discount, description: "Cupón de ejemplo", target_url: "https://www.example.com",
-  expires_at: "", verified: 1, archived: 0, source: "manual", source_url: "", awin_offer_id: null,
+  expires_at: "", verified: 1, archived: 0, source: "manual", source_url: "", external_id: null,
 });
 
 const SAMPLE_COUPONS: Coupon[] = [

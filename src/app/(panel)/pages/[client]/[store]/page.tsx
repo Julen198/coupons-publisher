@@ -25,7 +25,7 @@ export default async function GeneratorPage({ params, searchParams }: PageProps<
     { ok: true, text: `Título: «${pageTitle(store.name, live.map((c) => c.discount), now)}»` },
     { ok: live.length > 0, text: live.length ? `${live.length} cupones visibles` : "No hay cupones visibles" },
     store.network === "awin"
-      ? { ok: Boolean(client.awin_affiliate_id && store.awin_merchant_id), text: client.awin_affiliate_id && store.awin_merchant_id ? "Enlaces con el affiliate ID del medio" : "Faltan IDs de Awin: los enlaces irán sin tracking" }
+      ? { ok: Boolean(client.awin_affiliate_id && store.merchant_id), text: client.awin_affiliate_id && store.merchant_id ? "Enlaces con el affiliate ID del medio" : "Faltan IDs de Awin: los enlaces irán sin tracking" }
       : { ok: storeTracked(store), text: storeTracked(store) ? `Enlaces de ${networkLabel(store.network)} con el subid del medio` : `Falta el enlace de ${networkLabel(store.network)}: los enlaces irán sin tracking` },
     { ok: parseFaqs(store.faqs).length >= 3, text: `${parseFaqs(store.faqs).length} FAQs con datos estructurados` },
     ...(live.some((c) => statusOf(c, t) === "pending") ? [{ ok: false, text: `${live.filter((c) => statusOf(c, t) === "pending").length} cupón(es) sin verificar se mostrarán` }] : []),

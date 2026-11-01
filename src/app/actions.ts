@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { fetchStoreIcon } from "@/lib/store-icon";
+import { fillStoreIcons } from "@/lib/fill-store-icons";
 import { sql, type Client } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
 import { mapStoreLines } from "@/lib/store-import";
@@ -199,27 +199,13 @@ export async function generateDisguise(f: FormData) {
 
 // ---------- stores ----------
 
-// After the response: look up each new store's square icon on its website (a few at a time)
-async function fillStoreIcons(slugs: string[]) {
-  const queue = [...slugs];
-  await Promise.all(Array.from({ length: 6 }, async () => {
-    for (let slug = queue.shift(); slug; slug = queue.shift()) {
-      try {
-        const [store] = await sql()<{ website: string }[]>`SELECT website FROM stores WHERE slug = ${slug}`;
-        const icon = store ? await fetchStoreIcon(store.website) : "";
-        if (icon) await sql()`UPDATE stores SET logo_data = ${icon} WHERE slug = ${slug} AND logo_data = ''`;
-      } catch (e) {
-        console.error("store icon lookup failed", slug, e);
-      }
-    }
-  }));
-}
-
-// Awin keeps its merchant ID; any other network keeps the tracking link it gives ({url}/{ref} placeholders)
+// Every store keeps its advertiser id in its network (what the sync matches on); Awin builds links from it,
+// any other network keeps the tracking link it gives ({url}/{ref} placeholders)
 function storeTracking(f: FormData) {
   const network = asNetwork(str(f, "network"));
-  if (network === "awin") return { network, awin_merchant_id: digits(f, "awin_merchant_id", "El merchant ID"), tracking_url: "" };
-  return { network, awin_merchant_id: "", tracking_url: str(f, "tracking_url") ? url(f, "tracking_url", "El enlace de seguimiento") : "" };
+  const merchant_id = digits(f, "merchant_id", "El ID del anunciante");
+  if (network === "awin") return { network, merchant_id, tracking_url: "" };
+  return { network, merchant_id, tracking_url: str(f, "tracking_url") ? url(f, "tracking_url", "El enlace de seguimiento") : "" };
 }
 
 export async function createStore(_prev: FormState, f: FormData): Promise<FormState> {
@@ -231,8 +217,8 @@ export async function createStore(_prev: FormState, f: FormData): Promise<FormSt
     if (!s) throw new Error("El nombre necesita letras o números");
     const t = storeTracking(f);
     const r = await sql()`
-      INSERT INTO stores (name, slug, website, network, awin_merchant_id, tracking_url)
-      VALUES (${name}, ${s}, ${url(f, "website", "La web")}, ${t.network}, ${t.awin_merchant_id}, ${t.tracking_url})
+      INSERT INTO stores (name, slug, website, network, merchant_id, tracking_url)
+      VALUES (${name}, ${s}, ${url(f, "website", "La web")}, ${t.network}, ${t.merchant_id}, ${t.tracking_url})
       ON CONFLICT (slug) DO NOTHING`;
     if (!r.count) throw new Error(`Ya hay una tienda «${name}»`);
     await logActivity(`Nueva tienda: ${name}`);
@@ -262,8 +248,8 @@ export async function importStores(_prev: ImportStoresState, f: FormData): Promi
       // a store with the same slug already in the panel is left as it is; the number on each line is Awin's
       // merchant ID, other networks get their tracking link later on the store page
       const r = await sql()`
-        INSERT INTO stores (name, slug, website, network, awin_merchant_id)
-        VALUES (${st.name}, ${st.slug}, ${st.website}, ${network}, ${network === "awin" ? st.awin_merchant_id : ""})
+        INSERT INTO stores (name, slug, website, network, merchant_id)
+        VALUES (${st.name}, ${st.slug}, ${st.website}, ${network}, ${network === "awin" ? st.merchant_id : ""})
         ON CONFLICT (slug) DO NOTHING`;
       imported += r.count;
       if (r.count) newSlugs.push(st.slug);
@@ -321,7 +307,7 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
     await requireEditor();
     const t = storeTracking(f);
     await sql()`
-      UPDATE stores SET website = ${url(f, "website", "La web")}, network = ${t.network}, awin_merchant_id = ${t.awin_merchant_id},
+      UPDATE stores SET website = ${url(f, "website", "La web")}, network = ${t.network}, merchant_id = ${t.merchant_id},
         tracking_url = ${t.tracking_url},
         intro = ${str(f, "intro")}, faqs = ${str(f, "faqs")}
       WHERE slug = ${s}`;

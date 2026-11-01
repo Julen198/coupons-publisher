@@ -9,7 +9,7 @@ export interface StoreFilters {
   coupons?: "some" | "none";
 }
 
-type FilterableStore = { id: number; name: string; website: string; network: string; awin_merchant_id: string; tracking_url: string };
+type FilterableStore = { id: number; name: string; website: string; network: string; merchant_id: string; tracking_url: string };
 
 const norm = (v: string) => v.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 

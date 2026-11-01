@@ -101,7 +101,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/stores">)
                   </th>
                   <td className="px-2 py-3 text-xs">
                     {networkLabel(s.network)}
-                    {s.network === "awin" && s.awin_merchant_id && <span className="ml-1 font-mono text-neutral-500">{s.awin_merchant_id}</span>}
+                    {s.network === "awin" && s.merchant_id && <span className="ml-1 font-mono text-neutral-500">{s.merchant_id}</span>}
                     {!storeTracked(s) && <span className="ml-1 text-amber-700 dark:text-amber-400">{s.network === "awin" ? "· sin merchant ID" : "· sin enlace"}</span>}
                   </td>
                   <td className="px-2 py-3">

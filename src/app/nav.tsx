@@ -12,7 +12,7 @@ const MAIN = [
   { href: "/clicks", label: "Clics" },
 ];
 const SECONDARY = [
-  { href: "/awin", label: "Redes de afiliación" },
+  { href: "/networks", label: "Redes de afiliación" },
 ];
 const ADMIN = [
   { href: "/costs", label: "Costes de IA" },

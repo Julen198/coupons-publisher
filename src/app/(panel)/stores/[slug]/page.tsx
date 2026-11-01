@@ -63,13 +63,13 @@ export default async function StorePage({ params, searchParams }: PageProps<"/st
               <a href={store.website} target="_blank" className="text-blue-700 hover:underline dark:text-blue-300">{store.website.replace(/^https?:\/\//, "")}</a>
               <span>
                 {networkLabel(store.network)}
-                {store.network === "awin" ? <> merchant <span className="font-mono">{store.awin_merchant_id || "—"}</span></> : storeTracked(store) ? " · con enlace" : " · sin enlace de seguimiento"}
+                {store.network === "awin" ? <> merchant <span className="font-mono">{store.merchant_id || "—"}</span></> : storeTracked(store) ? " · con enlace" : " · sin enlace de seguimiento"}
               </span>
               <span>Publicada en {pages.filter((p) => p.status === "published").length} medios</span>
             </span>
           }
         >
-          {editable && store.network === "awin" && store.awin_merchant_id && <Link href={`/awin?store=${store.slug}`} className={btnSecondaryCls}>Importar de redes de afiliación</Link>}
+          {editable && <Link href="/networks" className={btnSecondaryCls}>Importar de redes de afiliación</Link>}
           {editable && <FindCouponsButton stores={[{ id: store.id, name: store.name, coupons: coupons.filter((c) => !c.archived).length }]} label="Buscar cupones en internet" />}
           {editable && <Link href={{ query: { tab: "cupones", new: "" } }} className={btnCls}>+ Añadir cupón</Link>}
         </PageHeader>
@@ -143,7 +143,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/st
 
       {tab === "contenido" && (
         <StoreContentForm
-          store={{ slug: store.slug, name: store.name, website: store.website, network: store.network, awin_merchant_id: store.awin_merchant_id, tracking_url: store.tracking_url, intro: store.intro, faqs: store.faqs }}
+          store={{ slug: store.slug, name: store.name, website: store.website, network: store.network, merchant_id: store.merchant_id, tracking_url: store.tracking_url, intro: store.intro, faqs: store.faqs }}
           discounts={coupons.filter((c) => !c.archived && statusOf(c, t) !== "expired").map((c) => c.discount)}
         />
       )}

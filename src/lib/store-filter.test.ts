@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { filterStores, paginate } from "./store-filter.ts";
 
-const s = (id: number, name: string, website: string, network = "awin", awin_merchant_id = "", tracking_url = "") =>
-  ({ id, name, website, network, awin_merchant_id, tracking_url });
+const s = (id: number, name: string, website: string, network = "awin", merchant_id = "", tracking_url = "") =>
+  ({ id, name, website, network, merchant_id, tracking_url });
 const stores = [
   s(1, "MediaMarkt", "https://www.mediamarkt.es", "awin", "123"),
   s(2, "Temu", "https://www.temu.com/es"),

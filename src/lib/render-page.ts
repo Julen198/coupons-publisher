@@ -23,7 +23,7 @@ export function clientFont(client: Pick<Client, "font_family" | "font_style">): 
 export function couponAffiliateUrl(client: Client, store: Store, c: Pick<Coupon, "id" | "target_url">) {
   const clickref = [client.clickref_prefix, store.slug, c.id].filter(Boolean).join("-");
   if (store.network !== "awin") return trackingUrl(store.tracking_url, c.target_url, clickref);
-  return affiliateUrl(c.target_url, { affiliateId: client.awin_affiliate_id, merchantId: store.awin_merchant_id, clickref });
+  return affiliateUrl(c.target_url, { affiliateId: client.awin_affiliate_id, merchantId: store.merchant_id, clickref });
 }
 
 // Standalone HTML the client pastes into their CMS or serves as-is.

@@ -10,7 +10,8 @@ interface NetworkFieldsProps {
   trackingUrl?: string;
 }
 
-// Awin builds links from its merchant ID; other networks use the tracking link they hand out
+// Awin builds links from its merchant ID; other networks use the tracking link they hand out.
+// The advertiser id is what the network sync matches on, so every network keeps it.
 export function NetworkFields({ network = "awin", merchantId = "", trackingUrl = "" }: NetworkFieldsProps) {
   const [net, setNet] = useState(network);
   return (
@@ -21,9 +22,8 @@ export function NetworkFields({ network = "awin", merchantId = "", trackingUrl =
           {NETWORKS.map((n) => <option key={n.id} value={n.id}>{n.label}</option>)}
         </select>
       </label>
-      {net === "awin" ? (
-        <Field label="Awin merchant ID" name="awin_merchant_id" inputMode="numeric" defaultValue={merchantId} placeholder="Opcional" />
-      ) : (
+      <Field label={net === "awin" ? "Awin merchant ID" : "ID del anunciante en la red"} name="merchant_id" inputMode="numeric" defaultValue={merchantId} placeholder="Opcional" />
+      {net !== "awin" && (
         <div className="flex flex-col gap-1 sm:col-span-2">
           <Field label="Enlace de seguimiento de la red" name="tracking_url" type="url" defaultValue={trackingUrl} placeholder="https://…?subid={ref}&url={url}" />
           <p className="text-xs text-neutral-500">

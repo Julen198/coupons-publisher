@@ -4,7 +4,7 @@ import { slugify } from "./form.ts";
 // Awin merchant ID in any order, separated by tab (Excel paste), ";" or ",". Every rejected line says why.
 // ponytail: no quoting — a comma inside a store name needs ";" or tab as separator
 
-export interface StoreInsert { name: string; slug: string; website: string; awin_merchant_id: string }
+export interface StoreInsert { name: string; slug: string; website: string; merchant_id: string }
 
 export const MAX_STORE_LINES = 500;
 const DOMAIN = /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i;
@@ -33,7 +33,7 @@ export function mapStoreLines(text: string): { stores: StoreInsert[]; errors: st
     const name = cells.find((c) => c !== id && c !== site);
     if (!site) return errors.push(`Línea ${line}: falta la web (p. ej. ${slugify(name ?? "tienda").replace(/-/g, "")}.es)`);
     const website = /^https?:\/\//i.test(site) ? site : `https://${site}`;
-    const store = { name: name ?? nameFromUrl(website), website, awin_merchant_id: id };
+    const store = { name: name ?? nameFromUrl(website), website, merchant_id: id };
     const slug = slugify(store.name);
     if (!slug) return errors.push(`Línea ${line}: el nombre necesita letras o números`);
     if (stores.some((s) => s.slug === slug || host(s.website) === host(website))) {

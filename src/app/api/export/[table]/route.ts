@@ -6,7 +6,7 @@ import { sql } from "@/lib/db";
 // Admin-only CSV downloads. Fixed table → query map: the URL never reaches SQL.
 const QUERIES = {
   clients: () => sql()`SELECT id, name, slug, domain, awin_affiliate_id, clickref_prefix, brand_color, logo_url, nav_items, font_style, font_family, layout, created_at FROM clients ORDER BY id`,
-  stores: () => sql()`SELECT id, name, slug, website, network, awin_merchant_id, tracking_url, intro, faqs, created_at FROM stores ORDER BY id`,
+  stores: () => sql()`SELECT id, name, slug, website, network, merchant_id, tracking_url, intro, faqs, created_at FROM stores ORDER BY id`,
   coupons: () => sql()`
     SELECT c.id, s.slug AS tienda, c.title AS titulo, c.code AS codigo, c.discount AS descuento, c.description AS descripcion,
            c.target_url AS url, c.expires_at AS caduca, c.verified AS verificado, c.archived AS retirado, c.source AS origen, c.created_at

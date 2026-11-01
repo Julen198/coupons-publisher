@@ -132,10 +132,41 @@ CREATE TABLE IF NOT EXISTS ai_usage (
   ok boolean NOT NULL DEFAULT true
 );
 CREATE INDEX IF NOT EXISTS ai_usage_at_idx ON ai_usage(at);
+
+-- ids stopped being Awin-only: merchant_id = the advertiser's id in the store's own network,
+-- external_id = "<network>:<offer id>" for coupons imported from a network (dedupes re-syncs)
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'stores' AND column_name = 'awin_merchant_id') THEN
+    ALTER TABLE stores RENAME COLUMN awin_merchant_id TO merchant_id;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'coupons' AND column_name = 'awin_offer_id') THEN
+    ALTER TABLE coupons RENAME COLUMN awin_offer_id TO external_id;
+  END IF;
+END $$;
+UPDATE coupons SET external_id = 'awin:' || external_id WHERE source = 'awin' AND external_id NOT LIKE 'awin:%';
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_source_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_source_check
+  CHECK (source IN ('manual', 'web', 'awin', 'tradedoubler', 'admitad', 'webgains'));
+
+-- affiliate network API accounts entered from the panel. client_id NULL = our own account;
+-- a client's id = that client's own publisher account. credentials = AES-GCM JSON (see lib/secrets.ts)
+CREATE TABLE IF NOT EXISTS network_accounts (
+  id serial PRIMARY KEY,
+  network text NOT NULL CHECK (network IN ('awin', 'tradedoubler', 'admitad', 'webgains')),
+  client_id int, -- no FK on purpose: TRUNCATE clients CASCADE (wipe) would take our own account with it
+  account_ref text NOT NULL DEFAULT '', -- non-secret id shown in the panel (publisher id, ad space id…)
+  credentials text NOT NULL,
+  last_sync_at timestamptz,
+  last_result text NOT NULL DEFAULT '',
+  last_error text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS network_accounts_owner_idx ON network_accounts(network, coalesce(client_id, 0));
+ALTER TABLE network_accounts ENABLE ROW LEVEL SECURITY;
 -- calls made before tracking existed, backfilled from measured averages
 ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS estimated boolean NOT NULL DEFAULT false;
 ALTER TABLE ai_usage ENABLE ROW LEVEL SECURITY;
 `;
 
-// "Borrar todos los datos" in Administración: business data only, users and settings stay
-export const WIPE_DATA_SQL = `TRUNCATE clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;
+// "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay
+export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;

@@ -8,7 +8,7 @@ import { btnCls, btnSecondaryCls, cardCls, Field, inputCls } from "@/app/ui";
 import { NetworkFields } from "../network-fields";
 
 interface StoreContentProps {
-  store: { slug: string; name: string; website: string; network: string; awin_merchant_id: string; tracking_url: string; intro: string; faqs: string };
+  store: { slug: string; name: string; website: string; network: string; merchant_id: string; tracking_url: string; intro: string; faqs: string };
   discounts: string[];
 }
 
@@ -40,7 +40,7 @@ export function StoreContentForm({ store, discounts }: StoreContentProps) {
         <input type="hidden" name="slug" value={store.slug} />
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Web" name="website" type="url" required defaultValue={store.website} />
-          <NetworkFields network={store.network} merchantId={store.awin_merchant_id} trackingUrl={store.tracking_url} />
+          <NetworkFields network={store.network} merchantId={store.merchant_id} trackingUrl={store.tracking_url} />
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 pt-4 dark:border-neutral-800">
