@@ -16,7 +16,8 @@ import {
   bareDomain, digits, errorMessage, hexColor, ids, isoDate, required, slugify, str, url, type FormState,
 } from "@/lib/form";
 import { canSeeClient, requireAdmin, requireEditor } from "@/lib/auth";
-import { verifyPassword } from "@/lib/password";
+import { newToken, verifyPassword } from "@/lib/password";
+import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, magicLinkEmail, sendEmail } from "@/lib/magic-link";
 import { SESSION_COOKIE, safeNext } from "@/lib/session";
 import { startSession } from "@/lib/start-session";
 
@@ -37,6 +38,43 @@ export async function login(_prev: FormState, f: FormData): Promise<FormState> {
     await new Promise((r) => setTimeout(r, FAILED_LOGIN_DELAY_MS));
     return { error: "Email o contraseña incorrectos." };
   }
+  await startSession(user.id, user.session_version);
+  redirect(safeNext(str(f, "next")));
+}
+
+export type MagicLinkState = FormState & { sentTo?: string };
+
+// Same answer whether or not the email has an account, so the form can't probe who's registered
+export async function requestMagicLink(_prev: MagicLinkState, f: FormData): Promise<MagicLinkState> {
+  const email = str(f, "email").toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Escribe un email válido." };
+  const token = newToken();
+  const [user] = await sql()<{ name: string }[]>`
+    UPDATE users SET login_token_hash = ${hashToken(token)}, login_expires_at = now() + ${MAGIC_LINK_MINUTES} * interval '1 minute'
+    WHERE email = ${email} AND status = 'active'
+      AND (login_expires_at IS NULL OR login_expires_at < now() + ${MAGIC_LINK_MINUTES * 60 - MAGIC_LINK_COOLDOWN_SECONDS} * interval '1 second')
+    RETURNING name`;
+  if (user) {
+    const link = `${appUrl()}/login/magic?token=${token}&next=${encodeURIComponent(safeNext(str(f, "next")))}`;
+    try {
+      await sendEmail(email, magicLinkEmail(user.name, link));
+    } catch (e) {
+      console.error("[magic-link] send failed", e);
+    }
+  }
+  return { sentTo: email };
+}
+
+// POST (button on /login/magic), not GET: mail scanners that prefetch links would burn the token
+export async function consumeMagicLink(_prev: FormState, f: FormData): Promise<FormState> {
+  const token = str(f, "token");
+  const [user] = /^[0-9a-f]{64}$/.test(token)
+    ? await sql()<{ id: number; session_version: number }[]>`
+        UPDATE users SET login_token_hash = NULL, login_expires_at = NULL
+        WHERE login_token_hash = ${hashToken(token)} AND login_expires_at > now() AND status = 'active'
+        RETURNING id, session_version`
+    : [];
+  if (!user) return { error: "El enlace ha caducado o ya se usó." };
   await startSession(user.id, user.session_version);
   redirect(safeNext(str(f, "next")));
 }

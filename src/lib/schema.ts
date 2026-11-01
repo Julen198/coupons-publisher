@@ -110,6 +110,9 @@ CREATE TABLE IF NOT EXISTS users (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+-- magic link sign-in: sha256 of the emailed token, single use, short-lived
+ALTER TABLE users ADD COLUMN IF NOT EXISTS login_token_hash text UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS login_expires_at timestamptz;
 
 CREATE TABLE IF NOT EXISTS settings (
   key text PRIMARY KEY,

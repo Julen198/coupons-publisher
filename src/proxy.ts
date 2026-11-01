@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
 // Reachable without signing in: login, accepting an invitation, and what publishers embed on their sites
-const PUBLIC = [/^\/login$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//];
+const PUBLIC = [/^\/login$/, /^\/login\/magic$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//];
 
 // First gate only (signature check, no DB). Pages and actions re-check the user, role and session version.
 export async function proxy(req: NextRequest) {

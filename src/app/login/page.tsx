@@ -8,7 +8,7 @@ export default function LoginPage() {
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-[26px] font-bold tracking-tight">Entra en tu panel</h1>
-          <p className="text-[15px] text-neutral-600 dark:text-neutral-400">Con el email y la contraseña de tu cuenta.</p>
+          <p className="text-[15px] text-neutral-600 dark:text-neutral-400">Con tu contraseña o con un enlace que te enviamos por email.</p>
         </div>
         <Suspense>
           <LoginForm />
