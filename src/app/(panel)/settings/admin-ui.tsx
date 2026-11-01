@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState, useSyncExternalStore } from "react";
-import { cancelInvite, importCoupons, inviteUser, regenerateInvite, updateUser, wipeAllData, type InviteState } from "@/app/actions-admin";
+import { deleteUser, importCoupons, inviteUser, regenerateInvite, updateUser, wipeAllData, type InviteState } from "@/app/actions-admin";
 import type { Role } from "@/lib/auth";
 import type { FormState } from "@/lib/form";
 import { btnCls, btnSecondaryCls, Field, inputCls } from "@/app/ui";
@@ -118,8 +118,6 @@ export function EditUserButton({ user, clients, isMe }: { user: EditUser; client
   const [role, setRole] = useState<Role>(user.role);
   const [state, formAction, pending] = useActionState<FormState & { saved?: boolean }, FormData>(updateUser, {});
   const [inviteState, inviteAction, invitePending] = useActionState<InviteState, FormData>(regenerateInvite, {});
-  const [cancelState, cancelAction, cancelPending] = useActionState<FormState, FormData>(cancelInvite, {});
-  const [confirmCancel, setConfirmCancel] = useState(false);
 
   return (
     <>
@@ -153,25 +151,42 @@ export function EditUserButton({ user, clients, isMe }: { user: EditUser; client
                   <span className="text-sm text-neutral-600 dark:text-neutral-400">¿No le llegó? Le enviamos un enlace nuevo por email (el anterior deja de funcionar).</span>
                   <button disabled={invitePending} className={`${btnSecondaryCls} min-h-10`}>{invitePending ? "Enviando…" : "Reenviar invitación"}</button>
                 </form>
-                <form action={cancelAction} className="flex flex-wrap items-center justify-between gap-3">
-                  <input type="hidden" name="id" value={user.id} />
-                  <span className="text-sm text-neutral-600 dark:text-neutral-400">{confirmCancel ? "¿Seguro? Su enlace dejará de funcionar." : "¿Ya no hace falta? Borra la invitación."}</span>
-                  {confirmCancel ? (
-                    <span className="flex gap-2">
-                      <button type="button" onClick={() => setConfirmCancel(false)} className={`${btnSecondaryCls} min-h-10`}>No</button>
-                      <button disabled={cancelPending} className="min-h-10 rounded-md bg-red-700 px-3 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50">{cancelPending ? "Cancelando…" : "Sí, cancelar"}</button>
-                    </span>
-                  ) : (
-                    <button type="button" onClick={() => setConfirmCancel(true)} className={`${btnSecondaryCls} min-h-10 text-red-800 dark:text-red-300`}>Cancelar invitación</button>
-                  )}
-                </form>
               </div>
             )}
-            {(inviteState.error || cancelState.error) && <p role="alert" className="mt-2 text-sm text-red-800 dark:text-red-300">{inviteState.error || cancelState.error}</p>}
+            {inviteState.error && <p role="alert" className="mt-2 text-sm text-red-800 dark:text-red-300">{inviteState.error}</p>}
           </div>
         )}
+        {!isMe && <DeleteUserForm id={user.id} pending={user.status === "pending"} />}
       </Dialog>
     </>
+  );
+}
+
+// Two-step inline confirm (no browser dialog). On success the row, and this dialog with it, unmounts.
+function DeleteUserForm({ id, pending: isInvite }: { id: number; pending: boolean }) {
+  const [state, action, busy] = useActionState<FormState, FormData>(deleteUser, {});
+  const [confirm, setConfirm] = useState(false);
+  const label = isInvite ? "Cancelar invitación" : "Eliminar usuario";
+  return (
+    <form action={action} className="flex flex-col gap-2 border-t border-neutral-200 px-5 py-4 dark:border-neutral-800">
+      <input type="hidden" name="id" value={id} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-sm text-neutral-600 dark:text-neutral-400">
+          {confirm
+            ? isInvite ? "¿Seguro? Su enlace dejará de funcionar." : "¿Seguro? Perderá el acceso y no se puede deshacer."
+            : isInvite ? "¿Ya no hace falta? Borra la invitación." : "Borra la cuenta y cierra sus sesiones."}
+        </span>
+        {confirm ? (
+          <span className="flex gap-2">
+            <button type="button" onClick={() => setConfirm(false)} className={`${btnSecondaryCls} min-h-10`}>No</button>
+            <button disabled={busy} className="min-h-10 rounded-md bg-red-700 px-3 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50">{busy ? "Eliminando…" : `Sí, ${label.toLowerCase()}`}</button>
+          </span>
+        ) : (
+          <button type="button" onClick={() => setConfirm(true)} className={`${btnSecondaryCls} min-h-10 text-red-800 dark:text-red-300`}>{label}</button>
+        )}
+      </div>
+      {state.error && <p role="alert" className="text-sm text-red-800 dark:text-red-300">{state.error}</p>}
+    </form>
   );
 }
 

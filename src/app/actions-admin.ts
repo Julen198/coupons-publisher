@@ -80,14 +80,20 @@ export async function regenerateInvite(_prev: InviteState, f: FormData): Promise
   }
 }
 
-// Only pending invitations can be deleted; active accounts are disabled instead, so their history stays attributed
-export async function cancelInvite(_prev: FormState, f: FormData): Promise<FormState> {
+// Deletes an account or a pending invitation. Nothing references users by id (activity keeps names as text),
+// and a deleted user's session cookie stops working because getUser no longer finds them.
+export async function deleteUser(_prev: FormState, f: FormData): Promise<FormState> {
   try {
-    await requireAdmin();
-    const [u] = await sql()<{ email: string }[]>`
-      DELETE FROM users WHERE id = ${Number(required(f, "id"))} AND status = 'pending' RETURNING email`;
-    if (!u) throw new Error("Esta invitación ya no está pendiente");
-    await logActivity(`Invitación cancelada para ${u.email}`);
+    const me = await requireAdmin();
+    const id = Number(required(f, "id"));
+    if (id === me.id) throw new Error("No puedes eliminarte a ti mismo");
+    const [u] = await sql()<{ email: string; status: string }[]>`
+      DELETE FROM users WHERE id = ${id}
+        AND (role <> 'admin' OR status <> 'active'
+          OR EXISTS (SELECT 1 FROM users o WHERE o.role = 'admin' AND o.status = 'active' AND o.id <> ${id}))
+      RETURNING email, status`;
+    if (!u) throw new Error("No se pudo eliminar: ya no existe o es el último administrador activo");
+    await logActivity(u.status === "pending" ? `Invitación cancelada para ${u.email}` : `Usuario eliminado: ${u.email}`);
     revalidatePath("/settings");
     return {};
   } catch (e) {
