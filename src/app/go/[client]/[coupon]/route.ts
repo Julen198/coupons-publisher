@@ -1,5 +1,8 @@
 import { sql, type Client, type Coupon, type Store } from "@/lib/db";
+import { canRedirect } from "@/lib/coupon-status";
 import { couponAffiliateUrl } from "@/lib/render-page";
+import { publishUnverified } from "@/lib/settings";
+import { madridToday } from "@/lib/site-text";
 
 // Crawlers and link-preview fetchers follow links too; don't count them as clicks
 const BOT_UA = /bot|crawl|spider|slurp|preview|facebookexternalhit|embedly|headless|curl|wget|python-requests/i;
@@ -15,6 +18,8 @@ export async function GET(req: Request, ctx: RouteContext<"/go/[client]/[coupon]
   const [coupon] = await db<Coupon[]>`SELECT * FROM coupons WHERE id = ${couponId}`;
   const [store] = coupon ? await db<Store[]>`SELECT * FROM stores WHERE id = ${coupon.store_id}` : [];
   if (!client || !coupon || !store) return new Response("No encontrado", { status: 404 });
+  // pending/rejected reader shares, archived, expired: no redirect and no click
+  if (!canRedirect(coupon, madridToday().iso, await publishUnverified())) return new Response("No encontrado", { status: 404 });
   // the client's own account in this store's network, if it has one; otherwise ours
   const [own] = await db<{ tracking_url: string }[]>`
     SELECT tracking_url FROM client_tracking WHERE client_id = ${client.id} AND store_id = ${store.id} AND network = ${store.network}`;

@@ -67,9 +67,10 @@ export function parseSharedDeal(get: (k: string) => string, storeSlugs: Readonly
   if (title.length < 5 || title.length > 120) return { ok: false, error: "El título debe tener entre 5 y 120 caracteres." };
   const parsed = URL.canParse(url) ? new URL(url) : null;
   if (!parsed || parsed.protocol !== "https:") return { ok: false, error: "El enlace debe ser una dirección https." };
+  if (parsed.href.length > 2048) return { ok: false, error: "El enlace es demasiado largo (máximo 2048 caracteres)." };
   if (code.length > 40 || /\s/.test(code)) return { ok: false, error: "El código no puede llevar espacios ni pasar de 40 caracteres." };
   if (discount.length > 40) return { ok: false, error: "El descuento no puede pasar de 40 caracteres." };
   if (description.length > 500) return { ok: false, error: "La descripción no puede pasar de 500 caracteres." };
   if (expires_at && !isRealDate(expires_at)) return { ok: false, error: "La fecha de caducidad no es válida." };
-  return { ok: true, value: { store, title, url, code, discount, description, expires_at } };
+  return { ok: true, value: { store, title, url: parsed.href, code, discount, description, expires_at } };
 }

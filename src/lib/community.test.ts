@@ -61,6 +61,9 @@ test("parseSharedDeal validates a reader's deal", () => {
   assert.equal(parseSharedDeal(form({ ...good, expires_at: "" }), stores).ok, true);
   assert.equal(parseSharedDeal(form({ ...good, expires_at: "2026-02-31" }), stores).ok, false);
   assert.equal(parseSharedDeal(form({ ...good, code: "A".repeat(41) }), stores).ok, false);
+  const spaced = parseSharedDeal(form({ ...good, url: "https://www.pccomponentes.com/ssd 2 tb/ñ" }), stores);
+  assert.deepEqual(spaced.ok && spaced.value.url, "https://www.pccomponentes.com/ssd%202%20tb/%C3%B1");
+  assert.equal(parseSharedDeal(form({ ...good, url: `https://x.es/${"a".repeat(2040)}` }), stores).ok, false);
   assert.equal(parseSharedDeal(form({ ...good, code: "AB CD" }), stores).ok, false);
   assert.equal(parseSharedDeal(form({ ...good, discount: "x".repeat(41) }), stores).ok, false);
   assert.equal(parseSharedDeal(form({ ...good, description: "x".repeat(501) }), stores).ok, false);

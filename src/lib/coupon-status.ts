@@ -39,3 +39,7 @@ export function matchesFilter(c: StatusFields, filter: StatusFilter, todayStr: s
 // (unless the admin turned on "publish unverified" while demoing the product)
 export const isPublic = (c: StatusFields & { source?: string }, todayStr: string, publishUnverified = false) =>
   ["ok", "pending"].includes(statusOf(c, todayStr)) && (publishUnverified || !(c.source === "web" && !c.verified));
+
+// Whether /go may redirect to and count a click on this coupon: public, and never one still under review
+export const canRedirect = (c: StatusFields & { source?: string; review?: string }, todayStr: string, publishUnverified = false) =>
+  (c.review ?? "") === "" && isPublic(c, todayStr, publishUnverified);

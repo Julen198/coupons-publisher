@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { daysUntil, expiresSoon, isPublic, matchesFilter, statusOf, today } from "./coupon-status.ts";
+import { canRedirect, daysUntil, expiresSoon, isPublic, matchesFilter, statusOf, today } from "./coupon-status.ts";
 
 const T = "2026-10-23";
 const c = (verified: number, expires_at = "", archived = 0) => ({ verified, expires_at, archived });
@@ -49,4 +49,15 @@ test("demo mode can publish unverified web finds (never expired or archived ones
   assert.equal(isPublic({ verified: 0, archived: 0, expires_at: "", source: "web" }, t, true), true);
   assert.equal(isPublic({ verified: 0, archived: 1, expires_at: "", source: "web" }, t, true), false);
   assert.equal(isPublic({ verified: 0, archived: 0, expires_at: "2026-01-01", source: "web" }, t, true), false);
+});
+
+test("canRedirect only for public, reviewed coupons", () => {
+  const live = { verified: 1, archived: 0, expires_at: "", source: "manual", review: "" };
+  assert.equal(canRedirect(live, T, false), true);
+  assert.equal(canRedirect({ ...live, archived: 1, review: "pending" }, T, false), false);
+  assert.equal(canRedirect({ ...live, archived: 1, review: "rejected" }, T, false), false);
+  assert.equal(canRedirect({ ...live, review: "pending" }, T, false), false);
+  assert.equal(canRedirect({ ...live, expires_at: "2026-10-01" }, T, false), false);
+  assert.equal(canRedirect({ ...live, source: "web", verified: 0 }, T, false), false);
+  assert.equal(canRedirect({ ...live, source: "web", verified: 0 }, T, true), true);
 });
