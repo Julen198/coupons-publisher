@@ -27,7 +27,7 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? "";
 // One template for every transactional email: greeting, one paragraph, one button, footer note
 function layout(name: string, body: string, cta: string, link: string, footer: string): string {
   return `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:auto;padding:24px;color:#171717">
-<h1 style="font-size:22px;margin:0 0 12px">Hola, ${escapeHtml(firstName(name))}</h1>
+<h1 style="font-size:22px;margin:0 0 12px">${escapeHtml(firstName(name) ? `Hola, ${firstName(name)}` : "Hola")}</h1>
 <p style="font-size:15px;line-height:1.5;margin:0 0 20px">${escapeHtml(body)}</p>
 <a href="${escapeHtml(link)}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:8px">${escapeHtml(cta)}</a>
 <p style="font-size:13px;color:#525252;margin:24px 0 0">${escapeHtml(footer)}</p>
@@ -41,6 +41,16 @@ export function magicLinkEmail(name: string, link: string): Mail {
     subject: "Tu enlace para entrar en CuponLab",
     text: `Hola, ${firstName(name)}.\n\n${body}\n${link}\n\n${footer}`,
     html: layout(name, body, "Entrar en CuponLab", link, footer),
+  };
+}
+
+export function readerLinkEmail(link: string): Mail {
+  const body = `Pulsa el botón para entrar en CuponLab. El enlace caduca en ${MAGIC_LINK_MINUTES} minutos y solo sirve una vez.`;
+  const footer = "Si no lo has pedido tú, ignora este email.";
+  return {
+    subject: "Tu enlace para entrar en CuponLab",
+    text: `Hola.\n\n${body}\n${link}\n\n${footer}`,
+    html: layout("", body, "Entrar en CuponLab", link, footer),
   };
 }
 

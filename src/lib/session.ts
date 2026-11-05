@@ -52,4 +52,4 @@ export function safeEqual(a: string, b: string): boolean {
 }
 
 // Only same-site relative paths, so ?next= can't bounce people to another domain
-export const safeNext = (next: string | null | undefined) => (next && next.startsWith("/") && !next.startsWith("//") ? next : "/panel");
+export const safeNext = (next: string | null | undefined, fallback = "/panel") => (next && next.startsWith("/") && !next.startsWith("//") ? next : fallback);

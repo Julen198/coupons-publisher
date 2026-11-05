@@ -43,3 +43,10 @@ test("reader tokens round-trip and are not panel tokens", async () => {
   assert.equal(await verifyReader("s3cret", t.replace(".2.", ".3.")), null);
   assert.equal(await verifyReader(undefined, t), null);
 });
+
+test("safeNext falls back per caller", () => {
+  assert.equal(safeNext("//evil.com", "/"), "/");
+  assert.equal(safeNext(null, "/"), "/");
+  assert.equal(safeNext("/chollos/5-x"), "/chollos/5-x");
+  assert.equal(safeNext(undefined), "/panel");
+});
