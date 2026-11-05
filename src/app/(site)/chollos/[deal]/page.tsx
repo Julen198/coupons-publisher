@@ -5,9 +5,10 @@ import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, factsOf } from "@/lib/catalog";
 import { currentVotes, dealComments, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
-import { timeAgo } from "@/lib/community";
+import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
 import { daysBetween, dealPath, longDate, madridToday, parseDealId, siteUrl } from "@/lib/site-text";
 import { CommentForm } from "./comment-form";
+import { CommentItem } from "./comment-item";
 import { CopyCode } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
 import { Crumbs, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, conditionsOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: PageProps<"/chollos/[deal]">)
   };
 }
 
-export default async function DealPage({ params }: PageProps<"/chollos/[deal]">) {
+export default async function DealPage({ params, searchParams }: PageProps<"/chollos/[deal]">) {
   const param = (await params).deal;
   const found = await load(param);
   if (!found) notFound();
@@ -46,14 +47,16 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
   // old or mistyped words after the id: send readers and crawlers to the one canonical URL
   if (`/chollos/${param}` !== dealPath(c)) permanentRedirect(dealPath(c));
 
-  const [client, store, all, mine, comments, reader] = await Promise.all([
+  const reader = await getReader();
+  const [client, store, all, mine, comments] = await Promise.all([
     siteClient(),
     siteStoreById(c.store_id),
     siteCoupons(),
     currentVotes(),
-    dealComments(c.id),
-    getReader(),
+    dealComments(c.id, reader?.id ?? null),
   ]);
+  const replyingTo = couponIdOf(String((await searchParams).responder ?? ""));
+  const threads = threadComments(comments);
   const now = new Date();
   const { iso: today } = madridToday();
   const base = siteUrl();
@@ -200,16 +203,12 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
           <section className="dt-sec" id="comentarios">
             <h2>{comments.length === 1 ? "1 comentario" : `${comments.length} comentarios`}</h2>
             <div className="comments">
-              {comments.map((m) => (
-                <article key={m.id} className="cm">
-                  <div className="cm-h">
-                    <b>@{m.handle}</b>
-                    {m.by_sharer && <span className="op">Autor</span>}
-                    <span>{timeAgo(new Date(m.created_at), now)}</span>
-                  </div>
-                  <p>{m.body}</p>
-                </article>
-              ))}
+              {threads.map(({ comment: m, replies }) => {
+                const item = (x: typeof m) => (
+                  <CommentItem key={x.id} m={x} now={now} path={dealPath(c)} couponId={c.id} live={live} viewer={reader} replying={replyingTo === x.id} />
+                );
+                return [item(m), ...replies.map(item)];
+              })}
               {live &&
                 (!reader ? (
                   <div className="cm-form">

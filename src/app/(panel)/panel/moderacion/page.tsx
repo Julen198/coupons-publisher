@@ -9,7 +9,7 @@ type Shared = {
   store_name: string; handle: string | null;
 };
 type CommentRow = {
-  id: number; body: string; hidden: number; created_at: Date;
+  id: number; parent_id: number | null; body: string; hidden: number; created_at: Date;
   reader_id: number; handle: string; status: string; title: string;
 };
 
@@ -23,7 +23,7 @@ async function loadShared() {
 
 async function loadComments() {
   return (await sql()<CommentRow[]>`
-    SELECT k.id, k.body, k.hidden, k.created_at, r.id AS reader_id, r.handle, r.status, c.title
+    SELECT k.id, k.parent_id, k.body, k.hidden, k.created_at, r.id AS reader_id, r.handle, r.status, c.title
     FROM comments k JOIN readers r ON r.id = k.reader_id JOIN coupons c ON c.id = k.coupon_id
     ORDER BY k.created_at DESC, k.id DESC LIMIT 100`).map((r) => ({ ...r }));
 }
@@ -75,7 +75,7 @@ export default async function ModerationPage() {
           <div key={k.id} className={`${cardCls} space-y-3 ${k.hidden ? "opacity-60" : ""}`}>
             <div>
               <p className="text-sm text-neutral-500">
-                {k.title} · @{k.handle}{k.status === "blocked" ? " (bloqueado)" : ""} · {fmtDateTime(k.created_at)}
+                {k.title} · {k.parent_id ? "respuesta · " : ""}@{k.handle}{k.status === "blocked" ? " (bloqueado)" : ""} · {fmtDateTime(k.created_at)}
               </p>
               <p className="whitespace-pre-line text-sm">{k.body}</p>
             </div>

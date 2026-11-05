@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { cleanComment, cleanHandle, couponIdOf, nextVote, parseSharedDeal, validEmail, type VoteValue } from "@/lib/community";
+import { cleanComment, cleanHandle, couponIdOf, nextVote, parseSharedDeal, replyParent, validEmail, type VoteValue } from "@/lib/community";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
@@ -124,13 +124,48 @@ export async function postComment(_prev: FormState, f: FormData): Promise<FormSt
   // raw value, not str(): str() trims, and cleanComment owns the trimming
   const body = cleanComment(String(f.get("body") ?? ""));
   if (!body) return { error: "Escribe entre 2 y 1000 caracteres" };
+  // a reply points at a visible comment of this same coupon; replying to a reply joins the top-level thread
+  const rawParent = str(f, "parent_id");
+  let parentId: number | null = null;
+  if (rawParent) {
+    const target = couponIdOf(rawParent);
+    const [row] = target
+      ? await sql()<{ id: number; parent_id: number | null }[]>`
+          SELECT k.id, k.parent_id FROM comments k JOIN readers r ON r.id = k.reader_id
+          WHERE k.id = ${target} AND k.coupon_id = ${found.coupon.id} AND k.hidden = 0 AND r.status = 'active'`
+      : [];
+    if (!row) return { error: "Ese comentario ya no existe" };
+    parentId = replyParent(row.id, row.parent_id);
+  }
   const [recent] = await sql()<{ n: number }[]>`
     SELECT count(*)::int AS n FROM comments
     WHERE reader_id = ${reader.id} AND created_at > now() - ${COMMENT_COOLDOWN_SECONDS} * interval '1 second'`;
   if (recent.n > 0) return { error: "Espera unos segundos antes de volver a comentar" };
-  await sql()`INSERT INTO comments (coupon_id, reader_id, body) VALUES (${found.coupon.id}, ${reader.id}, ${body})`;
+  await sql()`INSERT INTO comments (coupon_id, reader_id, body, parent_id) VALUES (${found.coupon.id}, ${reader.id}, ${body}, ${parentId})`;
+  // a reply form is a page of its own (?responder=): go back to the thread, which also closes the form
+  if (parentId) redirect(safeNext(str(f, "next"), "/"));
   refresh();
   return { posted: true };
+}
+
+// Works without client JS. Signed-out readers go to sign in and come back; you can't mark your own comment.
+export async function toggleHelpful(f: FormData): Promise<void> {
+  const next = safeNext(str(f, "next"), "/");
+  const reader = await getReader();
+  if (!reader) redirect(`/entrar?next=${encodeURIComponent(next)}`);
+  const commentId = couponIdOf(str(f, "comment_id"));
+  if (!commentId) return;
+  const [comment] = await sql()<{ coupon_id: number; reader_id: number }[]>`
+    SELECT k.coupon_id, k.reader_id FROM comments k JOIN readers r ON r.id = k.reader_id
+    WHERE k.id = ${commentId} AND k.hidden = 0 AND r.status = 'active'`;
+  if (!comment || comment.reader_id === reader.id) return;
+  const found = await siteCoupon(comment.coupon_id);
+  if (!found?.live) return;
+  const removed = await sql()`DELETE FROM comment_votes WHERE reader_id = ${reader.id} AND comment_id = ${commentId} RETURNING comment_id`;
+  if (removed.length === 0) {
+    await sql()`INSERT INTO comment_votes (reader_id, comment_id) VALUES (${reader.id}, ${commentId}) ON CONFLICT DO NOTHING`;
+  }
+  refresh();
 }
 
 const SHARE_LIMIT_PER_DAY = 5;

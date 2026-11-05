@@ -301,6 +301,11 @@
 .cl .cm-h b { color: var(--ink); font-size: .9rem; }
 .cl .cm-h .op { font-size: .7rem; font-weight: 700; color: var(--brand); border: 1px solid var(--brand); border-radius: 3px; padding: 0 4px; }
 .cl .cm p { color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+.cl .cm-f { font-size: .8rem; color: var(--ink-3); display: flex; gap: 14px; }
+.cl .cm-f a, .cl .cm-f button { color: var(--ink-2); font: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: none; }
+.cl .cm-f a:hover, .cl .cm-f button:hover { color: var(--brand); text-decoration: underline; }
+.cl .cm-f button[aria-pressed="true"] { color: var(--brand); font-weight: 700; }
+.cl .reply { margin-left: 28px; }
 .cl .cm-form { padding: 14px 16px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
 .cl .comments > :first-child.cm-form { border-top: 0; }
 .cl .cm-form textarea { width: 100%; min-height: 70px; border: 1px solid var(--line); border-radius: 6px; padding: 10px; font: inherit; background: var(--bg); color: var(--ink); resize: vertical; }

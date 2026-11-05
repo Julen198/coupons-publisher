@@ -236,7 +236,17 @@ ALTER TABLE coupons ADD COLUMN IF NOT EXISTS shared_by int REFERENCES readers(id
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS review text NOT NULL DEFAULT '';
 ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_review_check;
 ALTER TABLE coupons ADD CONSTRAINT coupons_review_check CHECK (review IN ('', 'pending', 'rejected'));
+-- readers mark comments as useful; replies point at their top-level comment (one level deep)
+CREATE TABLE IF NOT EXISTS comment_votes (
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  comment_id int NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, comment_id)
+);
+CREATE INDEX IF NOT EXISTS comment_votes_comment_idx ON comment_votes(comment_id);
+ALTER TABLE comment_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id int REFERENCES comments(id) ON DELETE CASCADE;
 `;
 
-// "Borrar todos los datos" in Administración: business data only (reader accounts, votes and comments go too); panel users, settings and our own network accounts stay
-export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comments, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;
+// "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks go too); panel users, settings and our own network accounts stay
+export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comment_votes, comments, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;

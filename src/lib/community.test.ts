@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { byVotes, cleanComment, cleanHandle, couponIdOf, flagOf, MAX_EMAIL_LENGTH, nextVote, parseSharedDeal, timeAgo, validEmail } from "./community.ts";
+import { byVotes, cleanComment, cleanHandle, couponIdOf, flagOf, MAX_EMAIL_LENGTH, nextVote, parseSharedDeal, replyParent, usefulLabel, threadComments, timeAgo, validEmail } from "./community.ts";
 
 test("cleanHandle", () => {
   assert.equal(cleanHandle("  Runner_Bilbo "), "runner_bilbo");
@@ -84,4 +84,29 @@ test("validEmail checks shape and the 254 character cap", () => {
   assert.equal(long.length, MAX_EMAIL_LENGTH);
   assert.equal(validEmail(long), true);
   assert.equal(validEmail(`a${long}`), false);
+});
+
+test("replyParent attaches a reply to the top-level comment", () => {
+  assert.equal(replyParent(7, null), 7);
+  assert.equal(replyParent(9, 7), 7);
+});
+
+test("threadComments nests replies one level, oldest first, and keeps replies whose parent is hidden out", () => {
+  const rows = [
+    { id: 1, parent_id: null },
+    { id: 2, parent_id: 1 },
+    { id: 3, parent_id: null },
+    { id: 4, parent_id: 1 },
+    { id: 5, parent_id: 99 },
+  ];
+  const t = threadComments(rows);
+  assert.deepEqual(t.map((x) => x.comment.id), [1, 3]);
+  assert.deepEqual(t[0].replies.map((x) => x.id), [2, 4]);
+  assert.deepEqual(t[1].replies, []);
+});
+
+test("usefulLabel", () => {
+  assert.equal(usefulLabel(0), "0 útiles");
+  assert.equal(usefulLabel(1), "1 útil");
+  assert.equal(usefulLabel(5), "5 útiles");
 });

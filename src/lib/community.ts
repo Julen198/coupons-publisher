@@ -26,6 +26,20 @@ export function couponIdOf(raw: string): number | null {
   return id > 0 ? id : null;
 }
 
+// A reply to a reply attaches to the top-level comment: threads are one level deep
+export function replyParent(targetId: number, parentOfTarget: number | null): number {
+  return parentOfTarget ?? targetId;
+}
+
+// Top-level comments in the order given, each with its replies in the order given; replies whose parent is missing are left out
+export function threadComments<T extends { id: number; parent_id: number | null }>(rows: readonly T[]): { comment: T; replies: T[] }[] {
+  return rows
+    .filter((r) => r.parent_id === null)
+    .map((comment) => ({ comment, replies: rows.filter((r) => r.parent_id === comment.id) }));
+}
+
+export const usefulLabel = (n: number) => (n === 1 ? "1 útil" : `${n} útiles`);
+
 // Pressing the vote you already gave clears it; pressing the other one flips it
 export function nextVote(current: VoteValue, pressed: -1 | 1): VoteValue {
   return current === pressed ? 0 : pressed;

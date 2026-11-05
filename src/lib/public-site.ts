@@ -34,7 +34,9 @@ const COUPON_SELECT = `
   LEFT JOIN (SELECT vt.coupon_id, sum(vt.value) AS score FROM votes vt JOIN readers vr ON vr.id = vt.reader_id WHERE vr.status = 'active' GROUP BY vt.coupon_id) v ON v.coupon_id = c.id
   LEFT JOIN (
     SELECT k.coupon_id, count(*) AS n FROM comments k JOIN readers r ON r.id = k.reader_id
-    WHERE k.hidden = 0 AND r.status = 'active' GROUP BY k.coupon_id
+    LEFT JOIN comments pk ON pk.id = k.parent_id LEFT JOIN readers pr ON pr.id = pk.reader_id
+    WHERE k.hidden = 0 AND r.status = 'active' AND (k.parent_id IS NULL OR (pk.hidden = 0 AND pr.status = 'active'))
+    GROUP BY k.coupon_id
   ) cm ON cm.coupon_id = c.id
   LEFT JOIN readers sb ON sb.id = c.shared_by`;
 
@@ -121,17 +123,25 @@ export function goHref(client: Client | undefined, c: SiteCoupon): string {
   return couponAffiliateUrl(ours, store, c);
 }
 
-export type DealComment = { id: number; handle: string; body: string; created_at: Date; by_sharer: boolean };
+export type DealComment = {
+  id: number; parent_id: number | null; reader_id: number; handle: string; body: string; created_at: Date; by_sharer: boolean;
+  helpful: number; mine: boolean;
+};
 
-// Visible comments by active readers, oldest first
-export async function dealComments(couponId: number): Promise<DealComment[]> {
+// Visible comments and replies by active readers (a reply goes when its parent is hidden), oldest first;
+// `mine` says whether the signed-in reader marked it as useful
+export async function dealComments(couponId: number, readerId: number | null): Promise<DealComment[]> {
   await io();
   const rows = await sql()<DealComment[]>`
-    SELECT k.id, r.handle, k.body, k.created_at, (c.shared_by IS NOT NULL AND c.shared_by = k.reader_id) AS by_sharer
+    SELECT k.id, k.parent_id, k.reader_id, r.handle, k.body, k.created_at, (c.shared_by IS NOT NULL AND c.shared_by = k.reader_id) AS by_sharer,
+           (SELECT count(*) FROM comment_votes cv JOIN readers vr ON vr.id = cv.reader_id AND vr.status = 'active' WHERE cv.comment_id = k.id)::int AS helpful,
+           EXISTS (SELECT 1 FROM comment_votes cv WHERE cv.comment_id = k.id AND cv.reader_id = ${readerId}) AS mine
     FROM comments k
     JOIN readers r ON r.id = k.reader_id AND r.status = 'active' AND r.handle IS NOT NULL
     JOIN coupons c ON c.id = k.coupon_id
-    WHERE k.coupon_id = ${couponId} AND k.hidden = 0
+    LEFT JOIN comments pk ON pk.id = k.parent_id
+    LEFT JOIN readers pr ON pr.id = pk.reader_id
+    WHERE k.coupon_id = ${couponId} AND k.hidden = 0 AND (k.parent_id IS NULL OR (pk.hidden = 0 AND pr.status = 'active'))
     ORDER BY k.created_at, k.id LIMIT 200`;
   return plain(rows);
 }
