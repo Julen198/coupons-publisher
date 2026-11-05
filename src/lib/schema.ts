@@ -246,6 +246,7 @@ CREATE TABLE IF NOT EXISTS comment_votes (
 CREATE INDEX IF NOT EXISTS comment_votes_comment_idx ON comment_votes(comment_id);
 ALTER TABLE comment_votes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id int REFERENCES comments(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS comments_parent_idx ON comments(parent_id) WHERE parent_id IS NOT NULL;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks go too); panel users, settings and our own network accounts stay

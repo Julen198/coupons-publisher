@@ -94,7 +94,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
         c.expires_at
           ? `Es válido hasta el ${longDate(c.expires_at)}${left !== null && left <= 7 ? `: ${left <= 0 ? "caduca hoy" : left === 1 ? "caduca mañana" : `quedan ${left} días`}` : ""}.`
           : "No tiene fecha de caducidad anunciada."
-      } ${c.verified ? "Lo ha comprobado una persona del equipo de CuponLab." : "Viene de la red de afiliación de la tienda con sus condiciones oficiales."}${
+      } ${c.verified ? "Está marcado como comprobado porque viene de la red de afiliación de la tienda o lo ha revisado una persona del equipo." : "Todavía no lo ha comprobado nadie."}${
         conds.length ? ` Ojo a las condiciones: ${conds.join(", ").toLowerCase()}.` : ""
       }`
     : `Este cupón de ${c.store_name} caducó el ${longDate(c.expires_at)}.${fromStore ? ` Abajo tienes cupones de ${c.store_name} que siguen activos.` : ""}`;
@@ -115,7 +115,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
   const conditions: [string, string][] = [
     ["Descuento", `${badge}${hasCode ? ` con el código ${c.code}` : ", sin código"}`],
     ["Válido hasta", c.expires_at ? `${longDate(c.expires_at)} o hasta agotar existencias` : "Sin fecha de caducidad anunciada"],
-    ["Estado", live ? (c.verified ? "Activo, comprobado por el equipo" : "Activo") : "Caducado"],
+    ["Estado", live ? (c.verified ? "Activo y comprobado" : "Activo") : "Caducado"],
     ["Condiciones", conds.length ? conds.join(" · ") : "Las generales de la tienda"],
     ["Tienda", c.store_website.replace(/^https?:\/\//, "").replace(/\/$/, "")],
     ["Publicado", longDate(published)],
@@ -269,7 +269,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             {fact("envío") && <li>Envío: <b>{fact("envío")}</b></li>}
             {fact("devoluciones") && <li>Devoluciones: <b>{fact("devoluciones")}</b></li>}
             <li>{c.expires_at ? <>{live ? "Caduca" : "Caducó"} el <b>{longDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</li>
-            {c.verified ? <li><b>Comprobado</b> por el equipo de CuponLab</li> : null}
+            {c.verified ? <li><b>Comprobado</b>, de la red de la tienda o revisado por el equipo</li> : null}
             {fact("códigos por pedido") ? <li>Códigos por pedido: <b>{fact("códigos por pedido")}</b></li> : <li>Un código por pedido salvo que la tienda diga otra cosa</li>}
           </ul>
           <p className="small">Enlace de afiliado: si compras, la tienda nos paga una comisión y tu precio no cambia.</p>

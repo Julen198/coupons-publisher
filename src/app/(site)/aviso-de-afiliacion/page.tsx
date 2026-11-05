@@ -14,7 +14,7 @@ export default function AffiliateNoticePage() {
       <p>Algunos enlaces de CuponLab son de afiliado. Si compras a través de ellos, la tienda paga una comisión a CuponLab.</p>
       <p>Tu precio no cambia.</p>
       <p>Las comisiones no cambian qué cupones mostramos ni en qué orden aparecen.</p>
-      <p>Los enlaces pasan por una dirección nuestra (/go) para que podamos contar los clics.</p>
+      <p>Cuando es posible, los enlaces pasan por una dirección nuestra (/go) para contar los clics antes de llevarte a la tienda.</p>
       <p>
         Cómo elegimos y comprobamos los cupones está en la <Link href="/metodologia">metodología</Link>.
       </p>

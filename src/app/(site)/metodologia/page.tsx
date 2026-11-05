@@ -17,11 +17,11 @@ export default function MethodologyPage() {
       </p>
       <h2>Los que encontramos en la web</h2>
       <p>
-        Algunos cupones los buscamos nosotros en la web. Esos no se publican hasta que una persona del equipo los comprueba.
+        Algunos cupones los buscamos nosotros en la web. Esos no se publican hasta que una persona los comprueba.
       </p>
       <h2>Qué significa «Comprobado»</h2>
       <p>
-        Que alguien del equipo de CuponLab ha revisado ese cupón. Si no lleva la etiqueta, viene de la red de afiliación de la tienda con sus condiciones oficiales.
+        Que el cupón viene de la red de afiliación de la tienda, con sus condiciones oficiales, o que lo ha revisado una persona del equipo. Si no lleva la etiqueta, lo hemos añadido a mano o lo hemos encontrado en la web y todavía no está comprobado.
       </p>
       <h2>Cuándo retiramos un cupón</h2>
       <p>
@@ -29,7 +29,7 @@ export default function MethodologyPage() {
       </p>
       <h2>Votos y comentarios</h2>
       <p>
-        Los lectores votan y comentan. Los votos ordenan «Más votados». El equipo lee los comentarios y retira los que avisan de un cupón que ya no funciona.
+        Los lectores votan y comentan. Los votos ordenan «Más votados». El equipo puede ocultar comentarios y bloquear cuentas que no respetan las normas.
       </p>
       <h2>Chollos compartidos por lectores</h2>
       <p>

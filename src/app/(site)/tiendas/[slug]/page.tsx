@@ -81,7 +81,7 @@ export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">
           <p className="answer">
             {coupons.length ? (
               <>
-                Hoy hay <strong>{coupons.length} {coupons.length === 1 ? "cupón activo" : "cupones activos"}</strong> de {store.name}: {codes} con código y {coupons.length - codes} sin código, {verified} comprobados por el equipo.
+                Hoy hay <strong>{coupons.length} {coupons.length === 1 ? "cupón activo" : "cupones activos"}</strong> de {store.name}: {codes} con código y {coupons.length - codes} sin código, {verified} comprobados.
                 {best && percentOf(best.discount) > 0 && (
                   <>
                     {" "}El mejor es <strong>{badgeOf(best)}</strong>

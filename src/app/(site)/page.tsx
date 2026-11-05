@@ -8,7 +8,7 @@ import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, faqLd, offerLd } f
 
 export const metadata: Metadata = {
   title: { absolute: "Chollos y códigos descuento verificados hoy | CuponLab" },
-  description: "Los chollos y códigos descuento activos hoy en tiendas españolas, cada uno con su fecha de caducidad y si lo ha comprobado una persona.",
+  description: "Los chollos y códigos descuento activos hoy en tiendas españolas, cada uno con su fecha de caducidad y si está comprobado.",
   alternates: { canonical: "/" },
 };
 
@@ -79,7 +79,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
   const bf = blackFriday(Number(today.slice(0, 4)));
   const faqs = [
-    { q: "¿Cómo sé si un código sigue activo?", a: "Cada cupón muestra su fecha de caducidad y si lo ha comprobado una persona. Los cupones caducados desaparecen de la portada en cuanto pasa su fecha." },
+    { q: "¿Cómo sé si un código sigue activo?", a: "Cada cupón muestra su fecha de caducidad y si está comprobado. Los cupones caducados desaparecen de la portada en cuanto pasa su fecha." },
     { q: "¿Se pueden acumular dos códigos descuento?", a: "Casi nunca. La mayoría de tiendas admiten un solo código por pedido. Lo que sí suele acumularse es un código con productos que ya están rebajados, salvo que las condiciones del cupón digan lo contrario." },
     { q: "¿CuponLab cobra por usar los códigos?", a: "No. Algunos enlaces son de afiliado. Si compras, la tienda nos paga una comisión. Tu precio es el mismo y la comisión no cambia el orden de los chollos." },
     { q: `¿Cuándo es el Black Friday ${bf.slice(0, 4)}?`, a: `El Black Friday ${bf.slice(0, 4)} es el ${longDate(bf)} y el Cyber Monday, tres días después. Muchas tiendas españolas adelantan ofertas durante toda esa semana.` },
@@ -117,7 +117,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             <span>Por el equipo editorial de CuponLab</span>
           </div>
           <p className="answer">
-            Hoy hay <strong>{all.length} cupones activos</strong> en {byStore.size} tiendas: {codes} códigos descuento y {all.length - codes} ofertas sin código, {verified} comprobados por el equipo.
+            Hoy hay <strong>{all.length} cupones activos</strong> en {byStore.size} tiendas: {codes} códigos descuento y {all.length - codes} ofertas sin código, {verified} comprobados.
             {best && percentOf(best.discount) > 0 && (
               <>
                 {" "}El mayor descuento es <strong>{badgeOf(best)} en {best.store_name}</strong>
@@ -228,7 +228,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               </li>
               <li>
                 <span>
-                  <strong>Una persona lo revisa</strong>Los cupones marcados como «Comprobado» los ha revisado alguien del equipo. Los que encontramos en la web no los publicamos hasta que alguien los comprueba.
+                  <strong>Viene de la red o lo revisa una persona</strong>Los cupones de las redes de afiliación llegan con las condiciones oficiales de la tienda y salen como «Comprobado». Los que encontramos en la web no los publicamos hasta que alguien del equipo los comprueba.
                 </span>
               </li>
               <li>
@@ -238,7 +238,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               </li>
               <li>
                 <span>
-                  <strong>La comunidad vota y comenta</strong>Los votos ordenan «Más votados». El equipo lee los comentarios y retira los que avisan de un cupón que ya no funciona.
+                  <strong>La comunidad vota y comenta</strong>Los votos ordenan «Más votados». El equipo puede ocultar comentarios y bloquear cuentas que no respetan las normas.
                 </span>
               </li>
             </ol>

@@ -14,7 +14,7 @@ const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["lati
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: { default: "CuponLab: chollos y códigos descuento verificados", template: "%s | CuponLab" },
-  description: "Chollos y códigos descuento de tiendas españolas, cada uno con su fecha de caducidad y si lo ha comprobado una persona.",
+  description: "Chollos y códigos descuento de tiendas españolas, cada uno con su fecha de caducidad y si está comprobado.",
   robots: { index: true, follow: true },
   openGraph: { siteName: "CuponLab", locale: "es_ES", type: "website" },
 };

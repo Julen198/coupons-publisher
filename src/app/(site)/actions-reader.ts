@@ -132,7 +132,9 @@ export async function postComment(_prev: FormState, f: FormData): Promise<FormSt
     const [row] = target
       ? await sql()<{ id: number; parent_id: number | null }[]>`
           SELECT k.id, k.parent_id FROM comments k JOIN readers r ON r.id = k.reader_id
-          WHERE k.id = ${target} AND k.coupon_id = ${found.coupon.id} AND k.hidden = 0 AND r.status = 'active'`
+          LEFT JOIN comments pk ON pk.id = k.parent_id LEFT JOIN readers pr ON pr.id = pk.reader_id
+          WHERE k.id = ${target} AND k.coupon_id = ${found.coupon.id} AND k.hidden = 0 AND r.status = 'active'
+            AND (k.parent_id IS NULL OR (pk.hidden = 0 AND pr.status = 'active'))`
       : [];
     if (!row) return { error: "Ese comentario ya no existe" };
     parentId = replyParent(row.id, row.parent_id);
@@ -157,7 +159,9 @@ export async function toggleHelpful(f: FormData): Promise<void> {
   if (!commentId) return;
   const [comment] = await sql()<{ coupon_id: number; reader_id: number }[]>`
     SELECT k.coupon_id, k.reader_id FROM comments k JOIN readers r ON r.id = k.reader_id
-    WHERE k.id = ${commentId} AND k.hidden = 0 AND r.status = 'active'`;
+    LEFT JOIN comments pk ON pk.id = k.parent_id LEFT JOIN readers pr ON pr.id = pk.reader_id
+    WHERE k.id = ${commentId} AND k.hidden = 0 AND r.status = 'active'
+      AND (k.parent_id IS NULL OR (pk.hidden = 0 AND pr.status = 'active'))`;
   if (!comment || comment.reader_id === reader.id) return;
   const found = await siteCoupon(comment.coupon_id);
   if (!found?.live) return;

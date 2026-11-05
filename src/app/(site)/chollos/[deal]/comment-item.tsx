@@ -18,6 +18,7 @@ export function CommentItem({ m, now, path, couponId, live, viewer, replying }: 
 }) {
   const back = `${path}#c${m.id}`;
   const signIn = `/entrar?next=${encodeURIComponent(`${path}#comentarios`)}`;
+  const replyHref = `${path}?responder=${m.id}#c${m.id}`;
   const own = viewer?.id === m.reader_id;
   return (
     <>
@@ -40,7 +41,7 @@ export function CommentItem({ m, now, path, couponId, live, viewer, replying }: 
               <button aria-pressed={m.mine}>{usefulLabel(m.helpful)}</button>
             </form>
           )}
-          {live && (!viewer ? <Link href={signIn}>Responder</Link> : <Link href={`${path}?responder=${m.id}#c${m.id}`} scroll={false}>Responder</Link>)}
+          {live && <Link href={!viewer ? signIn : !viewer.handle ? `/entrar/nombre?next=${encodeURIComponent(replyHref)}` : replyHref} scroll={false}>Responder</Link>}
         </div>
       </article>
       {live && replying && viewer?.handle && (
