@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mapLink, parseLinks, trackingTemplate as cjTemplate } from "./cj.ts";
 import { mapCoupon, parseCoupons, trackingTemplate as rakutenTemplate } from "./rakuten.ts";
-import { mapCampaign, mapDeal } from "./impact.ts";
+import { impact, mapCampaign, mapDeal } from "./impact.ts";
 import { decodeXml, elements, text } from "./xml.ts";
 import { trackingUrl } from "../affiliate.ts";
 
@@ -64,4 +64,26 @@ test("Impact campaign deep link and deals: percent/amount badges, expired droppe
   });
   assert.equal(mapDeal({ ...deal, DiscountPercent: "", DiscountAmount: "5", DiscountCurrency: "EUR" })?.discount, "5€");
   assert.equal(mapDeal({ ...deal, State: "EXPIRED" }), null);
+});
+
+test("impact reads deals per campaign, the partner API's only deals route", async () => {
+  const calls: string[] = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL) => {
+    const url = String(input);
+    calls.push(url.replace(/[?&]PageSize=.*$/, ""));
+    const body = url.includes("/Campaigns/7/Deals")
+      ? { Deals: [{ Id: "d1", Name: "10% en todo", CampaignId: "7", State: "ACTIVE", DefaultPromoCode: "TEN", DiscountPercent: "10" }] }
+      : url.includes("/Deals")
+        ? { Deals: [] }
+        : { Campaigns: [{ CampaignId: "7", CampaignName: "Tienda", CampaignUrl: "https://tienda.es", ContractStatus: "Active" }, { CampaignId: "8", CampaignName: "Vieja", ContractStatus: "Expired" }] };
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const feed = await impact.fetchFeed({ accountSid: "IRabc", authToken: "t" });
+    assert.deepEqual(calls, ["https://api.impact.com/Mediapartners/IRabc/Campaigns", "https://api.impact.com/Mediapartners/IRabc/Campaigns/7/Deals"]);
+    assert.deepEqual(feed.offers.map((o) => [o.id, o.code, o.discount]), [["d1", "TEN", "10%"]]);
+  } finally {
+    globalThis.fetch = real;
+  }
 });

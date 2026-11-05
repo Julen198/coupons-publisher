@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useCrispLogo } from "../use-crisp-logo";
 
 // "43einhalb" → "43", "El Corte Inglés" → "ECI", "PcComponentes" → "PC", "zalando" → "Z"
 export function initialsOf(name: string): string {
@@ -13,9 +14,21 @@ export function initialsOf(name: string): string {
 // A store's logo from /store-logo/<slug>, or its initials when it has none (or the image fails)
 export function StoreLogoImg({ slug, name, hasLogo, className }: { slug: string; name: string; hasLogo: boolean; className?: string }) {
   const [failed, setFailed] = useState(false);
-  if (hasLogo && !failed) {
-    // eslint-disable-next-line @next/next/no-img-element -- small icon from our own route
-    return <img src={`/store-logo/${slug}`} alt={`Logo de ${name}`} className={className} loading="lazy" onError={() => setFailed(true)} />;
+  const { style, tooSmall, measure } = useCrispLogo();
+  if (hasLogo && !failed && !tooSmall) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- small icon from our own route
+      <img
+        ref={measure}
+        src={`/store-logo/${slug}`}
+        alt={`Logo de ${name}`}
+        className={className}
+        style={style}
+        loading="lazy"
+        onLoad={(e) => measure(e.currentTarget)}
+        onError={() => setFailed(true)}
+      />
+    );
   }
   return className === "slogo" ? null : (
     <span className="initial" aria-hidden="true">
