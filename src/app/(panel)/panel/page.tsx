@@ -6,7 +6,7 @@ import { listActivity, listAllCoupons, listClients, listPages, listStores } from
 import { expiresSoon, matchesFilter, statusOf, today } from "@/lib/coupon-status";
 import { COVERAGE_LABEL, coverageOf } from "@/lib/page-status";
 import { btnCls, btnSecondaryCls, cardCls, fmtDateTime, PageHeader } from "@/app/ui";
-import { Onboarding } from "./onboarding";
+import { Onboarding } from "../onboarding";
 
 
 // "Accor, adidas, AEG, Agoda y 76 más": long lists of names don't belong in an alert

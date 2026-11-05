@@ -32,7 +32,7 @@ function publicValues(row: AccountRow): Record<string, string> {
 
 export default async function NetworksPage() {
   const user = await requireUser();
-  if (!canEdit(user)) redirect("/");
+  if (!canEdit(user)) redirect("/panel");
   const admin = user.role === "admin";
   const [accounts, clients, stores, coupons, allStores, sampleCoupons] = await Promise.all([
     sql()<AccountRow[]>`SELECT * FROM network_accounts ORDER BY network, client_id NULLS FIRST`,

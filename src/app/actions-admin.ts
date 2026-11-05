@@ -142,7 +142,7 @@ export async function acceptInvite(_prev: FormState, f: FormData): Promise<FormS
   } catch (e) {
     return { error: errorMessage(e) };
   }
-  redirect("/");
+  redirect("/panel");
 }
 
 export async function setRetention(f: FormData) {

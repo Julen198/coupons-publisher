@@ -9,7 +9,7 @@ import { AuthError, authBtnCls } from "@/app/auth/auth-bits";
 const linkBtnCls = "self-center text-sm font-medium text-blue-700 underline-offset-4 hover:underline dark:text-blue-400";
 
 export function LoginForm() {
-  const next = useSearchParams().get("next") ?? "/";
+  const next = useSearchParams().get("next") ?? "/panel";
   const [mode, setMode] = useState<"password" | "magic">("password");
   return mode === "password"
     ? <PasswordForm next={next} onSwitch={() => setMode("magic")} />

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const MAIN = [
-  { href: "/", label: "Resumen" },
+  { href: "/panel", label: "Resumen" },
   { href: "/clients", label: "Clientes" },
   { href: "/stores", label: "Tiendas" },
   { href: "/coupons", label: "Cupones" },
@@ -23,7 +23,7 @@ export function Nav({ admin = false }: { admin?: boolean }) {
 }
 
 function NavLink({ href, label, path }: { href: string; label: string; path: string }) {
-  const active = href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
+  const active = href === "/panel" ? path === "/panel" : path === href || path.startsWith(`${href}/`);
   return (
     <Link
       href={href}

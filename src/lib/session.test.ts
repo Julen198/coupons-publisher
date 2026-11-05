@@ -29,7 +29,7 @@ test("safeEqual", () => {
 
 test("safeNext only allows same-site paths", () => {
   assert.equal(safeNext("/coupons?status=pending"), "/coupons?status=pending");
-  assert.equal(safeNext("//evil.com"), "/");
-  assert.equal(safeNext("https://evil.com"), "/");
-  assert.equal(safeNext(null), "/");
+  assert.equal(safeNext("//evil.com"), "/panel");
+  assert.equal(safeNext("https://evil.com"), "/panel");
+  assert.equal(safeNext(null), "/panel");
 });
