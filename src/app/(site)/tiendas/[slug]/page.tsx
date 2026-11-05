@@ -4,14 +4,14 @@ import { notFound } from "next/navigation";
 import { pageTitle, parseFaqs } from "@/lib/affiliate";
 import { siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
-import { StoreMark } from "@/app/store-mark";
+import { StoreLogoImg } from "../../store-logo-img";
 import { Crumbs, DealCard, Faqs, JsonLd, badgeOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
 
 async function load(slug: string) {
   const store = await siteStore(slug);
   if (!store) return undefined;
-  const coupons = (await siteCoupons()).filter((c) => c.store_id === store.id);
-  return { store, coupons };
+  const all = await siteCoupons();
+  return { store, all, coupons: all.filter((c) => c.store_id === store.id) };
 }
 
 export async function generateMetadata({ params }: PageProps<"/tiendas/[slug]">): Promise<Metadata> {
@@ -31,19 +31,25 @@ export async function generateMetadata({ params }: PageProps<"/tiendas/[slug]">)
 export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">) {
   const found = await load((await params).slug);
   if (!found) notFound();
-  const { store, coupons } = found;
+  const { store, all, coupons } = found;
   const client = await siteClient();
   const now = new Date();
   const { iso: today, words: todayWords } = madridToday(now);
   const base = siteUrl();
   const faqs = parseFaqs(store.faqs);
   const codes = coupons.filter((c) => c.kind === "code").length;
+  const verified = coupons.filter((c) => c.verified).length;
   const best = [...coupons].sort((a, b) => percentOf(b.discount) - percentOf(a.discount))[0];
   const sorted = [...coupons].sort((a, b) => b.verified - a.verified || percentOf(b.discount) - percentOf(a.discount) || b.id - a.id);
-  const crumbs = [{ name: "Inicio", href: "/" }, { name: store.name }];
+  const crumbs = [{ name: "Inicio", href: "/" }, { name: "Tiendas", href: "/tiendas" }, { name: store.name }];
+  const title = pageTitle(store.name, coupons.map((c) => c.discount), now);
+
+  const counts = new Map<string, { name: string; slug: string; n: number }>();
+  for (const c of all) if (c.store_id !== store.id) counts.set(c.store_slug, { name: c.store_name, slug: c.store_slug, n: (counts.get(c.store_slug)?.n ?? 0) + 1 });
+  const otherStores = [...counts.values()].sort((a, b) => b.n - a.n).slice(0, 6);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 pb-12">
+    <main>
       <JsonLd data={crumbsLd(base, crumbs)} />
       {sorted.length > 0 && (
         <JsonLd
@@ -58,49 +64,107 @@ export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">
       )}
       {faqs.length > 0 && <JsonLd data={faqLd(faqs)} />}
 
-      <div className="pt-5"><Crumbs items={crumbs} /></div>
+      <div className="wrap">
+        <Crumbs items={crumbs} />
+        <section className="intro">
+          <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+            <span className="thumb" style={{ width: 72, height: 72 }}>
+              <StoreLogoImg slug={store.slug} name={store.name} hasLogo={store.has_logo} />
+            </span>
+            <h1>{title}</h1>
+          </div>
+          <div className="meta-line">
+            <span className="live">Actualizado el {todayWords}</span>
+            <span>Por el equipo editorial de CuponLab</span>
+          </div>
+          <p className="answer">
+            {coupons.length ? (
+              <>
+                Hoy hay <strong>{coupons.length} {coupons.length === 1 ? "cupón activo" : "cupones activos"}</strong> de {store.name}: {codes} con código y {coupons.length - codes} sin código, {verified} comprobados por el equipo.
+                {best && percentOf(best.discount) > 0 && (
+                  <>
+                    {" "}El mejor es <strong>{badgeOf(best)}</strong>
+                    {best.kind === "code" && best.code ? <> con el código <strong>{best.code}</strong></> : null}
+                    {best.expires_at ? <>, válido hasta el {longDate(best.expires_at)}</> : null}.
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                Ahora mismo no hay cupones activos de {store.name}. Lo revisamos a diario: vuelve pronto o mira los <Link href="/">chollos de hoy</Link>.
+              </>
+            )}
+          </p>
+        </section>
 
-      <section className="grid gap-3 py-6">
-        <div className="flex items-center gap-4">
-          <StoreMark slug={store.slug} name={store.name} hasLogo={store.has_logo} size="lg" />
-          <h1 className="text-3xl font-extrabold tracking-tight text-balance">{pageTitle(store.name, coupons.map((c) => c.discount), now)}</h1>
-        </div>
-        <p className="text-sm text-slate-600 dark:text-slate-400">Actualizado el {todayWords} · Por el equipo editorial de CuponLab</p>
-        <p className="max-w-3xl text-[17px] leading-relaxed text-slate-700 dark:text-slate-300">
-          {coupons.length ? (
-            <>
-              Hoy hay <strong className="text-slate-900 dark:text-white">{coupons.length} {coupons.length === 1 ? "cupón activo" : "cupones activos"}</strong> de {store.name}: {codes} con código y {coupons.length - codes} sin código.
-              {best && percentOf(best.discount) > 0 && (
-                <> El mejor es <strong className="text-slate-900 dark:text-white">{badgeOf(best)}</strong>{best.expires_at ? <>, válido hasta el {longDate(best.expires_at)}</> : null}.</>
+        <div className="grid">
+          <section aria-labelledby="storeDeals">
+            <h2 id="storeDeals" className="feed-title">Cupones de {store.name}</h2>
+            {sorted.length ? (
+              <div className="feed">
+                {sorted.map((c) => (
+                  <DealCard key={c.id} c={c} client={client} today={today} />
+                ))}
+              </div>
+            ) : (
+              <p className="empty">No hay cupones activos de {store.name} hoy.</p>
+            )}
+          </section>
+          <aside className="rail">
+            <section className="panel">
+              <h2>{store.name} en cifras</h2>
+              <ul className="stores">
+                <li><span>Cupones activos<small>{coupons.length}</small></span></li>
+                <li><span>Con código<small>{codes}</small></span></li>
+                <li><span>Comprobados<small>{verified}</small></span></li>
+              </ul>
+              {store.website && (
+                <p className="small">
+                  Web oficial: {store.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                </p>
               )}
-            </>
-          ) : (
-            <>Ahora mismo no hay cupones activos de {store.name}. Lo revisamos a diario: vuelve pronto o mira los <Link href="/" className="font-semibold text-blue-700 hover:underline dark:text-blue-400">chollos de hoy</Link>.</>
-          )}
-        </p>
-      </section>
+            </section>
+            {otherStores.length > 0 && (
+              <section className="panel">
+                <h2>Otras tiendas con cupones</h2>
+                <ul className="stores">
+                  {otherStores.map((s) => (
+                    <li key={s.slug}>
+                      <Link href={`/tiendas/${s.slug}`}>
+                        {s.name}
+                        <small>{s.n} {s.n === 1 ? "cupón" : "cupones"}</small>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/tiendas">Ver todas las tiendas</Link>
+              </section>
+            )}
+          </aside>
+        </div>
+      </div>
 
-      {sorted.length > 0 && (
-        <section className="grid gap-3">
-          <h2 className="text-lg font-bold">Cupones de {store.name}</h2>
-          {sorted.map((c) => (
-            <DealCard key={c.id} c={c} client={client} today={today} />
-          ))}
-        </section>
-      )}
-
-      {store.intro && (
-        <section className="grid gap-2 pt-10">
-          <h2 className="text-xl font-bold">Lo que conviene saber de {store.name}</h2>
-          <p className="max-w-[70ch] whitespace-pre-line text-slate-700 dark:text-slate-300">{store.intro}</p>
-        </section>
-      )}
-
-      {faqs.length > 0 && (
-        <section className="grid gap-3 pt-10">
-          <h2 className="text-xl font-bold">Preguntas frecuentes sobre {store.name}</h2>
-          <Faqs items={faqs} />
-        </section>
+      {(store.intro || faqs.length > 0) && (
+        <div className="longform">
+          <div className="wrap">
+            {store.intro && (
+              <section className="two">
+                <div className="section-head">
+                  <h2>Lo que conviene saber de {store.name}</h2>
+                </div>
+                <p style={{ color: "var(--ink-2)", whiteSpace: "pre-line" }}>{store.intro}</p>
+              </section>
+            )}
+            {faqs.length > 0 && (
+              <section className="two">
+                <div className="section-head">
+                  <h2>Preguntas frecuentes sobre {store.name}</h2>
+                </div>
+                <Faqs items={faqs} />
+              </section>
+            )}
+          </div>
+        </div>
       )}
     </main>
   );

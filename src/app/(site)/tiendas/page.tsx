@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { siteCoupons } from "@/lib/public-site";
 import { madridToday, siteUrl } from "@/lib/site-text";
-import { StoreMark } from "@/app/store-mark";
+import { StoreLogoImg } from "../store-logo-img";
 import { Crumbs, JsonLd, crumbsLd } from "../site-ui";
 
 export const metadata: Metadata = {
@@ -33,7 +33,7 @@ export default async function StoresPage() {
   const crumbs = [{ name: "Inicio", href: "/" }, { name: "Tiendas" }];
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-12">
+    <main className="wrap">
       <JsonLd data={crumbsLd(base, crumbs)} />
       <JsonLd
         data={{
@@ -44,45 +44,53 @@ export default async function StoresPage() {
           itemListElement: stores.map((s, i) => ({ "@type": "ListItem", position: i + 1, name: s.name, url: `${base}/tiendas/${s.slug}` })),
         }}
       />
-      <div className="pt-5"><Crumbs items={crumbs} /></div>
-      <section className="grid gap-3 py-6">
-        <h1 className="text-3xl font-extrabold tracking-tight text-balance sm:text-4xl">Todas las tiendas con códigos descuento</h1>
-        <p className="max-w-3xl text-[17px] leading-relaxed text-slate-700 dark:text-slate-300">
-          Hoy, {todayWords}, hay <strong className="text-slate-900 dark:text-white">{stores.length} tiendas</strong> con cupones activos en CuponLab. Cada una tiene su página con los códigos que funcionan, sus condiciones y lo que conviene saber antes de comprar.
+      <Crumbs items={crumbs} />
+      <section className="intro">
+        <h1>Todas las tiendas con códigos descuento</h1>
+        <div className="meta-line">
+          <span className="live">Actualizado el {todayWords}</span>
+        </div>
+        <p className="answer">
+          Hoy hay <strong>{stores.length} tiendas</strong> con cupones activos en CuponLab. Cada una tiene su página con los códigos que funcionan, sus condiciones y lo que conviene saber antes de comprar.
         </p>
         {groups.size > 1 && (
-          <nav aria-label="Letras" className="flex flex-wrap gap-1">
+          <nav className="letters" aria-label="Letras">
             {[...groups.keys()].map((l) => (
-              <a key={l} href={`#letra-${l}`} className="grid size-8 place-items-center rounded border border-slate-200 bg-white text-sm font-bold hover:border-blue-700 dark:border-slate-800 dark:bg-slate-900">{l}</a>
+              <a key={l} href={`#letra-${l}`}>
+                {l}
+              </a>
             ))}
           </nav>
         )}
       </section>
       {stores.length === 0 ? (
-        <p className="text-slate-600 dark:text-slate-400">Ahora mismo no hay tiendas con cupones activos. <Link href="/" className="font-semibold text-blue-700 hover:underline dark:text-blue-400">Volver a los chollos de hoy</Link></p>
+        <p className="empty">
+          Ahora mismo no hay tiendas con cupones activos. <Link href="/">Volver a los chollos de hoy</Link>
+        </p>
       ) : (
-        <div className="grid gap-8">
-          {[...groups.entries()].map(([letter, list]) => (
-            <section key={letter} id={`letra-${letter}`} className="grid scroll-mt-20 gap-3">
-              <h2 className="text-xl font-bold">{letter}</h2>
-              <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {list.map((s) => (
-                  <li key={s.slug}>
-                    <Link href={`/tiendas/${s.slug}`} className="flex items-center gap-3 rounded-md border border-slate-200 bg-white p-3 hover:border-blue-700 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-blue-400">
-                      <StoreMark slug={s.slug} name={s.name} hasLogo={s.hasLogo} size="md" />
-                      <span className="min-w-0">
-                        <b className="block truncate">{s.name}</b>
-                        <span className="text-sm text-slate-500 dark:text-slate-400">
-                          {s.count} {s.count === 1 ? "cupón" : "cupones"}{s.codes ? ` · ${s.codes} con código` : ""}
-                        </span>
+        [...groups.entries()].map(([letter, list]) => (
+          <section key={letter} id={`letra-${letter}`} className="page-sec" style={{ scrollMarginTop: 120 }}>
+            <h2>{letter}</h2>
+            <ul className="store-grid">
+              {list.map((s) => (
+                <li key={s.slug}>
+                  <Link className="store-card" href={`/tiendas/${s.slug}`}>
+                    <span className="tile">
+                      <StoreLogoImg slug={s.slug} name={s.name} hasLogo={s.hasLogo} />
+                    </span>
+                    <span style={{ minWidth: 0 }}>
+                      <b>{s.name}</b>
+                      <span>
+                        {s.count} {s.count === 1 ? "cupón" : "cupones"}
+                        {s.codes ? ` · ${s.codes} con código` : ""}
                       </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
       )}
     </main>
   );

@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 
 const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const weekday = (iso: string) => WEEKDAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()];
 
 // The next 12 months of shopping dates, month by month
 export default async function CalendarPage() {
@@ -34,56 +35,69 @@ export default async function CalendarPage() {
   const crumbs = [{ name: "Inicio", href: "/" }, { name: "Calendario de ofertas" }];
 
   return (
-    <main className="mx-auto max-w-4xl px-4 pb-12">
+    <main>
       <JsonLd data={crumbsLd(base, crumbs)} />
       <JsonLd data={faqLd(faqs)} />
-      <div className="pt-5"><Crumbs items={crumbs} /></div>
-      <section className="grid gap-3 py-6">
-        <h1 className="text-3xl font-extrabold tracking-tight text-balance sm:text-4xl">Calendario de ofertas y rebajas en España</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">Actualizado el {todayWords}</p>
-        {next && (
-          <p className="max-w-3xl text-[17px] leading-relaxed text-slate-700 dark:text-slate-300">
-            La próxima fecha de ofertas es <strong className="text-slate-900 dark:text-white">{next.name}</strong>, el {longDate(next.date)}
-            {daysBetween(today, next.date) > 0 ? <> (dentro de {daysBetween(today, next.date)} días)</> : <> (hoy)</>}. El Black Friday {bfYear} cae el {longDate(bf)}.
-          </p>
-        )}
-      </section>
+      <div className="wrap">
+        <Crumbs items={crumbs} />
+        <section className="intro">
+          <h1>Calendario de ofertas y rebajas en España</h1>
+          <div className="meta-line">
+            <span className="live">Actualizado el {todayWords}</span>
+          </div>
+          {next && (
+            <p className="answer">
+              La próxima fecha de ofertas es <strong>{next.name}</strong>, el {weekday(next.date)} {longDate(next.date)}
+              {daysBetween(today, next.date) > 0 ? <> (dentro de {daysBetween(today, next.date)} días)</> : <> (hoy)</>}. El <strong>Black Friday {bfYear}</strong> cae el {longDate(bf)}.
+            </p>
+          )}
+        </section>
 
-      <div className="grid gap-8">
-        {[...byMonth.entries()].map(([ym, list]) => (
-          <section key={ym} className="grid gap-3">
-            <h2 className="text-xl font-bold">{MONTHS[Number(ym.slice(5)) - 1]} {ym.slice(0, 4)}</h2>
-            <ul className="grid gap-2">
-              {list.map((e) => {
-                const left = daysBetween(today, e.date);
-                return (
-                  <li key={e.date + e.name} className="grid grid-cols-[56px_minmax(0,1fr)] items-center gap-4 rounded-md border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-                    <span className={`rounded border py-1 text-center leading-tight tabular-nums ${left <= 30 ? "border-orange-600 text-orange-700 dark:text-orange-400" : "border-slate-300 dark:border-slate-700"}`}>
-                      <b className="block text-xl">{Number(e.date.slice(8))}</b>
-                      <small className="text-[10px] uppercase tracking-wide">{WEEKDAYS[new Date(`${e.date}T12:00:00Z`).getUTCDay()].slice(0, 3)}</small>
-                    </span>
-                    <span className="min-w-0">
-                      <strong>{e.name}</strong>
-                      <span className="block text-sm text-slate-600 dark:text-slate-400">{e.note}</span>
-                      <span className="block text-xs text-slate-500 dark:text-slate-500">
-                        {WEEKDAYS[new Date(`${e.date}T12:00:00Z`).getUTCDay()]} {longDate(e.date)}{left > 0 ? ` · dentro de ${left} días` : " · hoy"}
-                      </span>
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
+        <div className="grid">
+          <div>
+            {[...byMonth.entries()].map(([ym, list]) => (
+              <section key={ym} className="page-sec">
+                <h2>
+                  {MONTHS[Number(ym.slice(5)) - 1]} {ym.slice(0, 4)}
+                </h2>
+                <ul className="cal-list">
+                  {list.map((e) => {
+                    const left = daysBetween(today, e.date);
+                    return (
+                      <li key={e.date + e.name} className={left <= 30 ? "soon" : undefined}>
+                        <span className="d">
+                          <b>{Number(e.date.slice(8))}</b>
+                          <small>{weekday(e.date).slice(0, 3)}</small>
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                          <strong>{e.name}</strong>
+                          <span className="note">{e.note}</span>
+                          <span className="when" style={{ display: "block" }}>
+                            {weekday(e.date)} {longDate(e.date)}
+                            {left > 0 ? ` · dentro de ${left} días` : " · hoy"}
+                          </span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
+          <aside className="rail">
+            <section className="panel">
+              <h2>Preguntas sobre las fechas</h2>
+              <Faqs items={faqs} />
+            </section>
+            <section className="panel">
+              <h2>¿Buscas un descuento hoy?</h2>
+              <p className="small">Mientras llega la próxima fecha, estos son los cupones que funcionan ahora.</p>
+              <Link href="/">Ver los chollos de hoy</Link>
+              <Link href="/tiendas">Ver todas las tiendas</Link>
+            </section>
+          </aside>
+        </div>
       </div>
-
-      <section className="grid gap-3 pt-10">
-        <h2 className="text-xl font-bold">Preguntas sobre las fechas de ofertas</h2>
-        <Faqs items={faqs} />
-      </section>
-      <p className="pt-8 text-sm">
-        <Link href="/" className="font-semibold text-blue-700 hover:underline dark:text-blue-400">Ver los chollos de hoy</Link>
-      </p>
     </main>
   );
 }
