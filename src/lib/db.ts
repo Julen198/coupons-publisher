@@ -50,6 +50,8 @@ export type Coupon = {
   source_url: string; // where a web find was seen, for whoever verifies it
   external_id: string | null;
   publisher_id: string; // Awin: publisher id of our account that imported it ("" = manual or a client's own account)
+  shared_by: number | null; // reader who shared it
+  review: "" | "pending" | "rejected"; // moderation of shared coupons
 };
 
 export type CouponWithStore = Coupon & { store_name: string; store_slug: string; store_has_logo: boolean };

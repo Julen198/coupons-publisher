@@ -199,7 +199,44 @@ ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_category_check;
 ALTER TABLE stores ADD CONSTRAINT stores_category_check
   CHECK (category IN ('', 'tecnologia', 'zapatillas', 'moda', 'hogar', 'deporte', 'viajes'));
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS facts text NOT NULL DEFAULT '';
+-- readers (email sign-in, no password), their votes and comments on coupons, and coupons they share
+CREATE TABLE IF NOT EXISTS readers (
+  id serial PRIMARY KEY,
+  email text NOT NULL UNIQUE,
+  handle text UNIQUE,
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blocked')),
+  session_version int NOT NULL DEFAULT 1,
+  login_token_hash text UNIQUE,
+  login_expires_at timestamptz,
+  link_sent_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE readers ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS votes (
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  value smallint NOT NULL CHECK (value IN (-1, 1)),
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, coupon_id)
+);
+CREATE INDEX IF NOT EXISTS votes_coupon_idx ON votes(coupon_id);
+ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS comments (
+  id serial PRIMARY KEY,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  body text NOT NULL,
+  hidden smallint NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS comments_coupon_idx ON comments(coupon_id, created_at);
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+-- who shared a coupon, and its moderation state ('' = normal)
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS shared_by int REFERENCES readers(id) ON DELETE SET NULL;
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS review text NOT NULL DEFAULT '';
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_review_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_review_check CHECK (review IN ('', 'pending', 'rejected'));
 `;
 
 // "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay
-export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;
+export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comments, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;
