@@ -2,12 +2,12 @@ import { siteCoupons } from "@/lib/public-site";
 import { dealPath, siteUrl } from "@/lib/site-text";
 import { esc } from "@/lib/render-page";
 
-// The public site's URLs for search engines: home, every store with live coupons and every live coupon
+// The public site's URLs for search engines: home, the store index, the calendar, every store with live coupons and every live coupon
 export async function GET() {
   const base = siteUrl();
   const coupons = await siteCoupons();
   const stores = [...new Set(coupons.map((c) => c.store_slug))];
-  const urls = ["/", ...stores.map((s) => `/tiendas/${s}`), ...coupons.map(dealPath)];
+  const urls = ["/", "/tiendas", "/calendario", ...stores.map((s) => `/tiendas/${s}`), ...coupons.map(dealPath)];
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map((u) => `  <url><loc>${esc(base + u)}</loc></url>`).join("\n")}

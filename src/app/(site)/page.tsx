@@ -174,6 +174,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                   </li>
                 ))}
               </ul>
+              <Link href="/tiendas" className="text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">Ver las {byStore.size} tiendas</Link>
             </section>
           )}
           <section className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -197,6 +198,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               })}
             </ul>
             {toBf >= 0 && toBf <= 60 && <p className="text-xs text-slate-500 dark:text-slate-400">Quedan {toBf} días para el Black Friday.</p>}
+            <Link href="/calendario" className="text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">Ver el calendario completo</Link>
           </section>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Algunos enlaces son de afiliado. Si compras, la tienda nos paga una comisión y tu precio no cambia. Las comisiones no influyen en el orden de los chollos.
@@ -251,9 +253,13 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
           <Faqs items={faqs} />
         </section>
 
-        <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-400">
-          <strong className="text-slate-900 dark:text-white">Equipo editorial de CuponLab.</strong> Página revisada el {todayWords}. Los cupones caducados se retiran solos y los encontrados en la web los comprueba una persona antes de publicarlos.
-        </p>
+        <section className="flex items-start gap-4 rounded-md border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-full bg-blue-100 font-extrabold text-blue-800 dark:bg-blue-950 dark:text-blue-300">CL</span>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            <strong className="block text-base text-slate-900 dark:text-white">Equipo editorial de CuponLab</strong>
+            Página revisada el {todayWords}. Los cupones caducados se retiran solos y los encontrados en la web los comprueba una persona antes de publicarlos.
+          </p>
+        </section>
       </div>
     </main>
   );

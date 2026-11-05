@@ -64,15 +64,28 @@ export function blackFriday(year: number): string {
 
 export type ShopEvent = { date: string; name: string; note: string };
 
-function eventsOf(year: number): ShopEvent[] {
+const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+// Día de la Madre in Spain: the first Sunday of May
+export function mothersDay(year: number): string {
+  const first = new Date(Date.UTC(year, 4, 1)).getUTCDay();
+  return iso(year, 5, 1 + ((7 - first) % 7));
+}
+
+export function eventsOf(year: number): ShopEvent[] {
   const bf = blackFriday(year);
   const cyber = new Date(Date.parse(bf) + 3 * 86_400_000).toISOString().slice(0, 10);
   return [
-    { date: `${year}-01-07`, name: "Rebajas de enero", note: "Empiezan en casi todas las tiendas de moda" },
-    { date: `${year}-07-01`, name: "Rebajas de verano", note: "Moda y hogar, hasta finales de agosto" },
-    { date: `${year}-11-11`, name: "Día del Soltero", note: "Descuentos en AliExpress, moda y tecnología" },
+    { date: iso(year, 1, 6), name: "Reyes", note: "Último día para los regalos; las tiendas preparan las rebajas" },
+    { date: iso(year, 1, 7), name: "Rebajas de enero", note: "Empiezan en casi todas las tiendas de moda y hogar" },
+    { date: iso(year, 2, 14), name: "San Valentín", note: "Perfumería, joyería, experiencias y restaurantes" },
+    { date: iso(year, 3, 19), name: "Día del Padre", note: "Tecnología, deporte y moda de hombre" },
+    { date: mothersDay(year), name: "Día de la Madre", note: "Perfumería, belleza, moda y joyería" },
+    { date: iso(year, 7, 1), name: "Rebajas de verano", note: "Moda y hogar, hasta finales de agosto" },
+    { date: iso(year, 11, 11), name: "Día del Soltero", note: "Descuentos en AliExpress, moda y tecnología" },
     { date: bf, name: `Black Friday ${year}`, note: "Muchas tiendas adelantan ofertas toda la semana" },
     { date: cyber, name: "Cyber Monday", note: "Sobre todo tecnología" },
+    { date: iso(year, 12, 25), name: "Navidad", note: "Regalos: revisa el último día de envío de cada tienda" },
   ];
 }
 

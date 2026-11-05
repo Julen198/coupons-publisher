@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blackFriday, dealPath, longDate, parseDealId, percentOf, slugify, upcomingEvents } from "./site-text.ts";
+import { blackFriday, mothersDay, dealPath, longDate, parseDealId, percentOf, slugify, upcomingEvents } from "./site-text.ts";
 
 test("slugify drops accents and symbols", () => {
   assert.equal(slugify("El Corte Inglés: 15% en Moda"), "el-corte-ingles-15-en-moda");
@@ -25,7 +25,7 @@ test("Black Friday is the day after the fourth Thursday of November", () => {
 test("upcoming events start today and roll into next year", () => {
   const next = upcomingEvents("2026-11-05");
   assert.deepEqual(next.map((e) => e.date), ["2026-11-11", "2026-11-27", "2026-11-30"]);
-  assert.equal(upcomingEvents("2026-12-15", 1)[0].date, "2027-01-07");
+  assert.equal(upcomingEvents("2026-12-26", 1)[0].date, "2027-01-06");
 });
 
 test("percentOf reads the figure of a discount", () => {
@@ -36,4 +36,9 @@ test("percentOf reads the figure of a discount", () => {
 
 test("longDate writes Spanish dates", () => {
   assert.equal(longDate("2026-11-05"), "5 de noviembre de 2026");
+});
+
+test("Día de la Madre is the first Sunday of May", () => {
+  assert.equal(mothersDay(2026), "2026-05-03");
+  assert.equal(mothersDay(2027), "2027-05-02");
 });
