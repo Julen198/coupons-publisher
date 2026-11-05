@@ -36,6 +36,7 @@ export default async function DashboardPage() {
   const soon = coupons.filter((c) => expiresSoon(c, t));
   const stale = pages.filter((p) => coverageOf(p, now) === "stale");
   const noAwinClients = clients.filter((c) => !c.awin_affiliate_id);
+  const ourAwin = stores.some((s) => s.publisher_id); // a connected Awin account of ours covers them
   const noMerchant = stores.filter((s) => !storeTracked(s));
 
   const alerts = [
@@ -43,7 +44,7 @@ export default async function DashboardPage() {
     soon.length && { tag: "Caducan", href: "/coupons?status=soon", title: `${soon.length} cupón(es) caducan en 7 días`, detail: shortList(soon.map((c) => c.store_name)) },
     pending.length && { tag: "Verificar", href: "/coupons?status=pending", title: `${pending.length} cupón(es) sin verificar`, detail: shortList(pending.map((c) => c.store_name)) },
     expiredVisible.length && { tag: "Caducados", href: "/coupons?status=expired", title: `${expiredVisible.length} cupón(es) caducados`, detail: "Ya no salen en las páginas; retíralos o actualiza la fecha" },
-    noAwinClients.length && { tag: "Awin", href: "/clients", title: `${noAwinClients.length} cliente(s) sin affiliate ID`, detail: `${shortList(noAwinClients.map((c) => c.name))}: sus enlaces van sin tracking` },
+    noAwinClients.length && { tag: "Awin", href: "/clients", title: `${noAwinClients.length} cliente(s) sin affiliate ID`, detail: `${shortList(noAwinClients.map((c) => c.name))}: ${ourAwin ? "sus enlaces de Awin llevan nuestro publisher ID" : "sus enlaces van sin tracking"}` },
     noMerchant.length && { tag: "Tracking", href: "/stores", title: `${noMerchant.length} tienda(s) sin merchant ID o enlace`, detail: shortList(noMerchant.map((s) => s.name)) },
   ].filter(Boolean) as { tag: string; href: string; title: string; detail: string }[];
 

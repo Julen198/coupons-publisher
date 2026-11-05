@@ -41,8 +41,8 @@ export default async function NetworksPage() {
     sql()<{ source: string; n: number }[]>`SELECT source, count(*)::int AS n FROM coupons WHERE archived = 0 GROUP BY source`,
     listStores(),
     // one live coupon per network, from a store that is tied to its advertiser, for the example links
-    sql()<(Pick<Coupon, "id" | "target_url" | "title" | "store_id"> & { network: string })[]>`
-      SELECT DISTINCT ON (s.network) c.id, c.target_url, c.title, c.store_id, s.network
+    sql()<(Pick<Coupon, "id" | "target_url" | "title" | "store_id" | "publisher_id"> & { network: string })[]>`
+      SELECT DISTINCT ON (s.network) c.id, c.target_url, c.title, c.store_id, c.publisher_id, s.network
       FROM coupons c JOIN stores s ON s.id = c.store_id
       WHERE c.archived = 0 AND s.merchant_id <> ''
       ORDER BY s.network, c.verified DESC, c.id DESC`,

@@ -9,7 +9,7 @@ import { cardCls } from "@/app/ui";
 const FORMATS: Record<string, { format: string; affiliate: string }> = {
   awin: {
     format: "https://www.awin1.com/cread.php?awinmid=<anunciante>&awinaffid=<ID de afiliado>&clickref=<ref>&ued=<destino>",
-    affiliate: "El «Awin affiliate ID» de cada medio (ficha del cliente)",
+    affiliate: "El «Awin affiliate ID» de cada medio (ficha del cliente); si no tiene, el Publisher ID de nuestra cuenta que importó el cupón",
   },
   tradedoubler: {
     format: "https://clk.tradedoubler.com/click?p=<programa>&a=<ID de sitio>&epi=<ref>&url=<destino>",
@@ -28,7 +28,7 @@ const FORMATS: Record<string, { format: string; affiliate: string }> = {
 export interface LinkExample {
   network: string;
   store: Store;
-  coupon: Pick<Coupon, "id" | "target_url" | "title">;
+  coupon: Pick<Coupon, "id" | "target_url" | "title" | "publisher_id">;
 }
 
 function Template({ text }: { text: string }) {

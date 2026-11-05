@@ -28,17 +28,21 @@ export interface SyncSummary {
 export async function syncAccount(account: NetworkAccount): Promise<SyncSummary> {
   const adapter = adapterFor(account.network);
   if (!adapter) throw new Error(`Red sin integración: ${account.network}`);
-  const feed = await adapter.fetchFeed(decryptJson<Credentials>(account.credentials));
-  const summary = await mergeFeed(adapter, feed, account.client_id === null);
-  if (account.network === "awin" && account.client_id !== null) {
+  const creds = decryptJson<Credentials>(account.credentials);
+  const feed = await adapter.fetchFeed(creds);
+  const ownAccount = account.client_id === null;
+  // Awin links are built from merchant id + publisher id: remember which of our publisher ids can track each
+  // coupon and store, so clients without an affiliate id of their own still get tracked links
+  const publisherId = account.network === "awin" && ownAccount ? (creds.publisherId ?? "") : "";
+  const summary = await mergeFeed(adapter, feed, ownAccount, publisherId);
+  if (account.network === "awin" && !ownAccount) {
     // a client's own Awin account: their links should carry their publisher id
-    const { publisherId } = decryptJson<Credentials>(account.credentials);
-    await sql()`UPDATE clients SET awin_affiliate_id = ${publisherId} WHERE id = ${account.client_id} AND awin_affiliate_id = ''`;
+    await sql()`UPDATE clients SET awin_affiliate_id = ${creds.publisherId} WHERE id = ${account.client_id} AND awin_affiliate_id = ''`;
   }
   return summary;
 }
 
-async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, ownAccount: boolean): Promise<SyncSummary> {
+async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, ownAccount: boolean, publisherId: string): Promise<SyncSummary> {
   const net = adapter.id;
   let stores: StoreRef[] = [...(await sql()<StoreRef[]>`SELECT id, slug, website, network, merchant_id, tracking_url FROM stores`)];
   const withOffers = new Set(feed.offers.map((o) => o.advertiserId));
@@ -73,7 +77,11 @@ async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, ownAccount: boo
     }
   }
 
-  const { created, updated } = await upsertCoupons(net, feed.offers, storeOf);
+  if (publisherId && storeOf.size) {
+    // first of our publisher ids joined to the advertiser keeps the store; manual coupons there use it
+    await sql()`UPDATE stores SET publisher_id = ${publisherId} WHERE id = ANY(${[...new Set(storeOf.values())]}::int[]) AND publisher_id = ''`;
+  }
+  const { created, updated } = await upsertCoupons(net, feed.offers, storeOf, publisherId);
   return { ...summary, created, updated };
 }
 
@@ -96,7 +104,7 @@ const CHUNK = 500;
 
 // New offers come in verified (the network vouches for them); re-syncs refresh the text, code and dates
 // but leave archived/verified as the team set them.
-async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<string, number>) {
+async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<string, number>, publisherId: string) {
   // one row per offer: Postgres refuses to upsert the same key twice in one statement (pages can overlap)
   const unique = [...new Map(offers.map((o) => [o.id, o])).values()];
   const rows = unique.flatMap((o) => {
@@ -105,7 +113,7 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
     return [{
       store_id, kind: o.kind, title: o.title.slice(0, 300), code: o.code, discount: o.discount,
       description: o.description.slice(0, 2000), target_url: o.url, expires_at: o.expires,
-      verified: 1, source: net, external_id: `${net}:${o.id}`,
+      verified: 1, source: net, external_id: `${net}:${o.id}`, publisher_id: publisherId,
     }];
   });
   let created = 0;
@@ -115,7 +123,9 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
       INSERT INTO coupons ${sql()(rows.slice(i, i + CHUNK))}
       ON CONFLICT (external_id) DO UPDATE SET
         kind = excluded.kind, title = excluded.title, code = excluded.code, discount = excluded.discount,
-        description = excluded.description, target_url = excluded.target_url, expires_at = excluded.expires_at
+        description = excluded.description, target_url = excluded.target_url, expires_at = excluded.expires_at,
+        -- a client's own account sends "": it never takes over the publisher id our account set
+        publisher_id = CASE WHEN excluded.publisher_id <> '' THEN excluded.publisher_id ELSE coupons.publisher_id END
       RETURNING (xmax = 0) AS inserted`;
     const fresh = res.filter((r) => r.inserted).length;
     created += fresh;

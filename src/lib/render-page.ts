@@ -20,11 +20,20 @@ export function clientFont(client: Pick<Client, "font_family" | "font_style">): 
 }
 
 // The Awin link for one coupon on one client's page; clickref = client-store-coupon for attribution
-export function couponAffiliateUrl(client: Client, store: Store, c: Pick<Coupon, "id" | "target_url">) {
+export function couponAffiliateUrl(
+  client: Client,
+  store: Pick<Store, "slug" | "network" | "merchant_id" | "tracking_url"> & { publisher_id?: string },
+  c: Pick<Coupon, "id" | "target_url"> & { publisher_id?: string },
+) {
   const clickref = [client.clickref_prefix, store.slug, c.id].filter(Boolean).join("-");
   if (store.network !== "awin") return trackingUrl(store.tracking_url, c.target_url, clickref);
-  return affiliateUrl(c.target_url, { affiliateId: client.awin_affiliate_id, merchantId: store.merchant_id, clickref });
+  return affiliateUrl(c.target_url, { affiliateId: awinAffiliateId(client, store, c), merchantId: store.merchant_id, clickref });
 }
+
+// Whose Awin id goes in awinaffid: the client's own (its site earns the commission), otherwise the publisher id
+// of our connected account that imported the coupon, otherwise the one that joined the store. "" = no tracking.
+export const awinAffiliateId = (client: Pick<Client, "awin_affiliate_id">, store: { publisher_id?: string }, c: { publisher_id?: string }) =>
+  client.awin_affiliate_id || c.publisher_id || store.publisher_id || "";
 
 // Standalone HTML the client pastes into their CMS or serves as-is.
 // With trackBase (absolute origin), buttons go through /go so the click is counted before redirecting to Awin.
