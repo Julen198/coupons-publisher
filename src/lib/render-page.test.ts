@@ -55,3 +55,11 @@ test("no Awin id anywhere: straight to the store", () => {
   assert.doesNotMatch(html, /awin1\.com/);
   assert.match(html, /href="https:\/\/www\.adidas\.es\/x"/);
 });
+
+test("other networks: the client's own account link wins over ours", async () => {
+  const { couponAffiliateUrl } = await import("./render-page.ts");
+  const td = { ...store, network: "tradedoubler", tracking_url: "https://ours/?epi={ref}&url={url}" };
+  assert.match(couponAffiliateUrl(client, td, coupon), /^https:\/\/ours\//);
+  assert.equal(couponAffiliateUrl(client, td, coupon, "https://theirs/?epi={ref}&url={url}"),
+    "https://theirs/?epi=demo-adidas-9&url=https%3A%2F%2Fwww.adidas.es%2Fx");
+});

@@ -60,7 +60,9 @@ export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise
 
 export async function deleteNetworkAccount(f: FormData) {
   await requireAdmin();
-  const [row] = await sql()<{ network: string }[]>`DELETE FROM network_accounts WHERE id = ${Number(required(f, "id"))} RETURNING network`;
+  const [row] = await sql()<{ network: string; client_id: number | null }[]>`DELETE FROM network_accounts WHERE id = ${Number(required(f, "id"))} RETURNING network, client_id`;
+  // that client's links in this network go back to ours (unless it still has another account there, which re-sync refills)
+  if (row?.client_id != null) await sql()`DELETE FROM client_tracking WHERE client_id = ${row.client_id} AND network = ${row.network}`;
   await syncClientAwinIds();
   if (row) await logActivity(`Cuenta de ${adapterFor(row.network)?.label ?? row.network} desconectada`);
   revalidatePath("/networks");

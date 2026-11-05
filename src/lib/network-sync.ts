@@ -34,12 +34,12 @@ export async function syncAccount(account: NetworkAccount): Promise<SyncSummary>
   // Awin links are built from merchant id + publisher id: remember which of our publisher ids can track each
   // coupon and store, so clients without an affiliate id of their own still get tracked links
   const publisherId = account.network === "awin" && ownAccount ? (creds.publisherId ?? "") : "";
-  const summary = await mergeFeed(adapter, feed, ownAccount, publisherId);
-  return summary;
+  return mergeFeed(adapter, feed, account.client_id, publisherId);
 }
 
-async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, ownAccount: boolean, publisherId: string): Promise<SyncSummary> {
+async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, clientId: number | null, publisherId: string): Promise<SyncSummary> {
   const net = adapter.id;
+  const ownAccount = clientId === null;
   let stores: StoreRef[] = [...(await sql()<StoreRef[]>`SELECT id, slug, website, network, merchant_id, tracking_url FROM stores`)];
   const withOffers = new Set(feed.offers.map((o) => o.advertiserId));
   const storeOf = new Map<string, number>(); // advertiser id → store id (only stores that go through this network)
@@ -73,12 +73,25 @@ async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, ownAccount: boo
     }
   }
 
+  if (clientId !== null) await saveClientTracking(clientId, net, feed.advertisers, storeOf);
   if (publisherId && storeOf.size) {
     // first of our publisher ids joined to the advertiser keeps the store; manual coupons there use it
     await sql()`UPDATE stores SET publisher_id = ${publisherId} WHERE id = ANY(${[...new Set(storeOf.values())]}::int[]) AND publisher_id = ''`;
   }
   const { created, updated } = await upsertCoupons(net, feed.offers, storeOf, publisherId);
   return { ...summary, created, updated };
+}
+
+// A client's own account: keep its link per store so that client's clicks go through its account, not ours
+async function saveClientTracking(clientId: number, net: string, advertisers: NetAdvertiser[], storeOf: Map<string, number>) {
+  const rows = [...new Map(advertisers.flatMap((a) => {
+    const store_id = storeOf.get(a.id);
+    return store_id && a.trackingTemplate ? [[store_id, { client_id: clientId, store_id, network: net, tracking_url: a.trackingTemplate }] as const] : [];
+  })).values()];
+  await sql()`DELETE FROM client_tracking WHERE client_id = ${clientId} AND network = ${net}`;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    await sql()`INSERT INTO client_tracking ${sql()(rows.slice(i, i + CHUNK))} ON CONFLICT (client_id, store_id) DO UPDATE SET network = excluded.network, tracking_url = excluded.tracking_url`;
+  }
 }
 
 async function createStore(net: string, adv: NetAdvertiser): Promise<StoreRef | undefined> {

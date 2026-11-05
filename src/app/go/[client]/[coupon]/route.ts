@@ -15,6 +15,9 @@ export async function GET(req: Request, ctx: RouteContext<"/go/[client]/[coupon]
   const [coupon] = await db<Coupon[]>`SELECT * FROM coupons WHERE id = ${couponId}`;
   const [store] = coupon ? await db<Store[]>`SELECT * FROM stores WHERE id = ${coupon.store_id}` : [];
   if (!client || !coupon || !store) return new Response("No encontrado", { status: 404 });
+  // the client's own account in this store's network, if it has one; otherwise ours
+  const [own] = await db<{ tracking_url: string }[]>`
+    SELECT tracking_url FROM client_tracking WHERE client_id = ${client.id} AND store_id = ${store.id} AND network = ${store.network}`;
 
   if (!BOT_UA.test(req.headers.get("user-agent") ?? "")) {
     try {
@@ -26,6 +29,6 @@ export async function GET(req: Request, ctx: RouteContext<"/go/[client]/[coupon]
 
   return new Response(null, {
     status: 302,
-    headers: { Location: couponAffiliateUrl(client, store, coupon), "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade" },
+    headers: { Location: couponAffiliateUrl(client, store, coupon, own?.tracking_url), "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade" },
   });
 }

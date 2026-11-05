@@ -24,9 +24,10 @@ export function couponAffiliateUrl(
   client: Client,
   store: Pick<Store, "slug" | "network" | "merchant_id" | "tracking_url"> & { publisher_id?: string },
   c: Pick<Coupon, "id" | "target_url"> & { publisher_id?: string },
+  clientTemplate = "", // the client's own account's link for this store (client_tracking), wins over ours
 ) {
   const clickref = [client.clickref_prefix, store.slug, c.id].filter(Boolean).join("-");
-  if (store.network !== "awin") return trackingUrl(store.tracking_url, c.target_url, clickref);
+  if (store.network !== "awin") return trackingUrl(clientTemplate || store.tracking_url, c.target_url, clickref);
   return affiliateUrl(c.target_url, { affiliateId: awinAffiliateId(client, store, c), merchantId: store.merchant_id, clickref });
 }
 
