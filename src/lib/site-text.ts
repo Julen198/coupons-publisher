@@ -1,7 +1,7 @@
 // Pure helpers for the public deals site (no DB), so they can be unit-tested.
 import { discountBadge } from "./discount.ts";
 
-const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+export const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
 // Our public origin for canonical URLs, JSON-LD and the sitemap
 export function siteUrl(): string {
@@ -58,6 +58,13 @@ export function madridToday(now = new Date()): { iso: string; words: string } {
 export function percentOf(discount: string): number {
   const m = discountBadge(discount).match(/(\d+(?:[.,]\d+)?)\s?%/);
   return m ? Number(m[1].replace(",", ".")) : 0;
+}
+
+// "Mayor ahorro" ranking: "Hasta 90 %" is an upper bound, so it counts for less than a flat figure
+const UP_TO_WEIGHT = 0.6;
+export function savingOf(discount: string): number {
+  const p = percentOf(discount);
+  return /^hasta\b/i.test(discountBadge(discount)) ? p * UP_TO_WEIGHT : p;
 }
 
 // Shopping dates readers plan around. Black Friday = the day after the fourth Thursday of November.

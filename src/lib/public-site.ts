@@ -5,6 +5,8 @@ import { publishUnverified } from "./settings.ts";
 import { couponAffiliateUrl } from "./render-page.ts";
 import { getReader } from "./reader";
 import { madridToday } from "./site-text.ts";
+import { dedupeDeals } from "./deal-text.ts";
+import { isSpanishMarket } from "./market.ts";
 import type { CategorySlug } from "./catalog.ts";
 
 // A coupon with what the public site needs from its store
@@ -42,7 +44,8 @@ const COUPON_SELECT = `
 
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
-// Every live coupon readers may see (same rule as clients' pages), newest first
+// Every live coupon readers may see (same rule as clients' pages), newest first. Stores of other European
+// markets stay out (the site is Spanish), and a deal listed twice by its store shows once.
 export async function siteCoupons(): Promise<SiteCoupon[]> {
   await io();
   const [rows, unverified] = await Promise.all([
@@ -50,7 +53,7 @@ export async function siteCoupons(): Promise<SiteCoupon[]> {
     publishUnverified(),
   ]);
   const t = madridToday().iso;
-  return plain(rows).filter((c) => isPublic(c, t, unverified));
+  return dedupeDeals(plain(rows).filter((c) => isPublic(c, t, unverified) && isSpanishMarket(c.store_website)));
 }
 
 // One coupon for its own page: live ones, and expired ones too (shown as expired so the URL keeps working)
@@ -60,7 +63,7 @@ export async function siteCoupon(id: number): Promise<{ coupon: SiteCoupon; live
     sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.id = ${id}`,
     publishUnverified(),
   ]);
-  if (!row) return undefined;
+  if (!row || !isSpanishMarket(row.store_website)) return undefined;
   const coupon = { ...row };
   const t = madridToday().iso;
   if (isPublic(coupon, t, unverified)) return { coupon, live: true };
@@ -87,7 +90,7 @@ export async function siteStore(slug: string): Promise<Store | undefined> {
   const [row] = await sql()<Store[]>`
     SELECT id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo
     FROM stores WHERE slug = ${slug}`;
-  return row ? { ...row } : undefined;
+  return row && isSpanishMarket(row.website) ? { ...row } : undefined;
 }
 
 export async function siteStoreById(id: number): Promise<Pick<Store, "intro" | "faqs" | "category" | "facts"> | undefined> {
@@ -146,9 +149,9 @@ export async function dealComments(couponId: number, readerId: number | null): P
   return plain(rows);
 }
 
-// Every store, for the "share a deal" picker
+// Every store of the Spanish market, for the "share a deal" picker
 export async function siteStoreOptions(): Promise<{ slug: string; name: string }[]> {
   await io();
-  const rows = await sql()<{ slug: string; name: string }[]>`SELECT slug, name FROM stores ORDER BY lower(name)`;
-  return rows.map((r) => ({ ...r }));
+  const rows = await sql()<{ slug: string; name: string; website: string }[]>`SELECT slug, name, website FROM stores ORDER BY lower(name)`;
+  return rows.filter((r) => isSpanishMarket(r.website)).map((r) => ({ slug: r.slug, name: r.name }));
 }

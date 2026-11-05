@@ -17,3 +17,9 @@ export function discountBadge(raw: string): string {
   const upTo = /^hasta\b/i.test(s) ? "Hasta " : "";
   return `${upTo}${figure[0]}`;
 }
+
+// The badge as readers see it: one style for every figure, "60 %", "Hasta 83 %", "5 €", "2,5 €" (no minus sign,
+// a space before % and €). "2x1", "Envío gratis" and the like stay as they are.
+export function badgeLabel(raw: string): string {
+  return discountBadge(raw).replace(/-?(\d+(?:[.,]\d+)?)\s?(%|€)/, "$1 $2");
+}
