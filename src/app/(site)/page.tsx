@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { byVotes } from "@/lib/community";
 import { categoryOf, hasStoreGuide, homeHref, resetFiltersHref, type HomeFilters } from "@/lib/catalog";
-import { siteClient, siteCoupons, storeGuides, type SiteCoupon } from "@/lib/public-site";
+import { currentVotes, siteClient, siteCoupons, storeGuides, type SiteCoupon } from "@/lib/public-site";
 import { blackFriday, daysBetween, longDate, madridToday, percentOf, siteUrl, upcomingEvents } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, faqLd, offerLd } from "./site-ui";
 
@@ -32,13 +33,13 @@ function sortDeals(list: SiteCoupon[], orden: Filters["orden"]) {
   if (orden === "nuevos") return [...list].sort(byId);
   if (orden === "ahorro") return [...list].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || byId(a, b));
   if (orden === "caducan") return [...list].sort((a, b) => (a.expires_at || "9999").localeCompare(b.expires_at || "9999") || byId(a, b));
-  // destacados: checked by a person first, then the biggest discount, then the newest
-  return [...list].sort((a, b) => b.verified - a.verified || percentOf(b.discount) - percentOf(a.discount) || byId(a, b));
+  // destacados ("Más votados"): community score first, then checked, then discount, then newest
+  return [...list].sort(byVotes);
 }
 
 export default async function HomePage({ searchParams }: PageProps<"/">) {
   const f = readFilters(await searchParams);
-  const [all, client] = await Promise.all([siteCoupons(), siteClient()]);
+  const [all, client, mine] = await Promise.all([siteCoupons(), siteClient(), currentVotes()]);
   const now = new Date();
   const { iso: today, words: todayWords } = madridToday(now);
   const time = now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
@@ -85,7 +86,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   ];
   const base = siteUrl();
   const sortTabs = [
-    ["destacados", "Destacados"],
+    ["destacados", "Más votados"],
     ["nuevos", "Nuevos"],
     ["ahorro", "Mayor ahorro"],
     ["caducan", "Caducan pronto"],
@@ -152,7 +153,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             {shown.length ? (
               <div className="feed">
                 {shown.map((c) => (
-                  <DealCard key={c.id} c={c} client={client} today={today} />
+                  <DealCard key={c.id} c={c} client={client} today={today} mine={mine} next={hrefWith(f, { pagina: f.pagina })} />
                 ))}
               </div>
             ) : (

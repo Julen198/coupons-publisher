@@ -122,8 +122,9 @@
 .cl .code button { border: 0; border-left: 1.5px dashed var(--brand); background: transparent; padding: 0 12px; font-family: var(--f-body); font-size: .8rem; font-weight: 700; color: var(--brand); cursor: pointer; }
 .cl .vote { grid-row: span 2; display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--surface-2); border-radius: 8px; padding: 6px 0; align-self: start; }
 .cl .vote button { border: 0; background: transparent; width: 30px; height: 28px; border-radius: 6px; display: grid; place-items: center; color: var(--ink-3); cursor: pointer; }
-.cl .vote button:not(:disabled):hover { background: var(--line); color: var(--ink); }
-.cl .vote button:disabled { cursor: not-allowed; }
+.cl .vote button:hover { background: var(--line); color: var(--ink); }
+.cl .vote button[aria-pressed="true"].up { color: var(--ok); }
+.cl .vote button[aria-pressed="true"].down { color: var(--drop); }
 .cl .vote svg { width: 16px; height: 16px; }
 .cl .vote .score { font-family: var(--f-mono); font-weight: 700; font-size: .95rem; font-variant-numeric: tabular-nums; }
 .cl .deal-foot { grid-column: 3; display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--ink-3); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }

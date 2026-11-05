@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, factsOf } from "@/lib/catalog";
-import { siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
+import { currentVotes, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { daysBetween, dealPath, longDate, madridToday, parseDealId, siteUrl } from "@/lib/site-text";
 import { CopyCode } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
@@ -43,7 +43,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
   // old or mistyped words after the id: send readers and crawlers to the one canonical URL
   if (`/chollos/${param}` !== dealPath(c)) permanentRedirect(dealPath(c));
 
-  const [client, store, all] = await Promise.all([siteClient(), siteStoreById(c.store_id), siteCoupons()]);
+  const [client, store, all, mine] = await Promise.all([siteClient(), siteStoreById(c.store_id), siteCoupons(), currentVotes()]);
   const { iso: today } = madridToday();
   const base = siteUrl();
   const badge = badgeOf(c);
@@ -207,7 +207,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
 
         <aside className="buybox" aria-label="Usar el cupón">
           <div className="vote-row">
-            <VoteColumn />
+            <VoteColumn couponId={c.id} score={c.score} mine={mine.get(c.id) ?? 0} next={dealPath(c)} />
             <span className="small">votos de la comunidad</span>
           </div>
           <div className="prices">

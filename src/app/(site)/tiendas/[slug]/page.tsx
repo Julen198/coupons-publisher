@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { pageTitle, parseFaqs } from "@/lib/affiliate";
 import { hasStoreGuide } from "@/lib/catalog";
-import { siteClient, siteCoupons, siteStore } from "@/lib/public-site";
+import { currentVotes, siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { StoreLogoImg } from "../../store-logo-img";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
@@ -33,7 +33,7 @@ export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">
   const found = await load((await params).slug);
   if (!found) notFound();
   const { store, all, coupons } = found;
-  const client = await siteClient();
+  const [client, mine] = await Promise.all([siteClient(), currentVotes()]);
   const now = new Date();
   const { iso: today, words: todayWords } = madridToday(now);
   const base = siteUrl();
@@ -104,7 +104,7 @@ export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">
             {sorted.length ? (
               <div className="feed">
                 {sorted.map((c) => (
-                  <DealCard key={c.id} c={c} client={client} today={today} />
+                  <DealCard key={c.id} c={c} client={client} today={today} mine={mine} next={`/tiendas/${store.slug}`} />
                 ))}
               </div>
             ) : (

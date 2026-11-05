@@ -1,3 +1,5 @@
+import { percentOf } from "./site-text.ts";
+
 // Input rules for the reader community: handles, comments, votes. Pure, so they test without a database.
 
 const HANDLE = /^[a-z0-9_]{3,20}$/;
@@ -19,6 +21,13 @@ export function cleanComment(raw: string): string | null {
 // Pressing the vote you already gave clears it; pressing the other one flips it
 export function nextVote(current: VoteValue, pressed: -1 | 1): VoteValue {
   return current === pressed ? 0 : pressed;
+}
+
+type Rankable = { score: number; verified: number; discount: string; id: number };
+
+// "Más votados": community score first, then checked by a person, then the biggest discount, then the newest
+export function byVotes(a: Rankable, b: Rankable): number {
+  return b.score - a.score || b.verified - a.verified || percentOf(b.discount) - percentOf(a.discount) || b.id - a.id;
 }
 
 export function timeAgo(from: Date, now: Date): string {

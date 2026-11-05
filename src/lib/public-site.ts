@@ -3,6 +3,7 @@ import { sql, type Client, type Coupon, type Store } from "./db";
 import { isPublic, statusOf } from "./coupon-status.ts";
 import { publishUnverified } from "./settings.ts";
 import { couponAffiliateUrl } from "./render-page.ts";
+import { getReader } from "./reader";
 import { madridToday } from "./site-text.ts";
 import type { CategorySlug } from "./catalog.ts";
 
@@ -18,13 +19,24 @@ export type SiteCoupon = Coupon & {
   store_merchant_id: string;
   store_tracking_url: string;
   store_publisher_id: string;
+  score: number;
+  comments: number;
+  shared_by_handle: string | null;
 };
 
 const COUPON_SELECT = `
   SELECT c.*, s.name AS store_name, s.slug AS store_slug, s.logo_data <> '' AS store_has_logo, s.category AS store_category, s.website AS store_website,
          s.network AS store_network, s.merchant_id AS store_merchant_id, s.tracking_url AS store_tracking_url,
-         coalesce(s.publisher_id, '') AS store_publisher_id
-  FROM coupons c JOIN stores s ON s.id = c.store_id`;
+         coalesce(s.publisher_id, '') AS store_publisher_id,
+         coalesce(v.score, 0)::int AS score, coalesce(cm.n, 0)::int AS comments,
+         CASE WHEN sb.status = 'active' THEN sb.handle END AS shared_by_handle
+  FROM coupons c JOIN stores s ON s.id = c.store_id
+  LEFT JOIN (SELECT coupon_id, sum(value) AS score FROM votes GROUP BY coupon_id) v ON v.coupon_id = c.id
+  LEFT JOIN (
+    SELECT k.coupon_id, count(*) AS n FROM comments k JOIN readers r ON r.id = k.reader_id
+    WHERE k.hidden = 0 AND r.status = 'active' GROUP BY k.coupon_id
+  ) cm ON cm.coupon_id = c.id
+  LEFT JOIN readers sb ON sb.id = c.shared_by`;
 
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
@@ -53,6 +65,19 @@ export async function siteCoupon(id: number): Promise<{ coupon: SiteCoupon; live
   // expired but once public: keep the page, marked as expired. Archived or never-checked web finds: gone.
   const wasPublic = statusOf(coupon, t) === "expired" && (unverified || coupon.source !== "web" || coupon.verified);
   return wasPublic ? { coupon, live: false } : undefined;
+}
+
+// What a reader has voted, by coupon id
+export async function readerVotes(readerId: number): Promise<Map<number, -1 | 1>> {
+  await io();
+  const rows = await sql()<{ coupon_id: number; value: number }[]>`SELECT coupon_id, value FROM votes WHERE reader_id = ${readerId}`;
+  return new Map(rows.map((r) => [r.coupon_id, r.value === 1 ? 1 : -1]));
+}
+
+// The signed-in reader's votes, or none. One query per request.
+export async function currentVotes(): Promise<Map<number, -1 | 1>> {
+  const reader = await getReader();
+  return reader ? readerVotes(reader.id) : new Map();
 }
 
 export async function siteStore(slug: string): Promise<Store | undefined> {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { cleanComment, cleanHandle, nextVote, timeAgo } from "./community.ts";
+import { byVotes, cleanComment, cleanHandle, nextVote, timeAgo } from "./community.ts";
 
 test("cleanHandle", () => {
   assert.equal(cleanHandle("  Runner_Bilbo "), "runner_bilbo");
@@ -27,4 +27,10 @@ test("timeAgo", () => {
   assert.equal(timeAgo(new Date("2026-11-05T09:00:00Z"), now), "hace 3 h");
   assert.equal(timeAgo(new Date("2026-11-04T10:00:00Z"), now), "hace 1 día");
   assert.equal(timeAgo(new Date("2026-11-02T12:00:00Z"), now), "hace 3 días");
+});
+
+test("byVotes ranks by score, then checked, then discount, then newest", () => {
+  const d = (id: number, score: number, verified = 0, discount = "") => ({ id, score, verified, discount });
+  const list = [d(1, 0, 1, "10%"), d(2, 3), d(3, 0, 1, "30%"), d(4, -1, 1), d(5, 0, 0)];
+  assert.deepEqual([...list].sort(byVotes).map((x) => x.id), [2, 3, 1, 5, 4]);
 });

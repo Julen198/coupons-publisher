@@ -1,12 +1,14 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { cleanHandle } from "@/lib/community";
+import { cleanHandle, nextVote, type VoteValue } from "@/lib/community";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
+import { siteCoupon } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
 import { READER_COOKIE, SESSION_MAX_AGE, safeNext, signReader } from "@/lib/session";
 
@@ -76,4 +78,26 @@ export async function chooseHandle(_prev: FormState, f: FormData): Promise<FormS
 export async function signOutReader(): Promise<void> {
   (await cookies()).delete(READER_COOKIE);
   redirect("/");
+}
+
+// Works without client JS: a plain form post. Signed-out readers go to sign in and come back.
+export async function vote(f: FormData): Promise<void> {
+  const next = safeNext(str(f, "next"), "/");
+  const reader = await getReader();
+  if (!reader) redirect(`/entrar?next=${encodeURIComponent(next)}`);
+  const couponId = Number.parseInt(str(f, "coupon_id"), 10);
+  const pressed = str(f, "value") === "1" ? 1 : str(f, "value") === "-1" ? -1 : 0;
+  if (!Number.isInteger(couponId) || !pressed) return;
+  const found = await siteCoupon(couponId);
+  if (!found?.live) return;
+  const [row] = await sql()<{ value: number }[]>`SELECT value FROM votes WHERE reader_id = ${reader.id} AND coupon_id = ${couponId}`;
+  const value = nextVote((row?.value ?? 0) as VoteValue, pressed);
+  if (value === 0) {
+    await sql()`DELETE FROM votes WHERE reader_id = ${reader.id} AND coupon_id = ${couponId}`;
+  } else {
+    await sql()`
+      INSERT INTO votes (reader_id, coupon_id, value) VALUES (${reader.id}, ${couponId}, ${value})
+      ON CONFLICT (reader_id, coupon_id) DO UPDATE SET value = EXCLUDED.value, at = now()`;
+  }
+  refresh();
 }

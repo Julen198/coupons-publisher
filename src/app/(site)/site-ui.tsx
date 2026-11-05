@@ -4,6 +4,7 @@ import { factsOf } from "@/lib/catalog";
 import { discountBadge } from "@/lib/discount";
 import { goHref, type SiteCoupon } from "@/lib/public-site";
 import { daysBetween, dealPath, longDate } from "@/lib/site-text";
+import { vote } from "./actions-reader";
 import { CopyCode } from "./copy-code";
 import { StoreLogoImg } from "./store-logo-img";
 
@@ -71,28 +72,31 @@ export function StoreThumb({ c, className = "thumb", href }: { c: SiteCoupon; cl
   );
 }
 
-// Vote column from the prototype. ponytail: no reader accounts yet, so it shows the real score (0) and the
-// buttons stay disabled; wire them to votes once readers can sign in (plan 3 in docs/superpowers/plans)
-export function VoteColumn() {
-  const soon = "Muy pronto podrás votar";
+// Vote column from the prototype. A real form, so it works without client JS; signed-out readers are sent to sign in.
+export function VoteColumn({ couponId, score, mine, next }: { couponId: number; score: number; mine: -1 | 0 | 1; next: string }) {
+  const arrow = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
   return (
-    <div className="vote" aria-label="Votos">
-      <button className="up" type="button" disabled title={soon} aria-label={`Buen chollo. ${soon}`}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
+    <form className="vote" action={vote} aria-label="Votos">
+      <input type="hidden" name="coupon_id" value={couponId} />
+      <input type="hidden" name="next" value={next} />
+      <button className="up" type="submit" name="value" value="1" aria-pressed={mine === 1} aria-label="Buen chollo">
+        <svg {...arrow}><path d="m6 15 6-6 6 6" /></svg>
       </button>
-      <span className="score">0</span>
-      <button className="down" type="button" disabled title={soon} aria-label={`No es chollo. ${soon}`}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      <span className="score">{score > 0 ? `+${score}` : score}</span>
+      <button className="down" type="submit" name="value" value="-1" aria-pressed={mine === -1} aria-label="No es chollo">
+        <svg {...arrow}><path d="m6 9 6 6 6-6" /></svg>
       </button>
-    </div>
+    </form>
   );
 }
 
-export function DealCard({ c, client, today }: { c: SiteCoupon; client: Client | undefined; today: string }) {
+type CardProps = { c: SiteCoupon; client: Client | undefined; today: string; mine: Map<number, -1 | 1>; next: string };
+
+export function DealCard({ c, client, today, mine, next }: CardProps) {
   const conds = conditionsOf(c.description).slice(0, 3);
   return (
     <article className="deal">
-      <VoteColumn />
+      <VoteColumn couponId={c.id} score={c.score} mine={mine.get(c.id) ?? 0} next={next} />
       <StoreThumb c={c} href={dealPath(c)} />
       <div className="deal-main">
         <div className="deal-head">
