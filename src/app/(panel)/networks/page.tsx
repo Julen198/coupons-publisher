@@ -51,17 +51,17 @@ export default async function NetworksPage() {
     const store = allStores.find((st) => st.id === store_id);
     return store ? [{ network, store, coupon }] : [];
   });
-  // our own accounts' non-secret ids (Awin publisher, Admitad ad space, Webgains campaign)
+  // our own accounts' non-secret ids (Awin publisher, Admitad ad space, Webgains campaign, CJ site, Rakuten SID, Impact account)
   const ourIds = Object.fromEntries(
     accounts.filter((a) => a.client_id === null).map((a) => {
       const v = publicValues(a);
-      return [a.network, v.campaignId ?? v.websiteId ?? v.publisherId ?? ""];
+      return [a.network, v.campaignId ?? v.websiteId ?? v.sid ?? v.accountSid ?? v.publisherId ?? ""];
     }),
   );
   const clientName = new Map(clients.map((c) => [c.id, c.name]));
   const storesBy = new Map(stores.map((r) => [r.network, r.n]));
   const couponsBy = new Map(coupons.map((r) => [r.source, r.n]));
-  const networks: NetworkOption[] = ADAPTERS.map((a) => ({ id: a.id, label: a.label, where: a.where, fields: a.fields }));
+  const networks: NetworkOption[] = ADAPTERS.map((a) => ({ id: a.id, label: a.label, where: a.where, docs: a.docs, fields: a.fields }));
   const clientOpts = clients.map((c) => ({ id: c.id, name: c.name }));
 
   return (

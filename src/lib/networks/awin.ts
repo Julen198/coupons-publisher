@@ -41,9 +41,10 @@ export const awin: NetworkAdapter = {
   id: "awin",
   label: "Awin",
   fields: [
-    { name: "publisherId", label: "Publisher ID", secret: false },
-    { name: "token", label: "API token", secret: true },
+    { name: "publisherId", label: "Publisher ID", secret: false, numeric: true, placeholder: "p. ej. 123456", help: "Es también el awinaffid de los enlaces" },
+    { name: "token", label: "API token", secret: true, placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" },
   ],
+  docs: "https://help.awin.com/apidocs/introduction-1",
   where: "Awin → Toolbox → API Credentials (ui.awin.com/awin-api)",
   ref: (c) => `Publisher ${c.publisherId}`,
   async fetchFeed(c: Credentials) {

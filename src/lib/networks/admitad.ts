@@ -64,10 +64,11 @@ export const admitad: NetworkAdapter = {
   id: "admitad",
   label: "Admitad",
   fields: [
-    { name: "clientId", label: "Client ID", secret: false },
+    { name: "clientId", label: "Client ID", secret: false, placeholder: "p. ej. a1b2c3d4e5f6…" },
     { name: "clientSecret", label: "Client secret", secret: true },
-    { name: "websiteId", label: "ID del espacio publicitario (w_id)", secret: false },
+    { name: "websiteId", label: "ID del espacio publicitario (w_id)", secret: false, numeric: true, placeholder: "p. ej. 1234567", help: "Cada espacio publicitario es una cuenta distinta: conecta uno por medio si hace falta" },
   ],
+  docs: "https://developers.mitgo.com/",
   where: "Admitad → perfil → Credenciales (Show credentials); el w_id está en Espacios publicitarios",
   ref: (c) => `Espacio ${c.websiteId}`,
   async fetchFeed(c: Credentials) {

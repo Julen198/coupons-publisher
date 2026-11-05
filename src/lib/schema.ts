@@ -186,6 +186,13 @@ CREATE TABLE IF NOT EXISTS client_tracking (
   PRIMARY KEY (client_id, store_id)
 );
 ALTER TABLE client_tracking ENABLE ROW LEVEL SECURITY;
+-- CJ, Rakuten and Impact read through their APIs too
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_source_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_source_check
+  CHECK (source IN ('manual', 'web', 'awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact'));
+ALTER TABLE network_accounts DROP CONSTRAINT IF EXISTS network_accounts_network_check;
+ALTER TABLE network_accounts ADD CONSTRAINT network_accounts_network_check
+  CHECK (network IN ('awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact'));
 `;
 
 // "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay

@@ -7,7 +7,7 @@ import type { CredentialField } from "@/lib/networks/types";
 import { btnCls, btnSecondaryCls, Field, inputCls } from "@/app/ui";
 import { Dialog } from "@/app/dialog";
 
-export interface NetworkOption { id: string; label: string; where: string; fields: CredentialField[] }
+export interface NetworkOption { id: string; label: string; where: string; docs: string; fields: CredentialField[] }
 export interface AccountDefaults { network: string; owner: string; values: Record<string, string> }
 
 // "Sincronizar" for one account (id) or all of them; the result stays under the button
@@ -82,21 +82,32 @@ export function AccountDialog({ networks, clients, defaults, trigger }: {
               </label>
             </>
           )}
-          {net.fields.map((field) => (
-            <div key={`${net.id}-${field.name}`} className="flex flex-col gap-1">
-              <Field
-                label={field.label}
-                name={field.name}
-                type={field.secret ? "password" : "text"}
-                autoComplete="off"
-                defaultValue={field.secret ? "" : (defaults?.values[field.name] ?? "")}
-                placeholder={field.secret && editing ? "Sin cambios" : ""}
-                required={!(field.secret && editing)}
-              />
-              {field.help && <p className="text-xs text-neutral-500">{field.help}</p>}
-            </div>
-          ))}
-          <p className="text-xs text-neutral-500">Dónde encontrarlo: {net.where}. Se guarda cifrado.</p>
+          {/* only the fields this network asks for; the key remounts them when the network changes */}
+          <fieldset key={net.id} className="flex flex-col gap-4">
+            <legend className="sr-only">Datos de {net.label}</legend>
+            {net.fields.map((field) => (
+              <div key={field.name} className="flex flex-col gap-1">
+                <Field
+                  label={field.label}
+                  name={field.name}
+                  type={field.secret ? "password" : "text"}
+                  autoComplete="off"
+                  spellCheck={false}
+                  inputMode={field.numeric ? "numeric" : undefined}
+                  pattern={field.numeric ? "[0-9]+" : undefined}
+                  title={field.numeric ? "Solo números" : undefined}
+                  defaultValue={field.secret ? "" : (defaults?.values[field.name] ?? "")}
+                  placeholder={field.secret && editing ? "Sin cambios" : (field.placeholder ?? "")}
+                  required={!(field.secret && editing)}
+                />
+                {field.help && <p className="text-xs text-neutral-500">{field.help}</p>}
+              </div>
+            ))}
+          </fieldset>
+          <p className="text-xs text-neutral-500">
+            Dónde encontrarlo: {net.where}.{" "}
+            <a href={net.docs} target="_blank" rel="noreferrer" className="underline">API de {net.label}</a>. Se guarda cifrado.
+          </p>
           {state.error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{state.error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => ref.current?.close()} className={`${btnSecondaryCls} min-h-10`}>Cancelar</button>

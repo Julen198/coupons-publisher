@@ -31,6 +31,7 @@ export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise
       adapter.fields.map((field) => {
         const v = str(f, field.name);
         if (v.length > 500) throw new Error(`${field.label}: demasiado largo`);
+        if (v && field.numeric && !/^\d+$/.test(v)) throw new Error(`${field.label}: solo números`);
         return [field.name, v];
       }),
     );

@@ -58,6 +58,7 @@ export const tradedoubler: NetworkAdapter = {
   id: "tradedoubler",
   label: "Tradedoubler",
   fields: [{ name: "token", label: "Token de Vouchers", secret: true, help: "Token del sistema VOUCHERS (40 caracteres)" }],
+  docs: "https://dev.tradedoubler.com/vouchers/publisher/",
   where: "Tradedoubler → Account → Manage tokens → VOUCHERS",
   ref: (c) => `Token …${c.token.slice(-4)}`,
   async fetchFeed(c: Credentials) {

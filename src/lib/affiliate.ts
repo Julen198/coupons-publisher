@@ -30,7 +30,13 @@ export const NETWORKS = [
   { id: "webgains", label: "Webgains" },
   { id: "cj", label: "CJ" },
   { id: "rakuten", label: "Rakuten" },
+  { id: "impact", label: "Impact" },
+  // no API integration yet: stores keep the tracking link pasted by hand
   { id: "tradetracker", label: "TradeTracker" },
+  { id: "daisycon", label: "Daisycon" },
+  { id: "kwanko", label: "Kwanko" },
+  { id: "partnerize", label: "Partnerize" },
+  { id: "effiliation", label: "Effiliation" },
   { id: "other", label: "Otra red" },
 ] as const;
 

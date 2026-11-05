@@ -23,6 +23,18 @@ const FORMATS: Record<string, { format: string; affiliate: string }> = {
     format: "https://track.webgains.com/click.html?wgcampaignid=<Campaign ID>&wgprogramid=<programa>&clickref=<ref>&wgtarget=<destino>",
     affiliate: "Nuestro Campaign ID de la cuenta conectada",
   },
+  cj: {
+    format: "https://www.anrdoezrs.net/click-<ID de sitio (PID)>-<anuncio>?sid=<ref>&url=<destino>",
+    affiliate: "El PID de la cuenta de CJ, ya dentro del enlace que da la API",
+  },
+  rakuten: {
+    format: "https://click.linksynergy.com/deeplink?id=<ID cifrado del publisher>&mid=<anunciante>&u1=<ref>&murl=<destino>",
+    affiliate: "El id cifrado de nuestro SID, sacado de los enlaces de los cupones",
+  },
+  impact: {
+    format: "https://<dominio de la marca>/c/<ID de partner>/<anuncio>/<campaña>?subId1=<ref>&u=<destino>",
+    affiliate: "Va dentro del enlace de seguimiento de cada campaña (por cuenta)",
+  },
 };
 
 export interface LinkExample {
@@ -64,6 +76,7 @@ export function LinkFormats({ clients, examples, ourIds }: { clients: Client[]; 
         <div className="grid gap-4 lg:grid-cols-2">
           {ADAPTERS.map((a) => {
             const f = FORMATS[a.id];
+            if (!f) return null;
             const ex = examples.find((e) => e.network === a.id);
             return (
               <article key={a.id} className={`${cardCls} flex min-w-0 flex-col gap-2`}>
