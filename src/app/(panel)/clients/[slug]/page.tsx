@@ -7,7 +7,7 @@ import { adapterFor } from "@/lib/networks/index";
 import { decryptJson } from "@/lib/secrets";
 import type { Credentials } from "@/lib/networks/types";
 import { coverageOf, DELIVERY_LABEL } from "@/lib/page-status";
-import { btnCls, btnSecondaryCls, cardCls, CoverageBadge, Field } from "@/app/ui";
+import { btnCls, btnSecondaryCls, cardCls, CoverageBadge, Field, inputCls } from "@/app/ui";
 import { StyleForm } from "./style-form";
 import { RemovePageButton } from "./remove-page-button";
 import { AddStoreButton } from "./add-store-form";
@@ -38,6 +38,7 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
   if (!client || !canSeeClient(user, client.id)) notFound();
   const accounts = await usableAccounts(client.id);
   const awinIds = [...new Map(accounts.filter((a) => a.network === "awin" && a.value).map((a) => [a.value, a])).values()];
+  const others = accounts.filter((a) => a.network !== "awin");
   const editable = canEdit(user);
   const now = new Date();
   const pages = allPages.filter((p) => p.client_id === client.id);
@@ -109,39 +110,52 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
           aside={
             <section className={cardCls}>
               <h2 className="mb-1 font-semibold">Datos de afiliación</h2>
-              <p className="mb-4 text-sm text-neutral-500">Con su affiliate ID, cada clic de sus páginas se atribuye a este medio.</p>
+              <p className="mb-4 text-sm text-neutral-500">Elige con qué cuenta de cada red se trackean sus clics: una suya o una nuestra.</p>
               <form action={updateClient} className="flex flex-col gap-3">
                 <input type="hidden" name="slug" value={client.slug} />
                 <Field label="Dominio" name="domain" defaultValue={client.domain} />
-                {/* pick one of the connected Awin publisher ids or type another; empty = our account's id per coupon */}
-                <Field label="Awin affiliate ID" name="awin_affiliate_id" inputMode="numeric" defaultValue={client.awin_affiliate_id}
-                  placeholder={awinIds.length ? "Elige una cuenta conectada" : "Sin configurar"} list={awinIds.length ? "awin-accounts" : undefined} autoComplete="off" />
-                {awinIds.length > 0 && (
-                  <datalist id="awin-accounts">
-                    {awinIds.map((a) => <option key={a.value} value={a.value}>{a.own ? "Nuestra cuenta" : "Cuenta del cliente"} · {a.ref}</option>)}
-                  </datalist>
-                )}
+                {/* the chosen account's publisher id becomes awinaffid; "" = our account that imported each coupon */}
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-neutral-600 dark:text-neutral-400">Cuenta de Awin</span>
+                  <select name="awin_affiliate_id" defaultValue={client.awin_affiliate_id} className={inputCls}>
+                    <option value="">{awinIds.some((a) => a.own) ? "Automática: nuestra cuenta que importó cada cupón" : "Sin cuenta: enlaces sin tracking"}</option>
+                    {awinIds.some((a) => !a.own) && (
+                      <optgroup label={`Cuentas de ${client.name}`}>
+                        {awinIds.filter((a) => !a.own).map((a) => <option key={a.value} value={a.value}>{a.ref}</option>)}
+                      </optgroup>
+                    )}
+                    {awinIds.some((a) => a.own) && (
+                      <optgroup label="Nuestras cuentas">
+                        {awinIds.filter((a) => a.own).map((a) => <option key={a.value} value={a.value}>{a.ref}</option>)}
+                      </optgroup>
+                    )}
+                    {client.awin_affiliate_id && !awinIds.some((a) => a.value === client.awin_affiliate_id) && (
+                      <option value={client.awin_affiliate_id}>Otro ID: {client.awin_affiliate_id}</option>
+                    )}
+                  </select>
+                </label>
+                <Field label="Otro Awin affiliate ID (opcional)" name="awin_affiliate_id_other" inputMode="numeric" placeholder="Solo si no está en la lista" autoComplete="off" />
                 <Field label="Prefijo clickref" name="clickref_prefix" defaultValue={client.clickref_prefix} />
                 <button className={`${btnSecondaryCls} min-h-10 self-start`}>Guardar</button>
               </form>
-              <div className="mt-5 border-t border-neutral-200 pt-4 text-sm dark:border-neutral-800">
-                <h3 className="mb-2 font-medium">Redes de afiliación que puede usar</h3>
-                {accounts.length ? (
+              {others.length > 0 && (
+                <div className="mt-5 border-t border-neutral-200 pt-4 text-sm dark:border-neutral-800">
+                  <h3 className="mb-2 font-medium">Otras redes conectadas</h3>
                   <ul className="flex flex-col gap-1">
-                    {accounts.map((a) => (
+                    {others.map((a) => (
                       <li key={a.id} className="flex flex-wrap gap-x-2">
                         <span>{adapterFor(a.network)?.label ?? a.network}</span>
                         <span className="font-mono text-xs text-neutral-500">{a.ref}</span>
-                        <span className="text-neutral-500">· {a.own ? "nuestra" : "del cliente"}</span>
-                        {a.network === "awin" && a.value && a.value === client.awin_affiliate_id && <span className="text-green-700 dark:text-green-400">· en uso</span>}
+                        <span className="text-neutral-500">· {a.own ? "nuestra" : "suya"}</span>
                       </li>
                     ))}
                   </ul>
-                ) : (
-                  <p className="text-neutral-500">No hay cuentas conectadas.</p>
-                )}
-                <Link href="/networks" className="mt-2 inline-block text-blue-700 hover:underline dark:text-blue-300">Conectar redes →</Link>
-              </div>
+                  <p className="mt-1 text-xs text-neutral-500">Sus enlaces usan el enlace de seguimiento de cada tienda.</p>
+                </div>
+              )}
+              <Link href="/networks" className="mt-3 inline-block text-sm text-blue-700 hover:underline dark:text-blue-300">
+                ¿{client.name} tiene sus propias cuentas? Conéctalas en Conectar redes →
+              </Link>
             </section>
           }
         />
