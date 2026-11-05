@@ -176,6 +176,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS network_accounts_owner_ref_idx ON network_acco
 -- when the client has no affiliate id of its own (several publisher ids → each coupon keeps the one that can track it)
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS publisher_id text NOT NULL DEFAULT '';
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS publisher_id text NOT NULL DEFAULT '';
+-- a client's own account in a template network (Tradedoubler, Admitad, Webgains): its tracking link per store,
+-- used instead of ours (stores.tracking_url) for that client's clicks. Filled when that account syncs.
+CREATE TABLE IF NOT EXISTS client_tracking (
+  client_id int NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  store_id int NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  network text NOT NULL,
+  tracking_url text NOT NULL,
+  PRIMARY KEY (client_id, store_id)
+);
+ALTER TABLE client_tracking ENABLE ROW LEVEL SECURITY;
 `;
 
 // "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay

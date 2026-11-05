@@ -99,7 +99,7 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
           aside={
             <section className={cardCls}>
               <h2 className="mb-1 font-semibold">Datos de afiliación</h2>
-              <p className="mb-4 text-sm text-neutral-500">Sus enlaces se trackean con las cuentas que tiene asignadas en Conectar redes.</p>
+              <p className="mb-4 text-sm text-neutral-500">Por defecto sus enlaces llevan nuestras cuentas. Si en Conectar redes le asignas una cuenta suya de una red, esa red pasa a usar la suya.</p>
               <form action={updateClient} className="flex flex-col gap-3">
                 <input type="hidden" name="slug" value={client.slug} />
                 <Field label="Dominio" name="domain" defaultValue={client.domain} />
