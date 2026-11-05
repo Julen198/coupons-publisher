@@ -164,7 +164,9 @@ CREATE TABLE IF NOT EXISTS network_accounts (
   last_error text NOT NULL DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS network_accounts_owner_idx ON network_accounts(network, coalesce(client_id, 0));
+-- several accounts per network and owner (e.g. two Awin publisher ids), but not the same one twice
+DROP INDEX IF EXISTS network_accounts_owner_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS network_accounts_ref_idx ON network_accounts(network, coalesce(client_id, 0), account_ref);
 ALTER TABLE network_accounts ENABLE ROW LEVEL SECURITY;
 -- calls made before tracking existed, backfilled from measured averages
 ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS estimated boolean NOT NULL DEFAULT false;

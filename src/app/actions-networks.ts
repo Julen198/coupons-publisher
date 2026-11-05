@@ -15,7 +15,8 @@ import type { Credentials } from "@/lib/networks/types";
 export type SyncState = FormState & { result?: string };
 
 // Credentials are admin-only. owner "" = our own account, otherwise a client's id.
-// Leaving a secret blank on an existing account keeps the stored one.
+// An owner can have several accounts of the same network (e.g. two Awin publisher ids): id = edit that one,
+// no id = connect another. Leaving a secret blank on an existing account keeps the stored one.
 export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise<FormState> {
   try {
     await requireAdmin();
@@ -27,8 +28,13 @@ export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise
       const [client] = await sql()`SELECT id FROM clients WHERE id = ${clientId}`;
       if (!client) throw new Error("Cliente no encontrado");
     }
-    const [existing] = await sql()<{ credentials: string }[]>`
-      SELECT credentials FROM network_accounts WHERE network = ${adapter.id} AND coalesce(client_id, 0) = ${clientId ?? 0}`;
+    const id = str(f, "id");
+    const [existing] = id
+      ? await sql()<{ id: number; credentials: string }[]>`
+          SELECT id, credentials FROM network_accounts
+          WHERE id = ${Number(id)} AND network = ${adapter.id} AND coalesce(client_id, 0) = ${clientId ?? 0}`
+      : [];
+    if (id && !existing) throw new Error("Cuenta no encontrada");
     const previous = existing ? decryptJson<Credentials>(existing.credentials) : {};
     const creds: Credentials = Object.fromEntries(
       adapter.fields.map((field) => {
@@ -39,12 +45,24 @@ export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise
     );
     const missing = adapter.fields.filter((field) => !creds[field.name]);
     if (missing.length) throw new Error(`Falta ${missing.map((m) => m.label).join(", ")}`);
-    await sql()`
-      INSERT INTO network_accounts (network, client_id, account_ref, credentials)
-      VALUES (${adapter.id}, ${clientId}, ${adapter.ref(creds)}, ${encryptJson(creds)})
-      ON CONFLICT (network, coalesce(client_id, 0)) DO UPDATE SET
-        account_ref = excluded.account_ref, credentials = excluded.credentials, last_error = ''`;
-    await logActivity(`Cuenta de ${adapter.label} ${existing ? "actualizada" : "conectada"}`);
+    const ref = adapter.ref(creds);
+    const [dupe] = await sql()<{ id: number }[]>`
+      SELECT id FROM network_accounts
+      WHERE network = ${adapter.id} AND coalesce(client_id, 0) = ${clientId ?? 0} AND account_ref = ${ref}`;
+    if (existing) {
+      if (dupe && dupe.id !== existing.id) throw new Error(`Esa cuenta (${ref}) ya está conectada`);
+      await sql()`
+        UPDATE network_accounts SET account_ref = ${ref}, credentials = ${encryptJson(creds)}, last_error = ''
+        WHERE id = ${existing.id}`;
+    } else if (dupe) {
+      // the same account entered again from "Conectar una red": refresh its credentials
+      await sql()`UPDATE network_accounts SET credentials = ${encryptJson(creds)}, last_error = '' WHERE id = ${dupe.id}`;
+    } else {
+      await sql()`
+        INSERT INTO network_accounts (network, client_id, account_ref, credentials)
+        VALUES (${adapter.id}, ${clientId}, ${ref}, ${encryptJson(creds)})`;
+    }
+    await logActivity(`Cuenta de ${adapter.label} (${ref}) ${existing || dupe ? "actualizada" : "conectada"}`);
   } catch (e) {
     return { error: errorMessage(e) };
   }
@@ -72,7 +90,9 @@ export async function syncNetworks(_prev: SyncState, f: FormData): Promise<SyncS
     const newStores: string[] = [];
     let failed = 0;
     for (const account of accounts) {
-      const label = adapterFor(account.network)?.label ?? account.network;
+      // with several accounts of one network, the ref tells their results apart
+      const net = adapterFor(account.network)?.label ?? account.network;
+      const label = account.account_ref ? `${net} (${account.account_ref})` : net;
       try {
         const summary = await syncAccount(account);
         await recordSync(account, { summary });

@@ -51,13 +51,13 @@ export default async function NetworksPage() {
     const store = allStores.find((st) => st.id === store_id);
     return store ? [{ network, store, coupon }] : [];
   });
-  // our own accounts' non-secret ids (Awin publisher, Admitad ad space, Webgains campaign)
-  const ourIds = Object.fromEntries(
-    accounts.filter((a) => a.client_id === null).map((a) => {
-      const v = publicValues(a);
-      return [a.network, v.campaignId ?? v.websiteId ?? v.publisherId ?? ""];
-    }),
-  );
+  // our own accounts' non-secret ids (Awin publisher, Admitad ad space, Webgains campaign), several per network possible
+  const ourIds: Record<string, string> = {};
+  for (const a of accounts.filter((acc) => acc.client_id === null)) {
+    const v = publicValues(a);
+    const one = v.campaignId ?? v.websiteId ?? v.publisherId ?? "";
+    if (one) ourIds[a.network] = ourIds[a.network] ? `${ourIds[a.network]}, ${one}` : one;
+  }
   const clientName = new Map(clients.map((c) => [c.id, c.name]));
   const storesBy = new Map(stores.map((r) => [r.network, r.n]));
   const couponsBy = new Map(coupons.map((r) => [r.source, r.n]));
@@ -108,7 +108,7 @@ export default async function NetworksPage() {
             {accounts.map((acc) => {
               const label = adapterFor(acc.network)?.label ?? acc.network;
               const owner = acc.client_id === null ? "Nuestra cuenta" : (clientName.get(acc.client_id) ?? "Cliente eliminado");
-              const defaults: AccountDefaults = { network: acc.network, owner: acc.client_id === null ? "" : String(acc.client_id), values: publicValues(acc) };
+              const defaults: AccountDefaults = { id: acc.id, network: acc.network, owner: acc.client_id === null ? "" : String(acc.client_id), values: publicValues(acc) };
               return (
                 <li key={acc.id} className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">
                   <div className="flex min-w-0 flex-col gap-0.5 text-sm">

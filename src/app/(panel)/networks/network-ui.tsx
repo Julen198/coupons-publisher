@@ -8,7 +8,7 @@ import { btnCls, btnSecondaryCls, Field, inputCls } from "@/app/ui";
 import { Dialog } from "@/app/dialog";
 
 export interface NetworkOption { id: string; label: string; where: string; fields: CredentialField[] }
-export interface AccountDefaults { network: string; owner: string; values: Record<string, string> }
+export interface AccountDefaults { id: number; network: string; owner: string; values: Record<string, string> }
 
 // "Sincronizar" for one account (id) or all of them; the result stays under the button
 export function SyncButton({ id, label = "Sincronizar", primary = false }: { id?: number; label?: string; primary?: boolean }) {
@@ -62,6 +62,7 @@ export function AccountDialog({ networks, clients, defaults, trigger }: {
         <form action={action} className="flex flex-col gap-4 p-5">
           {editing ? (
             <>
+              <input type="hidden" name="id" value={defaults?.id} />
               <input type="hidden" name="network" value={network} />
               <input type="hidden" name="owner" value={defaults?.owner ?? ""} />
             </>
