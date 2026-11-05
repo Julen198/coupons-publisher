@@ -73,7 +73,7 @@ export function StoreThumb({ c, className = "thumb", href }: { c: SiteCoupon; cl
 
 // Vote column from the prototype. ponytail: no reader accounts yet, so it shows the real score (0) and the
 // buttons stay disabled; wire them to votes once readers can sign in (plan 3 in docs/superpowers/plans)
-function VoteColumn() {
+export function VoteColumn() {
   const soon = "Muy pronto podrás votar";
   return (
     <div className="vote" aria-label="Votos">

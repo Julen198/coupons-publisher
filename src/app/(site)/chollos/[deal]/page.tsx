@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
+import { categoryOf, factsOf } from "@/lib/catalog";
 import { siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { daysBetween, dealPath, longDate, madridToday, parseDealId, siteUrl } from "@/lib/site-text";
 import { CopyCode } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
-import { Crumbs, DealCard, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, badgeOf, conditionsOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
+import { Crumbs, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, conditionsOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
 
 async function load(param: string) {
   const id = parseDealId(param);
@@ -48,11 +49,27 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
   const badge = badgeOf(c);
   const hasCode = c.kind === "code" && !!c.code;
   const storeFaqs = parseFaqs(store?.faqs ?? "");
-  const more = all.filter((o) => o.store_id === c.store_id && o.id !== c.id).slice(0, 4);
-  const others = more.length ? [] : all.filter((o) => o.store_id !== c.store_id).slice(0, 3);
+  const cat = categoryOf(store?.category ?? "");
+  const facts = factsOf(store?.facts ?? "");
+  // "Envío | …" in the store's facts → the value, for the buy box
+  const fact = (label: string) => facts.find((x) => x.label.toLowerCase().startsWith(label))?.value;
+  // similar deals: same store first, then the same category, then anything live
+  const rank = (o: typeof c) => (o.store_id === c.store_id ? 0 : cat && o.store_category === cat.slug ? 1 : 2);
+  const related = all
+    .filter((o) => o.id !== c.id)
+    .map((o, i) => ({ o, r: rank(o), i }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .slice(0, 3)
+    .map((x) => x.o);
+  const fromStore = related.filter((o) => o.store_id === c.store_id).length;
   const left = c.expires_at ? daysBetween(today, c.expires_at) : null;
   const published = new Date(c.created_at).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
-  const crumbs = [{ name: "Inicio", href: "/" }, { name: c.store_name, href: `/tiendas/${c.store_slug}` }, { name: c.title }];
+  const crumbs = [
+    { name: "Inicio", href: "/" },
+    { name: "Chollos", href: "/" },
+    cat ? { name: cat.label, href: `/?cat=${cat.slug}` } : { name: c.store_name, href: `/tiendas/${c.store_slug}` },
+    { name: c.title },
+  ];
   const conds = conditionsOf(c.description);
 
   const verdictTitle = live
@@ -66,7 +83,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
       } ${c.verified ? "Lo ha comprobado una persona del equipo de CuponLab." : "Viene de la red de afiliación de la tienda con sus condiciones oficiales."}${
         conds.length ? ` Ojo a las condiciones: ${conds.join(", ").toLowerCase()}.` : ""
       }`
-    : `Este cupón de ${c.store_name} caducó el ${longDate(c.expires_at)}.${more.length ? ` Abajo tienes los cupones de ${c.store_name} que siguen activos.` : ""}`;
+    : `Este cupón de ${c.store_name} caducó el ${longDate(c.expires_at)}.${fromStore ? ` Abajo tienes cupones de ${c.store_name} que siguen activos.` : ""}`;
 
   const steps = hasCode
     ? [
@@ -88,6 +105,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
     ["Condiciones", conds.length ? conds.join(" · ") : "Las generales de la tienda"],
     ["Tienda", c.store_website.replace(/^https?:\/\//, "").replace(/\/$/, "")],
     ["Publicado", longDate(published)],
+    ...facts.map((x): [string, string] => [x.label, x.value]),
   ];
 
   return (
@@ -166,20 +184,32 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
             </section>
           )}
 
-          {(more.length > 0 || others.length > 0) && (
+          {related.length > 0 && (
             <section className="dt-sec">
-              <h2>{more.length ? `Más cupones de ${c.store_name}` : "Otros chollos de hoy"}</h2>
-              <div className="feed">
-                {(more.length ? more : others).map((o) => (
-                  <DealCard key={o.id} c={o} client={client} today={today} />
+              <h2>Chollos parecidos</h2>
+              <div className="related">
+                {related.map((o) => (
+                  <Link key={o.id} className="rel" href={dealPath(o)}>
+                    <span className="ti">
+                      <StoreLogoImg slug={o.store_slug} name={o.store_name} hasLogo={o.store_has_logo} />
+                    </span>
+                    <span>
+                      <b>{o.title}</b>
+                      <span>{badgeOf(o)}</span>
+                    </span>
+                  </Link>
                 ))}
               </div>
-              {more.length > 0 && <Link href={`/tiendas/${c.store_slug}`}>Ver todos los cupones de {c.store_name}</Link>}
+              {fromStore > 0 && <Link href={`/tiendas/${c.store_slug}`}>Ver todos los cupones de {c.store_name}</Link>}
             </section>
           )}
         </div>
 
         <aside className="buybox" aria-label="Usar el cupón">
+          <div className="vote-row">
+            <VoteColumn />
+            <span className="small">votos de la comunidad</span>
+          </div>
           <div className="prices">
             <span className="price-now">{badge}</span>
             <span className="price-kind">en {c.store_name}</span>
@@ -195,9 +225,11 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
             </Link>
           )}
           <ul className="facts">
+            {fact("envío") && <li>Envío: <b>{fact("envío")}</b></li>}
+            {fact("devoluciones") && <li>Devoluciones: <b>{fact("devoluciones")}</b></li>}
             <li>{c.expires_at ? <>{live ? "Caduca" : "Caducó"} el <b>{longDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</li>
             {c.verified ? <li><b>Comprobado</b> por el equipo de CuponLab</li> : null}
-            <li>Un código por pedido salvo que la tienda diga otra cosa</li>
+            {fact("códigos por pedido") ? <li>Códigos por pedido: <b>{fact("códigos por pedido")}</b></li> : <li>Un código por pedido salvo que la tienda diga otra cosa</li>}
           </ul>
           <p className="small">Enlace de afiliado: si compras, la tienda nos paga una comisión y tu precio no cambia.</p>
         </aside>

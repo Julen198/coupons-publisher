@@ -177,9 +177,9 @@
 .cl .guide { border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 10px; align-content: start; background: var(--bg); }
 .cl .guide p { font-size: .9rem; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
 .cl .guide a { font-weight: 600; font-size: .9rem; text-decoration: none; }
-.cl .facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: .86rem; }
-.cl .facts dt { color: var(--ink-3); }
-.cl .facts dd { margin: 0; color: var(--ink); font-weight: 600; }
+.cl dl.facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: .86rem; }
+.cl dl.facts dt { color: var(--ink-3); }
+.cl dl.facts dd { margin: 0; color: var(--ink); font-weight: 600; }
 .cl .faq { display: grid; gap: 8px; max-width: 80ch; }
 .cl .faq details { border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
 .cl .longform .faq details, .cl .dt-main .faq details { background: var(--surface); }
@@ -239,6 +239,17 @@
 .cl .buybox .price-now { font-size: 2.1rem; }
 .cl .buybox .facts { list-style: none; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--line); display: grid; gap: 6px; font-size: .85rem; color: var(--ink-2); }
 .cl .buybox .facts b { color: var(--ink); font-weight: 600; }
+.cl .vote-row { display: flex; align-items: center; gap: 8px; }
+.cl .vote-row .vote { flex-direction: row; grid-row: auto; padding: 2px 4px; }
+.cl .related { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 760px) { .cl .related { grid-template-columns: minmax(0, 1fr); } }
+.cl .rel { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; align-items: center; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); text-decoration: none; color: var(--ink); }
+.cl .rel:hover { border-color: var(--brand); }
+.cl .rel .ti { width: 56px; height: 56px; background: #fff; border: 1px solid var(--line); border-radius: 4px; display: grid; place-items: center; overflow: hidden; }
+.cl .rel .ti img { width: 64%; height: 64%; object-fit: contain; }
+.cl .rel .ti .initial { font-family: var(--f-display); font-weight: 800; font-size: 1.2rem; color: #141a2b; }
+.cl .rel b { display: block; font-size: .88rem; line-height: 1.3; }
+.cl .rel span span { font-size: .9rem; color: var(--drop); font-weight: 700; font-variant-numeric: tabular-nums; }
 .cl .mbar { display: none; }
 @media (max-width: 960px) {
   .cl .mbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; align-items: center; gap: 12px; background: var(--surface); border-top: 1px solid var(--line); padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }

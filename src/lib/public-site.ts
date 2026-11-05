@@ -63,9 +63,9 @@ export async function siteStore(slug: string): Promise<Store | undefined> {
   return row ? { ...row } : undefined;
 }
 
-export async function siteStoreById(id: number): Promise<Pick<Store, "intro" | "faqs"> | undefined> {
+export async function siteStoreById(id: number): Promise<Pick<Store, "intro" | "faqs" | "category" | "facts"> | undefined> {
   await io();
-  const [row] = await sql()<Pick<Store, "intro" | "faqs">[]>`SELECT intro, faqs FROM stores WHERE id = ${id}`;
+  const [row] = await sql()<Pick<Store, "intro" | "faqs" | "category" | "facts">[]>`SELECT intro, faqs, category, facts FROM stores WHERE id = ${id}`;
   return row ? { ...row } : undefined;
 }
 
