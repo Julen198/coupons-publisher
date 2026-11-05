@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { updateClient } from "@/app/actions";
 import { canEdit, canSeeClient, requireUser } from "@/lib/auth";
-import { getClient, listAllCoupons, listPages, listStores } from "@/lib/db";
+import { getClient, listAllCoupons, listPages, listStores, sql } from "@/lib/db";
+import { adapterFor } from "@/lib/networks/index";
+import { decryptJson } from "@/lib/secrets";
+import type { Credentials } from "@/lib/networks/types";
 import { coverageOf, DELIVERY_LABEL } from "@/lib/page-status";
 import { btnCls, btnSecondaryCls, cardCls, CoverageBadge, Field } from "@/app/ui";
 import { StyleForm } from "./style-form";
@@ -10,11 +13,31 @@ import { RemovePageButton } from "./remove-page-button";
 import { AddStoreButton } from "./add-store-form";
 import { ClientMark } from "../client-mark";
 
+interface AccountOption { id: number; network: string; own: boolean; value: string; ref: string }
+
+// Connected network accounts this client can use: ours (client_id NULL) and the client's own.
+// Only the non-secret id leaves the server (Awin publisher id, Admitad ad space…).
+async function usableAccounts(clientId: number): Promise<AccountOption[]> {
+  const rows = await sql()<{ id: number; network: string; client_id: number | null; account_ref: string; credentials: string }[]>`
+    SELECT id, network, client_id, account_ref, credentials FROM network_accounts
+    WHERE client_id IS NULL OR client_id = ${clientId} ORDER BY network, client_id NULLS LAST, id`;
+  return rows.map((r) => {
+    let value = "";
+    try {
+      const c = decryptJson<Credentials>(r.credentials);
+      value = c.publisherId ?? c.websiteId ?? c.campaignId ?? "";
+    } catch { /* unreadable credentials: still listed by its label */ }
+    return { id: r.id, network: r.network, own: r.client_id === null, value, ref: r.account_ref };
+  });
+}
+
 export default async function ClientPage({ params, searchParams }: PageProps<"/clients/[slug]">) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const user = await requireUser();
   const [client, stores, allPages, coupons] = await Promise.all([getClient(slug), listStores(), listPages(), listAllCoupons()]);
   if (!client || !canSeeClient(user, client.id)) notFound();
+  const accounts = await usableAccounts(client.id);
+  const awinIds = [...new Map(accounts.filter((a) => a.network === "awin" && a.value).map((a) => [a.value, a])).values()];
   const editable = canEdit(user);
   const now = new Date();
   const pages = allPages.filter((p) => p.client_id === client.id);
@@ -90,10 +113,35 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
               <form action={updateClient} className="flex flex-col gap-3">
                 <input type="hidden" name="slug" value={client.slug} />
                 <Field label="Dominio" name="domain" defaultValue={client.domain} />
-                <Field label="Awin affiliate ID" name="awin_affiliate_id" inputMode="numeric" defaultValue={client.awin_affiliate_id} placeholder="Sin configurar" />
+                {/* pick one of the connected Awin publisher ids or type another; empty = our account's id per coupon */}
+                <Field label="Awin affiliate ID" name="awin_affiliate_id" inputMode="numeric" defaultValue={client.awin_affiliate_id}
+                  placeholder={awinIds.length ? "Elige una cuenta conectada" : "Sin configurar"} list={awinIds.length ? "awin-accounts" : undefined} autoComplete="off" />
+                {awinIds.length > 0 && (
+                  <datalist id="awin-accounts">
+                    {awinIds.map((a) => <option key={a.value} value={a.value}>{a.own ? "Nuestra cuenta" : "Cuenta del cliente"} · {a.ref}</option>)}
+                  </datalist>
+                )}
                 <Field label="Prefijo clickref" name="clickref_prefix" defaultValue={client.clickref_prefix} />
                 <button className={`${btnSecondaryCls} min-h-10 self-start`}>Guardar</button>
               </form>
+              <div className="mt-5 border-t border-neutral-200 pt-4 text-sm dark:border-neutral-800">
+                <h3 className="mb-2 font-medium">Redes de afiliación que puede usar</h3>
+                {accounts.length ? (
+                  <ul className="flex flex-col gap-1">
+                    {accounts.map((a) => (
+                      <li key={a.id} className="flex flex-wrap gap-x-2">
+                        <span>{adapterFor(a.network)?.label ?? a.network}</span>
+                        <span className="font-mono text-xs text-neutral-500">{a.ref}</span>
+                        <span className="text-neutral-500">· {a.own ? "nuestra" : "del cliente"}</span>
+                        {a.network === "awin" && a.value && a.value === client.awin_affiliate_id && <span className="text-green-700 dark:text-green-400">· en uso</span>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-neutral-500">No hay cuentas conectadas.</p>
+                )}
+                <Link href="/networks" className="mt-2 inline-block text-blue-700 hover:underline dark:text-blue-300">Conectar redes →</Link>
+              </div>
             </section>
           }
         />

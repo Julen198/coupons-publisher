@@ -25,6 +25,7 @@ export type Store = {
   merchant_id: string;
   network: string; // "awin" or another affiliate network (see NETWORKS)
   tracking_url: string; // non-Awin networks: their link with {url} and {ref} placeholders
+  publisher_id: string; // Awin: publisher id of our account that joined this advertiser ("" = none yet)
   has_logo: boolean; // the icon itself (logo_data) stays out of lists: see /store-logo/<slug>
   intro: string;
   faqs: string; // one "Pregunta | Respuesta" per line
@@ -45,6 +46,7 @@ export type Coupon = {
   source: "manual" | "awin" | "web"; // web = found by the coupon finder, hidden until verified
   source_url: string; // where a web find was seen, for whoever verifies it
   external_id: string | null;
+  publisher_id: string; // Awin: publisher id of our account that imported it ("" = manual or a client's own account)
 };
 
 export type CouponWithStore = Coupon & { store_name: string; store_slug: string; store_has_logo: boolean };
@@ -96,7 +98,7 @@ export const listClients = () => q(async (s) => plain(await s<Client[]>`SELECT *
 export const getClient = (slug: string) =>
   q(async (s) => plain(await s<Client[]>`SELECT * FROM clients WHERE slug = ${slug}`)[0] as Client | undefined);
 
-const STORE_COLS = "id, name, slug, website, network, merchant_id, tracking_url, intro, faqs, logo_data <> '' AS has_logo";
+const STORE_COLS = "id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, logo_data <> '' AS has_logo";
 
 export const listStores = () => q(async (s) => plain(await s<Store[]>`SELECT ${s.unsafe(STORE_COLS)} FROM stores ORDER BY lower(name)`));
 

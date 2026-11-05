@@ -172,6 +172,10 @@ ALTER TABLE ai_usage ENABLE ROW LEVEL SECURITY;
 -- several publisher ids per network and owner: one row per account_ref (publisher id, ad space id…)
 DROP INDEX IF EXISTS network_accounts_owner_idx;
 CREATE UNIQUE INDEX IF NOT EXISTS network_accounts_owner_ref_idx ON network_accounts(network, coalesce(client_id, 0), account_ref);
+-- Awin publisher id of our own account that imported the coupon / joined the store: the link's awinaffid
+-- when the client has no affiliate id of its own (several publisher ids → each coupon keeps the one that can track it)
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS publisher_id text NOT NULL DEFAULT '';
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS publisher_id text NOT NULL DEFAULT '';
 `;
 
 // "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay

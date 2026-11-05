@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { renderPage } from "./render-page.ts";
 
 const client = { id: 1, name: "Diario <Demo>", slug: "diario-demo", domain: "", awin_affiliate_id: "123", clickref_prefix: "demo", brand_color: "#0b4f8a", logo_url: "", nav_items: "", font_style: "serif" as const, font_family: "", layout: "newspaper" as const };
-const store = { id: 2, name: "adidas", slug: "adidas", website: "https://www.adidas.es", merchant_id: "77008", network: "awin", tracking_url: "", intro: "", faqs: "", has_logo: false };
-const coupon = { id: 9, store_id: 2, kind: "code" as const, title: "Cupón", code: "SAVE10", discount: "10€", description: "", target_url: "https://www.adidas.es/x", expires_at: "", verified: 1, archived: 0, source: "manual" as const, source_url: "", external_id: null };
+const store = { id: 2, name: "adidas", slug: "adidas", website: "https://www.adidas.es", merchant_id: "77008", network: "awin", tracking_url: "", publisher_id: "", intro: "", faqs: "", has_logo: false };
+const coupon = { id: 9, store_id: 2, kind: "code" as const, title: "Cupón", code: "SAVE10", discount: "10€", description: "", target_url: "https://www.adidas.es/x", expires_at: "", verified: 1, archived: 0, source: "manual" as const, source_url: "", external_id: null, publisher_id: "" };
 const NOW = new Date(2026, 9, 24);
 
 test("with trackBase, buttons go through /go for click counting", () => {
@@ -33,4 +33,25 @@ test("cards show the store's icon when it has one and we know our origin", () =>
   const html = renderPage(client, { ...store, has_logo: true }, [coupon], NOW, undefined, "https://demo.example");
   assert.match(html, /<img class="cp-logo" src="https:\/\/demo\.example\/store-logo\/adidas" alt="adidas"/);
   assert.doesNotMatch(renderPage(client, store, [coupon], NOW, undefined, "https://demo.example"), /cp-logo"/);
+});
+
+test("client without an Awin id: the link carries the publisher id of the account that imported the coupon", () => {
+  const html = renderPage({ ...client, awin_affiliate_id: "" }, { ...store, publisher_id: "555" }, [{ ...coupon, publisher_id: "888" }], NOW);
+  assert.match(html, /awinmid=77008&amp;awinaffid=888&amp;clickref=demo-adidas-9/);
+});
+
+test("client without an Awin id, manual coupon: falls back to the publisher id that joined the store", () => {
+  const html = renderPage({ ...client, awin_affiliate_id: "" }, { ...store, publisher_id: "555" }, [coupon], NOW);
+  assert.match(html, /awinaffid=555&amp;/);
+});
+
+test("the client's own Awin id wins over our publisher ids", () => {
+  const html = renderPage(client, { ...store, publisher_id: "555" }, [{ ...coupon, publisher_id: "888" }], NOW);
+  assert.match(html, /awinaffid=123&amp;/);
+});
+
+test("no Awin id anywhere: straight to the store", () => {
+  const html = renderPage({ ...client, awin_affiliate_id: "" }, store, [coupon], NOW);
+  assert.doesNotMatch(html, /awin1\.com/);
+  assert.match(html, /href="https:\/\/www\.adidas\.es\/x"/);
 });
