@@ -27,3 +27,27 @@ export function factsOf(text: string): { label: string; value: string }[] {
 
 // A store's category from a form field: a known slug, or "" (no category)
 export const storeCategory = (raw: string): CategorySlug | "" => categoryOf(raw.trim())?.slug ?? "";
+
+// Home page filters, as read from the URL
+export type HomeFilters = {
+  cat: CategorySlug | "";
+  tipo: "todos" | "codigos" | "ofertas";
+  orden: "destacados" | "nuevos" | "ahorro" | "caducan";
+  comprobados: boolean;
+  q: string;
+  pagina: number;
+};
+
+// Link to the home page with some filters changed; any change goes back to page 1 unless it sets the page
+export function homeHref(f: HomeFilters, change: Partial<HomeFilters>): string {
+  const n = { ...f, pagina: 1, ...change };
+  const q = new URLSearchParams();
+  if (n.q) q.set("q", n.q);
+  if (n.cat) q.set("cat", n.cat);
+  if (n.tipo !== "todos") q.set("tipo", n.tipo);
+  if (n.orden !== "destacados") q.set("orden", n.orden);
+  if (n.comprobados) q.set("comprobados", "1");
+  if (n.pagina > 1) q.set("pagina", String(n.pagina));
+  const s = q.toString();
+  return s ? `/?${s}` : "/";
+}

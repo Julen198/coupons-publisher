@@ -4,6 +4,7 @@ import { isPublic, statusOf } from "./coupon-status.ts";
 import { publishUnverified } from "./settings.ts";
 import { couponAffiliateUrl } from "./render-page.ts";
 import { madridToday } from "./site-text.ts";
+import type { CategorySlug } from "./catalog.ts";
 
 // A coupon with what the public site needs from its store
 export type SiteCoupon = Coupon & {
@@ -11,6 +12,7 @@ export type SiteCoupon = Coupon & {
   store_name: string;
   store_slug: string;
   store_has_logo: boolean;
+  store_category: CategorySlug | "";
   store_website: string;
   store_network: string;
   store_merchant_id: string;
@@ -19,7 +21,7 @@ export type SiteCoupon = Coupon & {
 };
 
 const COUPON_SELECT = `
-  SELECT c.*, s.name AS store_name, s.slug AS store_slug, s.logo_data <> '' AS store_has_logo, s.website AS store_website,
+  SELECT c.*, s.name AS store_name, s.slug AS store_slug, s.logo_data <> '' AS store_has_logo, s.category AS store_category, s.website AS store_website,
          s.network AS store_network, s.merchant_id AS store_merchant_id, s.tracking_url AS store_tracking_url,
          coalesce(s.publisher_id, '') AS store_publisher_id
   FROM coupons c JOIN stores s ON s.id = c.store_id`;

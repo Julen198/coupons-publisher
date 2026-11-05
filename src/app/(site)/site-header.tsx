@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { CATEGORIES } from "@/lib/catalog";
 
 const LOGO = (
   <svg viewBox="0 0 32 32" aria-hidden="true">
@@ -13,15 +14,10 @@ const LOGO = (
   </svg>
 );
 
-const SECTIONS = [
-  { href: "/", label: "Todos", match: (p: string, tipo: string) => p === "/" && !tipo },
-  { href: "/?tipo=codigos", label: "Con código", match: (p: string, tipo: string) => p === "/" && tipo === "codigos" },
-  { href: "/?tipo=ofertas", label: "Sin código", match: (p: string, tipo: string) => p === "/" && tipo === "ofertas" },
-  { href: "/tiendas", label: "Tiendas", match: (p: string) => p.startsWith("/tiendas") },
-  { href: "/calendario", label: "Calendario", match: (p: string) => p === "/calendario" },
-];
+// "Todos" plus one tab per category; the current one is the home page with that ?cat= ("" = Todos)
+const SECTIONS = [{ slug: "", label: "Todos" }, ...CATEGORIES].map((c) => ({ ...c, href: c.slug ? `/?cat=${c.slug}` : "/" }));
 
-function Shell({ path, tipo, q }: { path: string; tipo: string; q: string }) {
+function Shell({ path, cat, q }: { path: string; cat: string; q: string }) {
   return (
     <header className="top">
       <div className="wrap">
@@ -40,10 +36,10 @@ function Shell({ path, tipo, q }: { path: string; tipo: string; q: string }) {
           <input id="q" name="q" type="search" placeholder="Busca una tienda, un producto o un código" defaultValue={q} key={q} autoComplete="off" />
         </form>
       </div>
-      <nav className="cats" aria-label="Secciones">
+      <nav className="cats" aria-label="Categorías">
         <div className="wrap">
           {SECTIONS.map((s) => (
-            <Link key={s.href} href={s.href} aria-current={s.match(path, tipo) ? "page" : undefined}>
+            <Link key={s.href} href={s.href} aria-current={path === "/" && cat === s.slug ? "page" : undefined}>
               {s.label}
             </Link>
           ))}
@@ -56,9 +52,11 @@ function Shell({ path, tipo, q }: { path: string; tipo: string; q: string }) {
 function Live() {
   const path = usePathname();
   const sp = useSearchParams();
-  return <Shell path={path} tipo={sp.get("tipo") ?? ""} q={sp.get("q") ?? ""} />;
+  const cat = sp.get("cat") ?? "";
+  // an unknown ?cat= shows everything, so "Todos" is the current tab
+  return <Shell path={path} cat={CATEGORIES.some((c) => c.slug === cat) ? cat : ""} q={sp.get("q") ?? ""} />;
 }
 
 export function SiteHeader({ live = false }: { live?: boolean }) {
-  return live ? <Live /> : <Shell path="" tipo="" q="" />;
+  return live ? <Live /> : <Shell path="" cat="" q="" />;
 }

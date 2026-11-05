@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { categoryOf, homeHref, type HomeFilters } from "@/lib/catalog";
 import { siteClient, siteCoupons, storeGuides, type SiteCoupon } from "@/lib/public-site";
 import { blackFriday, daysBetween, longDate, madridToday, percentOf, siteUrl, upcomingEvents } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, badgeOf, faqLd, offerLd } from "./site-ui";
@@ -13,26 +14,16 @@ export const metadata: Metadata = {
 const PER_PAGE = 30;
 const MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
-type Filters = { tipo: "todos" | "codigos" | "ofertas"; orden: "destacados" | "nuevos" | "ahorro" | "caducan"; comprobados: boolean; q: string; pagina: number };
+type Filters = HomeFilters;
 
 function readFilters(sp: Record<string, string | string[] | undefined>): Filters {
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
   const tipo = one("tipo") === "codigos" || one("tipo") === "ofertas" ? (one("tipo") as Filters["tipo"]) : "todos";
   const orden = ["nuevos", "ahorro", "caducan"].includes(one("orden")) ? (one("orden") as Filters["orden"]) : "destacados";
-  return { tipo, orden, comprobados: one("comprobados") === "1", q: one("q").trim().slice(0, 80), pagina: Math.max(1, Number.parseInt(one("pagina"), 10) || 1) };
+  return { cat: categoryOf(one("cat"))?.slug ?? "", tipo, orden, comprobados: one("comprobados") === "1", q: one("q").trim().slice(0, 80), pagina: Math.max(1, Number.parseInt(one("pagina"), 10) || 1) };
 }
 
-const hrefWith = (f: Filters, change: Partial<Filters>) => {
-  const n = { ...f, pagina: 1, ...change };
-  const q = new URLSearchParams();
-  if (n.q) q.set("q", n.q);
-  if (n.tipo !== "todos") q.set("tipo", n.tipo);
-  if (n.orden !== "destacados") q.set("orden", n.orden);
-  if (n.comprobados) q.set("comprobados", "1");
-  if (n.pagina > 1) q.set("pagina", String(n.pagina));
-  const s = q.toString();
-  return s ? `/?${s}` : "/";
-};
+const hrefWith = homeHref;
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -69,9 +60,12 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const best = [...all].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
   const bestCode = all.filter((c) => c.kind === "code" && c.code).sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
 
+  const cat = categoryOf(f.cat);
+  const pageName = cat ? `Chollos de ${cat.label}` : "Chollos de hoy";
   const needle = fold(f.q);
   const filtered = all.filter(
     (c) =>
+      (!f.cat || c.store_category === f.cat) &&
       (f.tipo === "codigos" ? c.kind === "code" : f.tipo === "ofertas" ? c.kind === "deal" : true) &&
       (!f.comprobados || c.verified) &&
       (!needle || fold(`${c.store_name} ${c.title} ${c.code} ${c.description}`).includes(needle)),
@@ -111,7 +105,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       <JsonLd data={faqLd(faqs)} />
 
       <div className="wrap">
-        <Crumbs items={[{ name: "Inicio", href: "/" }, { name: "Chollos de hoy" }]} />
+        <Crumbs items={[{ name: "Inicio", href: "/" }, { name: "Chollos", href: "/" }, { name: pageName }]} />
 
         <section className="intro">
           <h1>Chollos y códigos descuento verificados hoy, {todayWords}</h1>
@@ -140,7 +134,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
         <div className="grid">
           <section aria-labelledby="feedTitle">
             <h2 id="feedTitle" className="feed-title">
-              {f.q ? `Resultados para «${f.q}»` : f.tipo === "codigos" ? "Códigos descuento de hoy" : f.tipo === "ofertas" ? "Ofertas sin código de hoy" : "Chollos de hoy"}
+              {f.q ? `Resultados para «${f.q}»` : cat ? pageName : f.tipo === "codigos" ? "Códigos descuento de hoy" : f.tipo === "ofertas" ? "Ofertas sin código de hoy" : "Chollos de hoy"}
             </h2>
             <div className="toolbar">
               <nav className="tabs" aria-label="Orden">
@@ -162,7 +156,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               </div>
             ) : (
               <p className="empty">
-                No hay cupones activos {f.q ? <>para «{f.q}»</> : "con este filtro"} ahora mismo. <Link href="/">Ver todos los chollos</Link>
+                No hay cupones activos {f.q ? <>para «{f.q}»</> : cat ? `en ${cat.label}` : "con este filtro"} ahora mismo. <Link href="/">Ver todos los chollos</Link>
               </p>
             )}
             {pages > 1 && (

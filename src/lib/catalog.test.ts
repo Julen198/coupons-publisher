@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATEGORIES, categoryOf, factsOf, storeCategory } from "./catalog.ts";
+import { CATEGORIES, categoryOf, factsOf, homeHref, storeCategory, type HomeFilters } from "./catalog.ts";
 
 test("categoryOf knows the six categories and nothing else", () => {
   assert.deepEqual(CATEGORIES.map((c) => c.slug), ["tecnologia", "zapatillas", "moda", "hogar", "deporte", "viajes"]);
@@ -22,4 +22,18 @@ test("storeCategory keeps a known slug and drops anything else", () => {
   assert.equal(storeCategory("hogar"), "hogar");
   assert.equal(storeCategory(" hogar "), "hogar");
   assert.equal(storeCategory("cocina"), "");
+});
+
+const base: HomeFilters = { cat: "", tipo: "todos", orden: "destacados", comprobados: false, q: "", pagina: 1 };
+
+test("homeHref keeps the category on every filter link and resets the page", () => {
+  const f = { ...base, cat: "moda" as const, pagina: 3 };
+  assert.equal(homeHref(f, { orden: "nuevos" }), "/?cat=moda&orden=nuevos");
+  assert.equal(homeHref(f, { comprobados: true }), "/?cat=moda&comprobados=1");
+  assert.equal(homeHref(f, { pagina: 4 }), "/?cat=moda&pagina=4");
+});
+
+test("homeHref for a category tab drops the search", () => {
+  assert.equal(homeHref({ ...base, q: "nike" }, { cat: "deporte", q: "" }), "/?cat=deporte");
+  assert.equal(homeHref({ ...base, cat: "deporte" }, { cat: "" }), "/");
 });
