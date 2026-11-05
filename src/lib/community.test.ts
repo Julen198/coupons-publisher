@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { byVotes, cleanComment, cleanHandle, couponIdOf, nextVote, parseSharedDeal, timeAgo } from "./community.ts";
+import { byVotes, cleanComment, cleanHandle, couponIdOf, flagOf, nextVote, parseSharedDeal, timeAgo } from "./community.ts";
 
 test("cleanHandle", () => {
   assert.equal(cleanHandle("  Runner_Bilbo "), "runner_bilbo");
@@ -67,4 +67,11 @@ test("parseSharedDeal validates a reader's deal", () => {
   assert.equal(parseSharedDeal(form({ ...good, code: "AB CD" }), stores).ok, false);
   assert.equal(parseSharedDeal(form({ ...good, discount: "x".repeat(41) }), stores).ok, false);
   assert.equal(parseSharedDeal(form({ ...good, description: "x".repeat(501) }), stores).ok, false);
+});
+
+test("flagOf only accepts 0 and 1", () => {
+  assert.equal(flagOf("1"), 1);
+  assert.equal(flagOf("0"), 0);
+  assert.equal(flagOf("true"), null);
+  assert.equal(flagOf(""), null);
 });

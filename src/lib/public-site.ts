@@ -31,7 +31,7 @@ const COUPON_SELECT = `
          coalesce(v.score, 0)::int AS score, coalesce(cm.n, 0)::int AS comments,
          CASE WHEN sb.status = 'active' THEN sb.handle END AS shared_by_handle
   FROM coupons c JOIN stores s ON s.id = c.store_id
-  LEFT JOIN (SELECT coupon_id, sum(value) AS score FROM votes GROUP BY coupon_id) v ON v.coupon_id = c.id
+  LEFT JOIN (SELECT vt.coupon_id, sum(vt.value) AS score FROM votes vt JOIN readers vr ON vr.id = vt.reader_id WHERE vr.status = 'active' GROUP BY vt.coupon_id) v ON v.coupon_id = c.id
   LEFT JOIN (
     SELECT k.coupon_id, count(*) AS n FROM comments k JOIN readers r ON r.id = k.reader_id
     WHERE k.hidden = 0 AND r.status = 'active' GROUP BY k.coupon_id

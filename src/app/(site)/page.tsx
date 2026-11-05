@@ -236,6 +236,11 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                   <strong>Lo retiramos cuando caduca</strong>El día después de su fecha de caducidad desaparece de la portada y su página pasa a «Caducado».
                 </span>
               </li>
+              <li>
+                <span>
+                  <strong>La comunidad vota y comenta</strong>Los votos ordenan «Más votados». El equipo lee los comentarios y retira los que avisan de un cupón que ya no funciona.
+                </span>
+              </li>
             </ol>
           </section>
 

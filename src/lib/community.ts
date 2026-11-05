@@ -74,3 +74,8 @@ export function parseSharedDeal(get: (k: string) => string, storeSlugs: Readonly
   if (expires_at && !isRealDate(expires_at)) return { ok: false, error: "La fecha de caducidad no es válida." };
   return { ok: true, value: { store, title, url: parsed.href, code, discount, description, expires_at } };
 }
+
+// A 0/1 form flag ("hidden", "blocked"); anything else is rejected rather than guessed
+export function flagOf(raw: string): 0 | 1 | null {
+  return raw === "1" ? 1 : raw === "0" ? 0 : null;
+}

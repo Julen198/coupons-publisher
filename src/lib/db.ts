@@ -111,7 +111,7 @@ export const getStore = (slug: string) =>
   q(async (s) => plain(await s<Store[]>`SELECT ${s.unsafe(STORE_COLS)} FROM stores WHERE slug = ${slug}`)[0] as Store | undefined);
 
 export const listCoupons = (storeId: number) =>
-  q(async (s) => plain(await s<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${storeId} ORDER BY verified DESC, id`));
+  q(async (s) => plain(await s<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${storeId} AND review = '' ORDER BY verified DESC, id`));
 
 export const listAllCoupons = () =>
   q(async (s) =>
@@ -119,6 +119,7 @@ export const listAllCoupons = () =>
       await s<CouponWithStore[]>`
         SELECT coupons.*, stores.name AS store_name, stores.slug AS store_slug, stores.logo_data <> '' AS store_has_logo
         FROM coupons JOIN stores ON stores.id = coupons.store_id
+        WHERE coupons.review = ''
         ORDER BY lower(stores.name), coupons.verified DESC, coupons.id`,
     ),
   );
