@@ -76,7 +76,7 @@ export function eventsOf(year: number): ShopEvent[] {
   const bf = blackFriday(year);
   const cyber = new Date(Date.parse(bf) + 3 * 86_400_000).toISOString().slice(0, 10);
   return [
-    { date: iso(year, 1, 6), name: "Reyes", note: "Último día para los regalos; las tiendas preparan las rebajas" },
+    { date: iso(year, 1, 6), name: "Reyes", note: "Último día para los regalos. Las rebajas empiezan al día siguiente" },
     { date: iso(year, 1, 7), name: "Rebajas de enero", note: "Empiezan en casi todas las tiendas de moda y hogar" },
     { date: iso(year, 2, 14), name: "San Valentín", note: "Perfumería, joyería, experiencias y restaurantes" },
     { date: iso(year, 3, 19), name: "Día del Padre", note: "Tecnología, deporte y moda de hombre" },
@@ -85,7 +85,7 @@ export function eventsOf(year: number): ShopEvent[] {
     { date: iso(year, 11, 11), name: "Día del Soltero", note: "Descuentos en AliExpress, moda y tecnología" },
     { date: bf, name: `Black Friday ${year}`, note: "Muchas tiendas adelantan ofertas toda la semana" },
     { date: cyber, name: "Cyber Monday", note: "Sobre todo tecnología" },
-    { date: iso(year, 12, 25), name: "Navidad", note: "Regalos: revisa el último día de envío de cada tienda" },
+    { date: iso(year, 12, 25), name: "Navidad", note: "Revisa el último día de envío de cada tienda" },
   ];
 }
 

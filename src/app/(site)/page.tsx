@@ -6,7 +6,7 @@ import { Crumbs, DealCard, Faqs, JsonLd, badgeOf, faqLd, offerLd } from "./site-
 
 export const metadata: Metadata = {
   title: { absolute: "Chollos y códigos descuento verificados hoy | CuponLab" },
-  description: "Los chollos y códigos descuento activos hoy en tiendas españolas, comprobados por personas, con condiciones claras y fecha de caducidad.",
+  description: "Los chollos y códigos descuento activos hoy en tiendas españolas, cada uno con su fecha de caducidad y si lo ha comprobado una persona.",
   alternates: { canonical: "/" },
 };
 
@@ -84,8 +84,8 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const toBf = daysBetween(today, bf);
   const faqs = [
     { q: "¿Cómo sé si un código sigue activo?", a: "Cada cupón muestra su fecha de caducidad y si lo ha comprobado una persona. Los cupones caducados desaparecen de la portada en cuanto pasa su fecha." },
-    { q: "¿Se pueden acumular dos códigos descuento?", a: "Casi nunca: la mayoría de tiendas admiten un solo código por pedido. Lo que sí suele acumularse es un código con productos que ya están rebajados, salvo que las condiciones del cupón digan lo contrario." },
-    { q: "¿CuponLab cobra por usar los códigos?", a: "No. Algunos enlaces son de afiliado: si compras, la tienda nos paga una comisión. Tu precio es el mismo y la comisión no cambia el orden de los chollos." },
+    { q: "¿Se pueden acumular dos códigos descuento?", a: "Casi nunca. La mayoría de tiendas admiten un solo código por pedido. Lo que sí suele acumularse es un código con productos que ya están rebajados, salvo que las condiciones del cupón digan lo contrario." },
+    { q: "¿CuponLab cobra por usar los códigos?", a: "No. Algunos enlaces son de afiliado. Si compras, la tienda nos paga una comisión. Tu precio es el mismo y la comisión no cambia el orden de los chollos." },
     { q: `¿Cuándo es el Black Friday ${bf.slice(0, 4)}?`, a: `El Black Friday ${bf.slice(0, 4)} es el ${longDate(bf)} y el Cyber Monday, tres días después. Muchas tiendas españolas adelantan ofertas durante toda esa semana.` },
   ];
   const base = siteUrl();
@@ -116,7 +116,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
           <h1>Chollos y códigos descuento verificados hoy, {todayWords}</h1>
           <div className="meta-line">
             <span className="live">Actualizado a las {time}</span>
-            <span>Los cupones caducados se retiran solos</span>
+            <span>Los cupones caducados salen de la portada al día siguiente</span>
             <span>Por el equipo editorial de CuponLab</span>
           </div>
           <p className="answer">
@@ -227,12 +227,12 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             <ol className="steps">
               <li>
                 <span>
-                  <strong>Lo traemos de la red de afiliación o de la tienda</strong>La mayoría llegan directamente de Awin, CJ, Rakuten y otras redes, con sus condiciones oficiales.
+                  <strong>Lo traemos de la red de afiliación o de la tienda</strong>La mayoría llegan de Awin, CJ, Rakuten e Impact con las condiciones que fija la tienda.
                 </span>
               </li>
               <li>
                 <span>
-                  <strong>Una persona lo revisa</strong>Los cupones marcados como «Comprobado» los ha revisado alguien del equipo. Los encontrados en la web no se publican hasta que alguien los comprueba.
+                  <strong>Una persona lo revisa</strong>Los cupones marcados como «Comprobado» los ha revisado alguien del equipo. Los que encontramos en la web no los publicamos hasta que alguien los comprueba.
                 </span>
               </li>
               <li>
@@ -277,7 +277,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 <strong>Equipo editorial de CuponLab</strong>
               </p>
               <p>
-                Página revisada el {todayWords}. Los cupones caducados se retiran solos y los encontrados en la web los comprueba una persona antes de publicarlos.
+                Datos actualizados el {todayWords}. Publicamos los cupones de las redes de afiliación y los que encontramos en la web después de que los revise una persona.
               </p>
             </div>
           </div>
