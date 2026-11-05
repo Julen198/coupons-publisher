@@ -35,10 +35,6 @@ export async function syncAccount(account: NetworkAccount): Promise<SyncSummary>
   // coupon and store, so clients without an affiliate id of their own still get tracked links
   const publisherId = account.network === "awin" && ownAccount ? (creds.publisherId ?? "") : "";
   const summary = await mergeFeed(adapter, feed, ownAccount, publisherId);
-  if (account.network === "awin" && !ownAccount) {
-    // a client's own Awin account: their links should carry their publisher id
-    await sql()`UPDATE clients SET awin_affiliate_id = ${creds.publisherId} WHERE id = ${account.client_id} AND awin_affiliate_id = ''`;
-  }
   return summary;
 }
 
@@ -149,4 +145,14 @@ export async function recordSync(account: NetworkAccount, result: { summary?: Sy
     UPDATE network_accounts SET last_sync_at = now(), last_result = ${text}, last_error = ${result.error ?? ""}
     WHERE id = ${account.id}`;
   await logActivity(result.error ? `Error sincronizando ${account.network}: ${result.error}` : `Sincronizado ${account.network}: ${text}`);
+}
+
+// A client's Awin id is whatever Conectar redes assigns it: the publisher id of its first own Awin account
+// ("Publisher 12345" in account_ref), or "" so each coupon falls back to our account that imported it.
+// Run after any change to network_accounts.
+export async function syncClientAwinIds() {
+  await sql()`
+    UPDATE clients c SET awin_affiliate_id = coalesce((
+      SELECT regexp_replace(a.account_ref, '^Publisher ', '') FROM network_accounts a
+      WHERE a.network = 'awin' AND a.client_id = c.id ORDER BY a.id LIMIT 1), '')`;
 }

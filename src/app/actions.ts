@@ -178,7 +178,7 @@ export async function createClient(_prev: FormState, f: FormData): Promise<FormS
     const logo = str(f, "logo_url");
     await sql()`
       INSERT INTO clients (name, slug, domain, awin_affiliate_id, clickref_prefix, brand_color, logo_url, nav_items, font_style, font_family, layout)
-      VALUES (${name}, ${s}, ${bareDomain(required(f, "domain", "el dominio"))}, ${digits(f, "awin_affiliate_id", "El Awin affiliate ID")},
+      VALUES (${name}, ${s}, ${bareDomain(required(f, "domain", "el dominio"))}, '',
               ${str(f, "clickref_prefix")}, ${hexColor(f, "brand_color")}, ${logo ? checkedLogo(logo) : ""},
               ${str(f, "nav_items")}, ${str(f, "font_style") === "sans" ? "sans" : "serif"},
               ${cleanFontFamily(str(f, "font_family")) ?? ""}, ${str(f, "layout") === "store" ? "store" : "newspaper"})`;
@@ -197,7 +197,6 @@ export async function updateClient(f: FormData) {
   if (!target || !canSeeClient(user, target.id)) throw new Error("No tienes acceso a este cliente");
   await sql()`
     UPDATE clients SET domain = ${bareDomain(str(f, "domain"))},
-      awin_affiliate_id = ${str(f, "awin_affiliate_id_other") ? digits(f, "awin_affiliate_id_other", "El Awin affiliate ID") : digits(f, "awin_affiliate_id", "El Awin affiliate ID")},
       clickref_prefix = ${str(f, "clickref_prefix")}
     WHERE slug = ${s}`;
   revalidatePath(`/clients/${s}`);

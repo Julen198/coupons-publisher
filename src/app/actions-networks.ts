@@ -8,7 +8,7 @@ import { requireAdmin, requireEditor } from "@/lib/auth";
 import { fillStoreIcons } from "@/lib/fill-store-icons";
 import { errorMessage, required, str, type FormState } from "@/lib/form";
 import { adapterFor } from "@/lib/networks/index";
-import { describeSync, recordSync, syncAccount, type NetworkAccount } from "@/lib/network-sync";
+import { describeSync, recordSync, syncAccount, syncClientAwinIds, type NetworkAccount } from "@/lib/network-sync";
 import { decryptJson, encryptJson } from "@/lib/secrets";
 import type { Credentials } from "@/lib/networks/types";
 
@@ -49,6 +49,7 @@ export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise
       VALUES (${adapter.id}, ${clientId}, ${adapter.ref(creds)}, ${encryptJson(creds)})
       ON CONFLICT (network, coalesce(client_id, 0), account_ref) DO UPDATE SET
         account_ref = excluded.account_ref, credentials = excluded.credentials, last_error = ''`;
+    await syncClientAwinIds();
     await logActivity(`Cuenta de ${adapter.label} ${existing ? "actualizada" : "conectada"}`);
   } catch (e) {
     return { error: errorMessage(e) };
@@ -60,6 +61,7 @@ export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise
 export async function deleteNetworkAccount(f: FormData) {
   await requireAdmin();
   const [row] = await sql()<{ network: string }[]>`DELETE FROM network_accounts WHERE id = ${Number(required(f, "id"))} RETURNING network`;
+  await syncClientAwinIds();
   if (row) await logActivity(`Cuenta de ${adapterFor(row.network)?.label ?? row.network} desconectada`);
   revalidatePath("/networks");
 }

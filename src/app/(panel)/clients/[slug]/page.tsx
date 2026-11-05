@@ -3,32 +3,23 @@ import { notFound } from "next/navigation";
 import { updateClient } from "@/app/actions";
 import { canEdit, canSeeClient, requireUser } from "@/lib/auth";
 import { getClient, listAllCoupons, listPages, listStores, sql } from "@/lib/db";
-import { adapterFor } from "@/lib/networks/index";
-import { decryptJson } from "@/lib/secrets";
-import type { Credentials } from "@/lib/networks/types";
+import { ADAPTERS } from "@/lib/networks/index";
 import { coverageOf, DELIVERY_LABEL } from "@/lib/page-status";
-import { btnCls, btnSecondaryCls, cardCls, CoverageBadge, Field, inputCls } from "@/app/ui";
+import { btnCls, btnSecondaryCls, cardCls, CoverageBadge, Field } from "@/app/ui";
 import { StyleForm } from "./style-form";
 import { RemovePageButton } from "./remove-page-button";
 import { AddStoreButton } from "./add-store-form";
 import { ClientMark } from "../client-mark";
 
-interface AccountOption { id: number; network: string; own: boolean; value: string; ref: string }
+interface AccountOption { id: number; network: string; own: boolean; ref: string }
 
-// Connected network accounts this client can use: ours (client_id NULL) and the client's own.
-// Only the non-secret id leaves the server (Awin publisher id, Admitad ad space…).
+// Accounts assigned in Conectar redes that this client's links can use: its own and ours (client_id NULL).
+// account_ref is the non-secret label ("Publisher 12345"); credentials never leave the query.
 async function usableAccounts(clientId: number): Promise<AccountOption[]> {
-  const rows = await sql()<{ id: number; network: string; client_id: number | null; account_ref: string; credentials: string }[]>`
-    SELECT id, network, client_id, account_ref, credentials FROM network_accounts
+  const rows = await sql()<{ id: number; network: string; client_id: number | null; account_ref: string }[]>`
+    SELECT id, network, client_id, account_ref FROM network_accounts
     WHERE client_id IS NULL OR client_id = ${clientId} ORDER BY network, client_id NULLS LAST, id`;
-  return rows.map((r) => {
-    let value = "";
-    try {
-      const c = decryptJson<Credentials>(r.credentials);
-      value = c.publisherId ?? c.websiteId ?? c.campaignId ?? "";
-    } catch { /* unreadable credentials: still listed by its label */ }
-    return { id: r.id, network: r.network, own: r.client_id === null, value, ref: r.account_ref };
-  });
+  return rows.map((r) => ({ id: r.id, network: r.network, own: r.client_id === null, ref: r.account_ref }));
 }
 
 export default async function ClientPage({ params, searchParams }: PageProps<"/clients/[slug]">) {
@@ -37,8 +28,6 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
   const [client, stores, allPages, coupons] = await Promise.all([getClient(slug), listStores(), listPages(), listAllCoupons()]);
   if (!client || !canSeeClient(user, client.id)) notFound();
   const accounts = await usableAccounts(client.id);
-  const awinIds = [...new Map(accounts.filter((a) => a.network === "awin" && a.value).map((a) => [a.value, a])).values()];
-  const others = accounts.filter((a) => a.network !== "awin");
   const editable = canEdit(user);
   const now = new Date();
   const pages = allPages.filter((p) => p.client_id === client.id);
@@ -110,52 +99,35 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
           aside={
             <section className={cardCls}>
               <h2 className="mb-1 font-semibold">Datos de afiliación</h2>
-              <p className="mb-4 text-sm text-neutral-500">Elige con qué cuenta de cada red se trackean sus clics: una suya o una nuestra.</p>
+              <p className="mb-4 text-sm text-neutral-500">Sus enlaces se trackean con las cuentas que tiene asignadas en Conectar redes.</p>
               <form action={updateClient} className="flex flex-col gap-3">
                 <input type="hidden" name="slug" value={client.slug} />
                 <Field label="Dominio" name="domain" defaultValue={client.domain} />
-                {/* the chosen account's publisher id becomes awinaffid; "" = our account that imported each coupon */}
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-neutral-600 dark:text-neutral-400">Cuenta de Awin</span>
-                  <select name="awin_affiliate_id" defaultValue={client.awin_affiliate_id} className={inputCls}>
-                    <option value="">{awinIds.some((a) => a.own) ? "Automática: nuestra cuenta que importó cada cupón" : "Sin cuenta: enlaces sin tracking"}</option>
-                    {awinIds.some((a) => !a.own) && (
-                      <optgroup label={`Cuentas de ${client.name}`}>
-                        {awinIds.filter((a) => !a.own).map((a) => <option key={a.value} value={a.value}>{a.ref}</option>)}
-                      </optgroup>
-                    )}
-                    {awinIds.some((a) => a.own) && (
-                      <optgroup label="Nuestras cuentas">
-                        {awinIds.filter((a) => a.own).map((a) => <option key={a.value} value={a.value}>{a.ref}</option>)}
-                      </optgroup>
-                    )}
-                    {client.awin_affiliate_id && !awinIds.some((a) => a.value === client.awin_affiliate_id) && (
-                      <option value={client.awin_affiliate_id}>Otro ID: {client.awin_affiliate_id}</option>
-                    )}
-                  </select>
-                </label>
-                <Field label="Otro Awin affiliate ID (opcional)" name="awin_affiliate_id_other" inputMode="numeric" placeholder="Solo si no está en la lista" autoComplete="off" />
                 <Field label="Prefijo clickref" name="clickref_prefix" defaultValue={client.clickref_prefix} />
                 <button className={`${btnSecondaryCls} min-h-10 self-start`}>Guardar</button>
               </form>
-              {others.length > 0 && (
-                <div className="mt-5 border-t border-neutral-200 pt-4 text-sm dark:border-neutral-800">
-                  <h3 className="mb-2 font-medium">Otras redes conectadas</h3>
-                  <ul className="flex flex-col gap-1">
-                    {others.map((a) => (
-                      <li key={a.id} className="flex flex-wrap gap-x-2">
-                        <span>{adapterFor(a.network)?.label ?? a.network}</span>
-                        <span className="font-mono text-xs text-neutral-500">{a.ref}</span>
-                        <span className="text-neutral-500">· {a.own ? "nuestra" : "suya"}</span>
+              <div className="mt-5 border-t border-neutral-200 pt-4 text-sm dark:border-neutral-800">
+                <h3 className="mb-2 font-medium">Redes de afiliación</h3>
+                <ul className="flex flex-col gap-2">
+                  {ADAPTERS.map((n) => {
+                    const mine = accounts.filter((a) => a.network === n.id && !a.own);
+                    const ours = accounts.filter((a) => a.network === n.id && a.own);
+                    if (!mine.length && !ours.length) return null;
+                    return (
+                      <li key={n.id}>
+                        <span className="font-medium">{n.label}</span>{" "}
+                        {mine.length ? (
+                          <span className="text-green-700 dark:text-green-400">· su cuenta <span className="font-mono text-xs">{mine[0].ref}</span></span>
+                        ) : (
+                          <span className="text-neutral-500">· la nuestra{n.id === "awin" ? " que importó cada cupón" : ""} (<span className="font-mono text-xs">{ours.map((a) => a.ref).join(", ")}</span>)</span>
+                        )}
                       </li>
-                    ))}
-                  </ul>
-                  <p className="mt-1 text-xs text-neutral-500">Sus enlaces usan el enlace de seguimiento de cada tienda.</p>
-                </div>
-              )}
-              <Link href="/networks" className="mt-3 inline-block text-sm text-blue-700 hover:underline dark:text-blue-300">
-                ¿{client.name} tiene sus propias cuentas? Conéctalas en Conectar redes →
-              </Link>
+                    );
+                  })}
+                </ul>
+                {!accounts.length && <p className="text-neutral-500">No hay cuentas conectadas.</p>}
+              </div>
+              <Link href="/networks" className="mt-3 inline-block text-sm text-blue-700 hover:underline dark:text-blue-300">Asignar cuentas en Conectar redes →</Link>
             </section>
           }
         />
