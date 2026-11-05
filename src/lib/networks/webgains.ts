@@ -61,10 +61,11 @@ export const webgains: NetworkAdapter = {
   id: "webgains",
   label: "Webgains",
   fields: [
-    { name: "publisherId", label: "Publisher ID", secret: false },
-    { name: "campaignId", label: "Campaign ID (tu sitio)", secret: false },
+    { name: "publisherId", label: "Publisher ID", secret: false, numeric: true, placeholder: "p. ej. 123456" },
+    { name: "campaignId", label: "Campaign ID (tu sitio)", secret: false, numeric: true, placeholder: "p. ej. 1234567", help: "En Webgains cada sitio es una «campaign»: es el wgcampaignid de los enlaces" },
     { name: "token", label: "Personal access token", secret: true },
   ],
+  docs: "https://docs.webgains.dev/",
   where: "platform.webgains.io → Account → User Management → tu usuario → Personal Access Token",
   ref: (c) => `Campaign ${c.campaignId}`,
   async fetchFeed(c: Credentials) {

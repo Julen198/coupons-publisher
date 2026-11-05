@@ -29,15 +29,18 @@ export interface CredentialField {
   label: string;
   secret: boolean; // never shown back in the panel
   help?: string;
+  placeholder?: string;
+  numeric?: boolean; // digits only: numeric keyboard on phones and checked before saving
 }
 
 export type Credentials = Record<string, string>;
 
 export interface NetworkAdapter {
-  id: "awin" | "tradedoubler" | "admitad" | "webgains";
+  id: "awin" | "tradedoubler" | "admitad" | "webgains" | "cj" | "rakuten" | "impact";
   label: string;
   fields: CredentialField[];
   where: string; // where to find the credentials in the network's own panel
+  docs: string; // the network's API page, linked from the connect form
   ref: (c: Credentials) => string; // non-secret label for the account (publisher id…)
   fetchFeed: (c: Credentials) => Promise<NetFeed>;
 }
@@ -46,13 +49,22 @@ export interface NetworkAdapter {
 export const REGION = "ES";
 const MAX_PAGES = 50;
 
-export async function getJson<T>(url: string, init: RequestInit = {}): Promise<T> {
+async function fetchOk(url: string, init: RequestInit): Promise<Response> {
   const r = await fetch(url, { ...init, signal: AbortSignal.timeout(30_000) });
   if (!r.ok) {
     const body = (await r.text().catch(() => "")).slice(0, 200);
     throw new Error(`${new URL(url).hostname} respondió ${r.status}${body ? `: ${body}` : ""}`);
   }
-  return (await r.json()) as T;
+  return r;
+}
+
+export async function getJson<T>(url: string, init: RequestInit = {}): Promise<T> {
+  return (await (await fetchOk(url, init)).json()) as T;
+}
+
+// For the XML APIs (CJ, Rakuten)
+export async function getText(url: string, init: RequestInit = {}): Promise<string> {
+  return (await fetchOk(url, init)).text();
 }
 
 // Calls page(1), page(2)… until a short page; MAX_PAGES caps a misbehaving API

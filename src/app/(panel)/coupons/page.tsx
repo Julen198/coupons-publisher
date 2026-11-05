@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { StoreMark } from "@/app/store-mark";
 import { BulkBar } from "./bulk-bar";
+import { networkLabel } from "@/lib/affiliate";
 import { publishUnverified } from "@/lib/settings";
 import { Combobox } from "@/app/combobox";
 import { FindCouponsButton } from "./find-coupons-button";
@@ -32,7 +33,6 @@ const BADGES = {
 const PAGE_SIZE = 15;
 const couponCount = (n: number) => `${n} ${n === 1 ? "cupón" : "cupones"}`;
 const norm = (v: string) => v.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-const SOURCE_LABEL = { manual: "Manual", awin: "Awin", web: "Internet" } as const;
 const hostOf = (url: string) => (URL.canParse(url) ? new URL(url).hostname.replace(/^www\./, "") : url);
 
 const fmtDate = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
@@ -204,7 +204,7 @@ export default async function CouponsPage({ searchParams }: PageProps<"/coupons"
                           >
                             {c.source_url ? `${hostOf(c.source_url)} ↗` : "Internet"}
                           </a>
-                        ) : SOURCE_LABEL[c.source]}
+                        ) : c.source === "manual" ? "Manual" : networkLabel(c.source)}
                       </td>
                       <td className="py-2.5 pr-4 pl-2 text-right whitespace-nowrap">
                         {st === "pending" && (
