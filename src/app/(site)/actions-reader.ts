@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { cleanHandle, nextVote, type VoteValue } from "@/lib/community";
+import { cleanComment, cleanHandle, couponIdOf, nextVote, type VoteValue } from "@/lib/community";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
@@ -85,9 +85,9 @@ export async function vote(f: FormData): Promise<void> {
   const next = safeNext(str(f, "next"), "/");
   const reader = await getReader();
   if (!reader) redirect(`/entrar?next=${encodeURIComponent(next)}`);
-  const couponId = Number.parseInt(str(f, "coupon_id"), 10);
+  const couponId = couponIdOf(str(f, "coupon_id"));
   const pressed = str(f, "value") === "1" ? 1 : str(f, "value") === "-1" ? -1 : 0;
-  if (!Number.isInteger(couponId) || !pressed) return;
+  if (!couponId || !pressed) return;
   const found = await siteCoupon(couponId);
   if (!found?.live) return;
   const [row] = await sql()<{ value: number }[]>`SELECT value FROM votes WHERE reader_id = ${reader.id} AND coupon_id = ${couponId}`;
@@ -100,4 +100,25 @@ export async function vote(f: FormData): Promise<void> {
       ON CONFLICT (reader_id, coupon_id) DO UPDATE SET value = EXCLUDED.value, at = now()`;
   }
   refresh();
+}
+
+const COMMENT_COOLDOWN_SECONDS = 30;
+
+export async function postComment(_prev: FormState, f: FormData): Promise<FormState & { posted?: boolean }> {
+  const reader = await getReader();
+  if (!reader) return { error: "Entra para comentar" };
+  if (!reader.handle) redirect("/entrar/nombre");
+  const couponId = couponIdOf(str(f, "coupon_id"));
+  const found = couponId ? await siteCoupon(couponId) : undefined;
+  if (!found?.live) return { error: "Este chollo ya no admite comentarios" };
+  // raw value, not str(): str() trims, and cleanComment owns the trimming
+  const body = cleanComment(String(f.get("body") ?? ""));
+  if (!body) return { error: "Escribe entre 2 y 1000 caracteres" };
+  const [recent] = await sql()<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM comments
+    WHERE reader_id = ${reader.id} AND created_at > now() - ${COMMENT_COOLDOWN_SECONDS} * interval '1 second'`;
+  if (recent.n > 0) return { error: "Espera unos segundos antes de volver a comentar" };
+  await sql()`INSERT INTO comments (coupon_id, reader_id, body) VALUES (${found.coupon.id}, ${reader.id}, ${body})`;
+  refresh();
+  return { posted: true };
 }

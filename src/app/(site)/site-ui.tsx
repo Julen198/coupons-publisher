@@ -132,6 +132,7 @@ export function DealCard({ c, client, today, mine, next }: CardProps) {
       <div className="deal-foot">
         <span>Publicado el {shortDate(madridDate(c.created_at))}</span>
         <span>{c.expires_at ? <>Válido hasta el <time dateTime={c.expires_at}>{shortDate(c.expires_at)}</time></> : "Sin fecha de caducidad"}</span>
+        <Link href={`${dealPath(c)}#comentarios`}>{c.comments === 1 ? "1 comentario" : `${c.comments} comentarios`}</Link>
         <Link href={dealPath(c)}>Ver condiciones</Link>
       </div>
     </article>

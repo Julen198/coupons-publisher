@@ -14,8 +14,16 @@ export function cleanHandle(raw: string): string | null {
 }
 
 export function cleanComment(raw: string): string | null {
-  const body = raw.trim().replace(/\n{3,}/g, "\n\n");
+  // browsers submit textareas with CRLF: count and collapse on plain LF
+  const body = raw.replace(/\r\n?/g, "\n").trim().replace(/\n{3,}/g, "\n\n");
   return body.length >= COMMENT_MIN && body.length <= COMMENT_MAX ? body : null;
+}
+
+// A coupon id from a form field: digits only and small enough for an integer column, so a tampered value can't reach Postgres
+export function couponIdOf(raw: string): number | null {
+  if (!/^\d{1,9}$/.test(raw)) return null;
+  const id = Number(raw);
+  return id > 0 ? id : null;
 }
 
 // Pressing the vote you already gave clears it; pressing the other one flips it

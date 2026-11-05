@@ -120,3 +120,18 @@ export function goHref(client: Client | undefined, c: SiteCoupon): string {
   const store = { slug: c.store_slug, network: c.store_network, merchant_id: c.store_merchant_id, tracking_url: c.store_tracking_url, publisher_id: c.store_publisher_id };
   return couponAffiliateUrl(ours, store, c);
 }
+
+export type DealComment = { id: number; handle: string; body: string; created_at: Date; by_sharer: boolean };
+
+// Visible comments by active readers, oldest first
+export async function dealComments(couponId: number): Promise<DealComment[]> {
+  await io();
+  const rows = await sql()<DealComment[]>`
+    SELECT k.id, r.handle, k.body, k.created_at, (c.shared_by IS NOT NULL AND c.shared_by = k.reader_id) AS by_sharer
+    FROM comments k
+    JOIN readers r ON r.id = k.reader_id AND r.status = 'active' AND r.handle IS NOT NULL
+    JOIN coupons c ON c.id = k.coupon_id
+    WHERE k.coupon_id = ${couponId} AND k.hidden = 0
+    ORDER BY k.created_at, k.id LIMIT 200`;
+  return plain(rows);
+}

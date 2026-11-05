@@ -3,8 +3,11 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, factsOf } from "@/lib/catalog";
-import { currentVotes, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
+import { currentVotes, dealComments, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
+import { getReader } from "@/lib/reader";
+import { timeAgo } from "@/lib/community";
 import { daysBetween, dealPath, longDate, madridToday, parseDealId, siteUrl } from "@/lib/site-text";
+import { CommentForm } from "./comment-form";
 import { CopyCode } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
 import { Crumbs, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, conditionsOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
@@ -43,7 +46,15 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
   // old or mistyped words after the id: send readers and crawlers to the one canonical URL
   if (`/chollos/${param}` !== dealPath(c)) permanentRedirect(dealPath(c));
 
-  const [client, store, all, mine] = await Promise.all([siteClient(), siteStoreById(c.store_id), siteCoupons(), currentVotes()]);
+  const [client, store, all, mine, comments, reader] = await Promise.all([
+    siteClient(),
+    siteStoreById(c.store_id),
+    siteCoupons(),
+    currentVotes(),
+    dealComments(c.id),
+    getReader(),
+  ]);
+  const now = new Date();
   const { iso: today } = madridToday();
   const base = siteUrl();
   const badge = badgeOf(c);
@@ -183,6 +194,34 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
               <Faqs items={storeFaqs} />
             </section>
           )}
+
+          <section className="dt-sec" id="comentarios">
+            <h2>{comments.length === 1 ? "1 comentario" : `${comments.length} comentarios`}</h2>
+            <div className="comments">
+              {comments.map((m) => (
+                <article key={m.id} className="cm">
+                  <div className="cm-h">
+                    <b>@{m.handle}</b>
+                    {m.by_sharer && <span className="op">Autor</span>}
+                    <span>{timeAgo(new Date(m.created_at), now)}</span>
+                  </div>
+                  <p>{m.body}</p>
+                </article>
+              ))}
+              {live &&
+                (!reader ? (
+                  <div className="cm-form">
+                    <Link href={`/entrar?next=${encodeURIComponent(dealPath(c))}#comentarios`}>Entra para comentar</Link>
+                  </div>
+                ) : !reader.handle ? (
+                  <div className="cm-form">
+                    <Link href={`/entrar/nombre?next=${encodeURIComponent(dealPath(c))}`}>Elige un nombre de usuario para comentar</Link>
+                  </div>
+                ) : (
+                  <CommentForm couponId={c.id} />
+                ))}
+            </div>
+          </section>
 
           {related.length > 0 && (
             <section className="dt-sec">

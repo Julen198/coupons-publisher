@@ -288,3 +288,16 @@
 .cl .auth-form label { display: grid; gap: 4px; font-weight: 600; font-size: .9rem; }
 .cl .auth-form input:not([type="hidden"]) { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: inherit; font-weight: 400; background: var(--surface); color: var(--ink); }
 .cl .auth-error { color: #b91c1c; font-size: .85rem; }
+
+/* Comments on a deal */
+.cl .comments { display: grid; gap: 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.cl .cm { padding: 14px 16px; border-top: 1px solid var(--line); display: grid; gap: 4px; }
+.cl .cm:first-child { border-top: 0; }
+.cl .cm-h { display: flex; gap: 10px; align-items: center; font-size: .82rem; color: var(--ink-3); }
+.cl .cm-h b { color: var(--ink); font-size: .9rem; }
+.cl .cm-h .op { font-size: .7rem; font-weight: 700; color: var(--brand); border: 1px solid var(--brand); border-radius: 3px; padding: 0 4px; }
+.cl .cm p { color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
+.cl .cm-form { padding: 14px 16px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.cl .comments > :first-child.cm-form { border-top: 0; }
+.cl .cm-form textarea { width: 100%; min-height: 70px; border: 1px solid var(--line); border-radius: 6px; padding: 10px; font: inherit; background: var(--bg); color: var(--ink); resize: vertical; }
+.cl .cm-form .btn { justify-self: end; }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { byVotes, cleanComment, cleanHandle, nextVote, timeAgo } from "./community.ts";
+import { byVotes, cleanComment, cleanHandle, couponIdOf, nextVote, timeAgo } from "./community.ts";
 
 test("cleanHandle", () => {
   assert.equal(cleanHandle("  Runner_Bilbo "), "runner_bilbo");
@@ -33,4 +33,17 @@ test("byVotes ranks by score, then checked, then discount, then newest", () => {
   const d = (id: number, score: number, verified = 0, discount = "") => ({ id, score, verified, discount });
   const list = [d(1, 0, 1, "10%"), d(2, 3), d(3, 0, 1, "30%"), d(4, -1, 1), d(5, 0, 0)];
   assert.deepEqual([...list].sort(byVotes).map((x) => x.id), [2, 3, 1, 5, 4]);
+});
+
+test("cleanComment normalises browser line endings first", () => {
+  assert.equal(cleanComment("uno\r\n\r\n\r\n\r\ndos"), "uno\n\ndos");
+  assert.equal(cleanComment("uno\rdos"), "uno\ndos");
+  assert.equal(cleanComment("a\r\n".repeat(500) + "b"), null);
+  assert.equal(cleanComment("a\r\n".repeat(499) + "a"), "a\n".repeat(499) + "a");
+});
+
+test("couponIdOf accepts only plain positive ids that fit an integer column", () => {
+  assert.equal(couponIdOf("42"), 42);
+  assert.equal(couponIdOf("999999999"), 999999999);
+  for (const bad of ["", "0", "-1", "1.5", "1e3", " 7", "1234567890", "abc", "007x"]) assert.equal(couponIdOf(bad), null, bad);
 });
