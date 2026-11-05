@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { cleanComment, cleanHandle, couponIdOf, nextVote, type VoteValue } from "@/lib/community";
+import { cleanComment, cleanHandle, couponIdOf, nextVote, parseSharedDeal, type VoteValue } from "@/lib/community";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
@@ -121,4 +121,27 @@ export async function postComment(_prev: FormState, f: FormData): Promise<FormSt
   await sql()`INSERT INTO comments (coupon_id, reader_id, body) VALUES (${found.coupon.id}, ${reader.id}, ${body})`;
   refresh();
   return { posted: true };
+}
+
+const SHARE_LIMIT_PER_DAY = 5;
+
+// Stored hidden (archived + pending) until an editor publishes it
+export async function shareDeal(_prev: FormState, f: FormData): Promise<FormState & { done?: boolean }> {
+  const reader = await getReader();
+  if (!reader) return { error: "Entra para compartir un chollo" };
+  if (!reader.handle) redirect("/entrar/nombre?next=/compartir");
+  const stores = await sql()<{ id: number; slug: string }[]>`SELECT id, slug FROM stores`;
+  const parsed = parseSharedDeal((k) => String(f.get(k) ?? ""), new Set(stores.map((s) => s.slug)));
+  if (!parsed.ok) return { error: parsed.error };
+  const d = parsed.value;
+  const storeId = stores.find((s) => s.slug === d.store)?.id;
+  if (!storeId) return { error: "Elige una tienda de la lista." };
+  const [recent] = await sql()<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM coupons WHERE shared_by = ${reader.id} AND created_at > now() - interval '24 hours'`;
+  if (recent.n >= SHARE_LIMIT_PER_DAY) return { error: "Has compartido 5 chollos hoy. Vuelve mañana" };
+  await sql()`
+    INSERT INTO coupons (store_id, kind, title, code, discount, description, target_url, expires_at, source, verified, archived, review, shared_by)
+    VALUES (${storeId}, ${d.code ? "code" : "deal"}, ${d.title}, ${d.code}, ${d.discount}, ${d.description}, ${d.url}, ${d.expires_at},
+            'manual', 0, 1, 'pending', ${reader.id})`;
+  return { done: true };
 }

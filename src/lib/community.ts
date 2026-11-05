@@ -47,3 +47,29 @@ export function timeAgo(from: Date, now: Date): string {
   const days = Math.floor(hours / 24);
   return days === 1 ? "hace 1 día" : `hace ${days} días`;
 }
+
+export type SharedDeal = { store: string; title: string; url: string; code: string; discount: string; description: string; expires_at: string };
+export type SharedDealResult = { ok: true; value: SharedDeal } | { ok: false; error: string };
+
+const isRealDate = (iso: string) => /^\d{4}-\d{2}-\d{2}$/.test(iso) && new Date(`${iso}T00:00:00Z`).toISOString().slice(0, 10) === iso;
+
+// What a signed-in reader may submit as a deal. https only, since the link ends up behind a "Ir a la oferta" button.
+export function parseSharedDeal(get: (k: string) => string, storeSlugs: ReadonlySet<string>): SharedDealResult {
+  const text = (k: string) => get(k).replace(/\r\n?/g, "\n").trim();
+  const store = text("store");
+  const title = text("title");
+  const url = text("url");
+  const code = text("code").toUpperCase();
+  const discount = text("discount");
+  const description = text("description");
+  const expires_at = text("expires_at");
+  if (!storeSlugs.has(store)) return { ok: false, error: "Elige una tienda de la lista." };
+  if (title.length < 5 || title.length > 120) return { ok: false, error: "El título debe tener entre 5 y 120 caracteres." };
+  const parsed = URL.canParse(url) ? new URL(url) : null;
+  if (!parsed || parsed.protocol !== "https:") return { ok: false, error: "El enlace debe ser una dirección https." };
+  if (code.length > 40 || /\s/.test(code)) return { ok: false, error: "El código no puede llevar espacios ni pasar de 40 caracteres." };
+  if (discount.length > 40) return { ok: false, error: "El descuento no puede pasar de 40 caracteres." };
+  if (description.length > 500) return { ok: false, error: "La descripción no puede pasar de 500 caracteres." };
+  if (expires_at && !isRealDate(expires_at)) return { ok: false, error: "La fecha de caducidad no es válida." };
+  return { ok: true, value: { store, title, url, code, discount, description, expires_at } };
+}

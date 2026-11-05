@@ -35,6 +35,9 @@ function Shell({ path, cat, q }: { path: string; cat: string; q: string }) {
           <label htmlFor="q" className="sr-only">Buscar</label>
           <input id="q" name="q" type="search" placeholder="Busca una tienda, un producto o un código" defaultValue={q} key={q} autoComplete="off" />
         </form>
+        <div className="top-actions">
+          <Link className="btn btn-primary" href="/compartir">Compartir chollo</Link>
+        </div>
       </div>
       <nav className="cats" aria-label="Categorías">
         <div className="wrap">

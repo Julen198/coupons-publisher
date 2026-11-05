@@ -3,6 +3,7 @@ import type { Client } from "@/lib/db";
 import { factsOf } from "@/lib/catalog";
 import { discountBadge } from "@/lib/discount";
 import { goHref, type SiteCoupon } from "@/lib/public-site";
+import { timeAgo } from "@/lib/community";
 import { daysBetween, dealPath, longDate } from "@/lib/site-text";
 import { vote } from "./actions-reader";
 import { CopyCode } from "./copy-code";
@@ -131,6 +132,7 @@ export function DealCard({ c, client, today, mine, next }: CardProps) {
       </div>
       <div className="deal-foot">
         <span>Publicado el {shortDate(madridDate(c.created_at))}</span>
+        {c.shared_by_handle && <span>Compartido por @{c.shared_by_handle} · {timeAgo(new Date(c.created_at), new Date())}</span>}
         <span>{c.expires_at ? <>Válido hasta el <time dateTime={c.expires_at}>{shortDate(c.expires_at)}</time></> : "Sin fecha de caducidad"}</span>
         <Link href={`${dealPath(c)}#comentarios`}>{c.comments === 1 ? "1 comentario" : `${c.comments} comentarios`}</Link>
         <Link href={dealPath(c)}>Ver condiciones</Link>

@@ -301,3 +301,9 @@
 .cl .comments > :first-child.cm-form { border-top: 0; }
 .cl .cm-form textarea { width: 100%; min-height: 70px; border: 1px solid var(--line); border-radius: 6px; padding: 10px; font: inherit; background: var(--bg); color: var(--ink); resize: vertical; }
 .cl .cm-form .btn { justify-self: end; }
+.cl .top-actions { display: flex; gap: 8px; align-items: center; }
+.cl .share-form { display: grid; gap: 12px; }
+.cl .share-form label { display: grid; gap: 4px; font-weight: 600; font-size: .9rem; }
+.cl .share-form input, .cl .share-form select, .cl .share-form textarea { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: inherit; font-weight: 400; background: var(--surface); color: var(--ink); }
+.cl .share-form .hint { font-weight: 400; font-size: .8rem; color: var(--ink-3); }
+.cl .share-card { max-width: 560px; margin: 32px auto; }

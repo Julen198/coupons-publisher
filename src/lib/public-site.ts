@@ -135,3 +135,10 @@ export async function dealComments(couponId: number): Promise<DealComment[]> {
     ORDER BY k.created_at, k.id LIMIT 200`;
   return plain(rows);
 }
+
+// Every store, for the "share a deal" picker
+export async function siteStoreOptions(): Promise<{ slug: string; name: string }[]> {
+  await io();
+  const rows = await sql()<{ slug: string; name: string }[]>`SELECT slug, name FROM stores ORDER BY lower(name)`;
+  return rows.map((r) => ({ ...r }));
+}

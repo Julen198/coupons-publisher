@@ -146,6 +146,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
               <div className="dt-meta">
                 <span>{c.expires_at ? <>{live ? "Válido hasta el" : "Caducó el"} <b>{longDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</span>
                 <span>Publicado el <b>{longDate(published)}</b></span>
+                {c.shared_by_handle && <span>Compartido por <b>@{c.shared_by_handle}</b> · {timeAgo(new Date(c.created_at), new Date())}</span>}
                 {hasCode && <span>Código <b>{c.code}</b></span>}
               </div>
             </div>

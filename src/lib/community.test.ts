@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { byVotes, cleanComment, cleanHandle, couponIdOf, nextVote, timeAgo } from "./community.ts";
+import { byVotes, cleanComment, cleanHandle, couponIdOf, nextVote, parseSharedDeal, timeAgo } from "./community.ts";
 
 test("cleanHandle", () => {
   assert.equal(cleanHandle("  Runner_Bilbo "), "runner_bilbo");
@@ -46,4 +46,22 @@ test("couponIdOf accepts only plain positive ids that fit an integer column", ()
   assert.equal(couponIdOf("42"), 42);
   assert.equal(couponIdOf("999999999"), 999999999);
   for (const bad of ["", "0", "-1", "1.5", "1e3", " 7", "1234567890", "abc", "007x"]) assert.equal(couponIdOf(bad), null, bad);
+});
+
+test("parseSharedDeal validates a reader's deal", () => {
+  const stores = new Set(["pccomponentes"]);
+  const form = (o: Record<string, string>) => (k: string) => o[k] ?? "";
+  const good = { store: "pccomponentes", title: "SSD 2 TB a 129 €", url: "https://www.pccomponentes.com/ssd", code: " ssd10 ", discount: "10%", description: "", expires_at: "2026-12-01" };
+  assert.deepEqual(parseSharedDeal(form(good), stores), { ok: true, value: { ...good, code: "SSD10" } });
+  assert.equal(parseSharedDeal(form({ ...good, store: "otra" }), stores).ok, false);
+  assert.equal(parseSharedDeal(form({ ...good, url: "javascript:alert(1)" }), stores).ok, false);
+  assert.equal(parseSharedDeal(form({ ...good, url: "http://x.es" }), stores).ok, false);
+  assert.equal(parseSharedDeal(form({ ...good, title: "ab" }), stores).ok, false);
+  assert.equal(parseSharedDeal(form({ ...good, expires_at: "mañana" }), stores).ok, false);
+  assert.equal(parseSharedDeal(form({ ...good, expires_at: "" }), stores).ok, true);
+  assert.equal(parseSharedDeal(form({ ...good, expires_at: "2026-02-31" }), stores).ok, false);
+  assert.equal(parseSharedDeal(form({ ...good, code: "A".repeat(41) }), stores).ok, false);
+  assert.equal(parseSharedDeal(form({ ...good, code: "AB CD" }), stores).ok, false);
+  assert.equal(parseSharedDeal(form({ ...good, discount: "x".repeat(41) }), stores).ok, false);
+  assert.equal(parseSharedDeal(form({ ...good, description: "x".repeat(501) }), stores).ok, false);
 });
