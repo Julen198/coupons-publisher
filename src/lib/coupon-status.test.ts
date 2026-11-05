@@ -57,7 +57,8 @@ test("canRedirect only for public, reviewed coupons", () => {
   assert.equal(canRedirect({ ...live, archived: 1, review: "pending" }, T, false), false);
   assert.equal(canRedirect({ ...live, archived: 1, review: "rejected" }, T, false), false);
   assert.equal(canRedirect({ ...live, review: "pending" }, T, false), false);
-  assert.equal(canRedirect({ ...live, expires_at: "2026-10-01" }, T, false), false);
+  assert.equal(canRedirect({ ...live, expires_at: "2026-10-01" }, T, false), true);
+  assert.equal(canRedirect({ ...live, expires_at: "2026-10-01", source: "web", verified: 0 }, T, false), false);
   assert.equal(canRedirect({ ...live, source: "web", verified: 0 }, T, false), false);
   assert.equal(canRedirect({ ...live, source: "web", verified: 0 }, T, true), true);
 });
