@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import { Suspense } from "react";
-import { siteUrl } from "@/lib/site-text";
+import { contactEmail, siteUrl } from "@/lib/site-text";
 import { LiveHeader } from "./live-header";
 import { SiteHeader } from "./site-header";
 import "./site.css";
@@ -32,7 +32,13 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
         <div className="wrap">
           <span>© CuponLab · Chollos y códigos descuento verificados</span>
           <span>
-            <Link href="/tiendas">Tiendas</Link> · <Link href="/calendario">Calendario de ofertas</Link> · Algunos enlaces son de afiliado
+            <Link href="/tiendas">Tiendas</Link> · <Link href="/calendario">Calendario de ofertas</Link> · <Link href="/metodologia">Metodología</Link> ·{" "}
+            <Link href="/aviso-de-afiliacion">Aviso de afiliación</Link>
+            {contactEmail() && (
+              <>
+                {" "}· <Link href="/contacto">Contacto</Link>
+              </>
+            )}
           </span>
         </div>
       </footer>

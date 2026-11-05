@@ -279,7 +279,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 <strong>Equipo editorial de CuponLab</strong>
               </p>
               <p>
-                Datos actualizados el {todayWords}. Publicamos los cupones de las redes de afiliación y los que encontramos en la web después de que los revise una persona.
+                Datos actualizados el {todayWords}. Publicamos los cupones de las redes de afiliación y los que encontramos en la web después de que los revise una persona. <Link href="/metodologia">Cómo elegimos las ofertas</Link>
               </p>
             </div>
           </div>

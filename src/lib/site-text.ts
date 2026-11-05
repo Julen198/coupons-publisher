@@ -11,6 +11,12 @@ export function siteUrl(): string {
   return vercel ? `https://${vercel}` : "http://localhost:3000";
 }
 
+// The public contact address (SITE_CONTACT_EMAIL); "" when unset or not an email, so nothing made up is ever shown
+export function contactEmail(raw = process.env.SITE_CONTACT_EMAIL): string {
+  const email = (raw ?? "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+}
+
 // "Código 15% en 43einhalb" → "codigo-15-en-43einhalb"
 export function slugify(s: string): string {
   return s

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blackFriday, mothersDay, dealPath, longDate, parseDealId, percentOf, slugify, upcomingEvents } from "./site-text.ts";
+import { blackFriday, contactEmail, mothersDay, dealPath, longDate, parseDealId, percentOf, slugify, upcomingEvents } from "./site-text.ts";
 
 test("slugify drops accents and symbols", () => {
   assert.equal(slugify("El Corte Inglés: 15% en Moda"), "el-corte-ingles-15-en-moda");
@@ -41,4 +41,11 @@ test("longDate writes Spanish dates", () => {
 test("Día de la Madre is the first Sunday of May", () => {
   assert.equal(mothersDay(2026), "2026-05-03");
   assert.equal(mothersDay(2027), "2027-05-02");
+});
+
+test("contactEmail is the trimmed env address, or empty when unset or not an email", () => {
+  assert.equal(contactEmail(" hola@cuponlab.es "), "hola@cuponlab.es");
+  assert.equal(contactEmail(""), "");
+  assert.equal(contactEmail(undefined), "");
+  assert.equal(contactEmail("no es un email"), "");
 });
