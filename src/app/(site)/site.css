@@ -139,6 +139,7 @@
 .cl .panel h2 { font-size: 1.05rem; }
 .cl .panel > a { font-size: .85rem; font-weight: 600; text-decoration: none; }
 .cl .panel > a:hover { text-decoration: underline; }
+.cl .panel > a.small { font-size: .8rem; font-weight: 400; color: var(--ink-3); text-decoration: underline; }
 .cl .stores { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .cl .stores a { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 6px; text-decoration: none; color: var(--ink); font-weight: 600; font-size: .92rem; }
 .cl .stores a:hover { background: var(--surface-2); }

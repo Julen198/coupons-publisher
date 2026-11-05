@@ -11,3 +11,9 @@ test("discountBadge keeps short badges and never cuts words", () => {
   ];
   for (const [input, want] of cases) assert.equal(discountBadge(input), want, input);
 });
+
+test("discountBadge ignores percentages no shop discount reaches", () => {
+  // "PURITÀ DEL 99,99%" is the product's purity, not a discount
+  for (const s of ["CREATINA MICRONIZZATA PER UNA PURITÀ DEL 99,99%", "100% algodón", "99,99%"]) assert.equal(discountBadge(s), "", s);
+  assert.equal(discountBadge("Hasta 90%"), "Hasta 90%");
+});

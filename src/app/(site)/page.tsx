@@ -13,12 +13,12 @@ export const metadata: Metadata = {
 const PER_PAGE = 30;
 const MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
-type Filters = { tipo: "todos" | "codigos" | "ofertas"; orden: "destacados" | "nuevos" | "caducan"; comprobados: boolean; q: string; pagina: number };
+type Filters = { tipo: "todos" | "codigos" | "ofertas"; orden: "destacados" | "nuevos" | "ahorro" | "caducan"; comprobados: boolean; q: string; pagina: number };
 
 function readFilters(sp: Record<string, string | string[] | undefined>): Filters {
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
   const tipo = one("tipo") === "codigos" || one("tipo") === "ofertas" ? (one("tipo") as Filters["tipo"]) : "todos";
-  const orden = one("orden") === "nuevos" || one("orden") === "caducan" ? (one("orden") as Filters["orden"]) : "destacados";
+  const orden = ["nuevos", "ahorro", "caducan"].includes(one("orden")) ? (one("orden") as Filters["orden"]) : "destacados";
   return { tipo, orden, comprobados: one("comprobados") === "1", q: one("q").trim().slice(0, 80), pagina: Math.max(1, Number.parseInt(one("pagina"), 10) || 1) };
 }
 
@@ -39,6 +39,7 @@ const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 function sortDeals(list: SiteCoupon[], orden: Filters["orden"]) {
   const byId = (a: SiteCoupon, b: SiteCoupon) => b.id - a.id;
   if (orden === "nuevos") return [...list].sort(byId);
+  if (orden === "ahorro") return [...list].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || byId(a, b));
   if (orden === "caducan") return [...list].sort((a, b) => (a.expires_at || "9999").localeCompare(b.expires_at || "9999") || byId(a, b));
   // destacados: checked by a person first, then the biggest discount, then the newest
   return [...list].sort((a, b) => b.verified - a.verified || percentOf(b.discount) - percentOf(a.discount) || byId(a, b));
@@ -81,7 +82,6 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const shown = sorted.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   const bf = blackFriday(Number(today.slice(0, 4)));
-  const toBf = daysBetween(today, bf);
   const faqs = [
     { q: "¿Cómo sé si un código sigue activo?", a: "Cada cupón muestra su fecha de caducidad y si lo ha comprobado una persona. Los cupones caducados desaparecen de la portada en cuanto pasa su fecha." },
     { q: "¿Se pueden acumular dos códigos descuento?", a: "Casi nunca. La mayoría de tiendas admiten un solo código por pedido. Lo que sí suele acumularse es un código con productos que ya están rebajados, salvo que las condiciones del cupón digan lo contrario." },
@@ -92,6 +92,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const sortTabs = [
     ["destacados", "Destacados"],
     ["nuevos", "Nuevos"],
+    ["ahorro", "Mayor ahorro"],
     ["caducan", "Caducan pronto"],
   ] as const;
 
@@ -189,14 +190,14 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                     </li>
                   ))}
                 </ul>
-                <Link href="/tiendas">Ver las {byStore.size} tiendas</Link>
+                <Link href="/tiendas" className="small">Ver las {byStore.size} tiendas</Link>
               </section>
             )}
             <section className="panel">
               <h2>Calendario de ofertas</h2>
               <ul className="cal">
                 {upcomingEvents(today).map((e) => (
-                  <li key={e.date} className={daysBetween(today, e.date) <= 30 ? "soon" : undefined}>
+                  <li key={e.date} className={e.date === bf ? "soon" : undefined}>
                     <span className="d">
                       <b>{Number(e.date.slice(8))}</b>
                       <small>{MONTHS_SHORT[Number(e.date.slice(5, 7)) - 1]}</small>
@@ -209,8 +210,6 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                   </li>
                 ))}
               </ul>
-              {toBf >= 0 && toBf <= 60 && <p className="small">Quedan {toBf} días para el Black Friday.</p>}
-              <Link href="/calendario">Ver el calendario completo</Link>
             </section>
             <p className="small">Algunos enlaces son de afiliado. Si compras, la tienda nos paga una comisión y tu precio no cambia. Las comisiones no influyen en el orden de los chollos.</p>
           </aside>
