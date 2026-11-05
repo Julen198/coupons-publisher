@@ -71,10 +71,28 @@ export function StoreThumb({ c, className = "thumb", href }: { c: SiteCoupon; cl
   );
 }
 
+// Vote column from the prototype. ponytail: no reader accounts yet, so it shows the real score (0) and the
+// buttons stay disabled; wire them to votes once readers can sign in (plan 3 in docs/superpowers/plans)
+function VoteColumn() {
+  const soon = "Muy pronto podrás votar";
+  return (
+    <div className="vote" aria-label="Votos">
+      <button className="up" type="button" disabled title={soon} aria-label={`Buen chollo. ${soon}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
+      </button>
+      <span className="score">0</span>
+      <button className="down" type="button" disabled title={soon} aria-label={`No es chollo. ${soon}`}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+    </div>
+  );
+}
+
 export function DealCard({ c, client, today }: { c: SiteCoupon; client: Client | undefined; today: string }) {
   const conds = conditionsOf(c.description).slice(0, 3);
   return (
     <article className="deal">
+      <VoteColumn />
       <StoreThumb c={c} href={dealPath(c)} />
       <div className="deal-main">
         <div className="deal-head">
