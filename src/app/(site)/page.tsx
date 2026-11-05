@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { categoryOf, homeHref, type HomeFilters } from "@/lib/catalog";
+import { categoryOf, hasStoreGuide, homeHref, resetFiltersHref, type HomeFilters } from "@/lib/catalog";
 import { siteClient, siteCoupons, storeGuides, type SiteCoupon } from "@/lib/public-site";
 import { blackFriday, daysBetween, longDate, madridToday, percentOf, siteUrl, upcomingEvents } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, faqLd, offerLd } from "./site-ui";
@@ -51,6 +51,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   }
   const topStores = [...byStore.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 8);
   const guides = (await storeGuides(topStores.map(([id]) => id)))
+    .filter(hasStoreGuide)
     .sort((a, b) => (byStore.get(b.id)?.count ?? 0) - (byStore.get(a.id)?.count ?? 0))
     .slice(0, 3);
 
@@ -156,7 +157,8 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
               </div>
             ) : (
               <p className="empty">
-                No hay cupones activos {f.q ? <>para «{f.q}»</> : cat ? `en ${cat.label}` : "con este filtro"} ahora mismo. <Link href="/">Ver todos los chollos</Link>
+                No hay cupones activos {f.q ? <>para «{f.q}»</> : resetFiltersHref(f) !== "/" ? `en ${cat?.label} con este filtro` : cat ? `en ${cat.label}` : "con este filtro"} ahora mismo.{" "}
+                <Link href={resetFiltersHref(f)}>{resetFiltersHref(f) !== "/" ? `Ver todos los chollos de ${cat?.label}` : "Ver todos los chollos"}</Link>
               </p>
             )}
             {pages > 1 && (

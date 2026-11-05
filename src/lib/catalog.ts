@@ -51,3 +51,12 @@ export function homeHref(f: HomeFilters, change: Partial<HomeFilters>): string {
   const s = q.toString();
   return s ? `/?${s}` : "/";
 }
+
+// A store guide is worth showing only with an intro or at least one fact that factsOf can read
+export const hasStoreGuide = (s: { intro: string; facts: string }): boolean => s.intro.trim() !== "" || factsOf(s.facts).length > 0;
+
+// "Ver todos" link for an empty feed: back to the category when other filters emptied it, else the whole home page
+export function resetFiltersHref(f: HomeFilters): string {
+  const otherFilters = f.q !== "" || f.tipo !== "todos" || f.comprobados;
+  return f.cat && otherFilters ? homeHref({ cat: f.cat, tipo: "todos", orden: "destacados", comprobados: false, q: "", pagina: 1 }, {}) : "/";
+}

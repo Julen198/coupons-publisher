@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { pageTitle, parseFaqs } from "@/lib/affiliate";
+import { hasStoreGuide } from "@/lib/catalog";
 import { siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { StoreLogoImg } from "../../store-logo-img";
@@ -144,10 +145,10 @@ export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">
         </div>
       </div>
 
-      {(store.intro || store.facts || faqs.length > 0) && (
+      {(hasStoreGuide(store) || faqs.length > 0) && (
         <div className="longform">
           <div className="wrap">
-            {(store.intro || store.facts) && (
+            {hasStoreGuide(store) && (
               <section className="two">
                 <div className="section-head">
                   <h2>Lo que conviene saber de {store.name}</h2>

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATEGORIES, categoryOf, factsOf, homeHref, storeCategory, type HomeFilters } from "./catalog.ts";
+import { CATEGORIES, categoryOf, factsOf, hasStoreGuide, homeHref, resetFiltersHref, storeCategory, type HomeFilters } from "./catalog.ts";
 
 test("categoryOf knows the six categories and nothing else", () => {
   assert.deepEqual(CATEGORIES.map((c) => c.slug), ["tecnologia", "zapatillas", "moda", "hogar", "deporte", "viajes"]);
@@ -36,4 +36,18 @@ test("homeHref keeps the category on every filter link and resets the page", () 
 test("homeHref for a category tab drops the search", () => {
   assert.equal(homeHref({ ...base, q: "nike" }, { cat: "deporte", q: "" }), "/?cat=deporte");
   assert.equal(homeHref({ ...base, cat: "deporte" }, { cat: "" }), "/");
+});
+
+test("hasStoreGuide needs an intro or at least one valid fact", () => {
+  assert.equal(hasStoreGuide({ intro: "", facts: "Envío gratis desde 50 €" }), false);
+  assert.equal(hasStoreGuide({ intro: "  ", facts: "" }), false);
+  assert.equal(hasStoreGuide({ intro: "", facts: "Envío | Gratis" }), true);
+  assert.equal(hasStoreGuide({ intro: "Tienda de Fráncfort.", facts: "" }), true);
+});
+
+test("resetFiltersHref keeps the category when other filters emptied the feed", () => {
+  assert.equal(resetFiltersHref({ ...base, cat: "moda", comprobados: true }), "/?cat=moda");
+  assert.equal(resetFiltersHref({ ...base, cat: "moda", q: "nike", orden: "nuevos" }), "/?cat=moda");
+  assert.equal(resetFiltersHref({ ...base, cat: "moda" }), "/");
+  assert.equal(resetFiltersHref({ ...base, comprobados: true }), "/");
 });
