@@ -26,6 +26,23 @@ export async function verifySession(secret: string | undefined, token: string | 
   return { userId: Number(m[1]), version: Number(m[2]) };
 }
 
+// Readers of the public site get their own cookie and token ("r.<id>.<version>.<hmac>"),
+// so a reader token can never pass as a panel session or the other way round.
+export const READER_COOKIE = "cl_reader";
+
+export async function signReader(secret: string, readerId: number, version: number): Promise<string> {
+  const payload = `r.${readerId}.${version}`;
+  return `${payload}.${await hmac(secret, payload)}`;
+}
+
+export async function verifyReader(secret: string | undefined, token: string | undefined): Promise<{ readerId: number; version: number } | null> {
+  if (!secret || !token) return null;
+  const m = token.match(/^r\.(\d+)\.(\d+)\.([0-9a-f]{64})$/);
+  if (!m) return null;
+  if (!safeEqual(m[3], await hmac(secret, `r.${m[1]}.${m[2]}`))) return null;
+  return { readerId: Number(m[1]), version: Number(m[2]) };
+}
+
 // Constant-time string compare (same length hex tokens)
 export function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
