@@ -27,22 +27,27 @@ export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise
       const [client] = await sql()`SELECT id FROM clients WHERE id = ${clientId}`;
       if (!client) throw new Error("Cliente no encontrado");
     }
-    const [existing] = await sql()<{ credentials: string }[]>`
-      SELECT credentials FROM network_accounts WHERE network = ${adapter.id} AND coalesce(client_id, 0) = ${clientId ?? 0}`;
-    const previous = existing ? decryptJson<Credentials>(existing.credentials) : {};
-    const creds: Credentials = Object.fromEntries(
+    const entered: Credentials = Object.fromEntries(
       adapter.fields.map((field) => {
         const v = str(f, field.name);
         if (v.length > 500) throw new Error(`${field.label}: demasiado largo`);
-        return [field.name, v || (field.secret ? (previous[field.name] ?? "") : "")];
+        return [field.name, v];
       }),
+    );
+    // one account per network, owner and publisher id: the same id updates it, a new id adds another account
+    const [existing] = await sql()<{ credentials: string }[]>`
+      SELECT credentials FROM network_accounts
+      WHERE network = ${adapter.id} AND coalesce(client_id, 0) = ${clientId ?? 0} AND account_ref = ${adapter.ref(entered)}`;
+    const previous = existing ? decryptJson<Credentials>(existing.credentials) : {};
+    const creds: Credentials = Object.fromEntries(
+      adapter.fields.map((field) => [field.name, entered[field.name] || (field.secret ? (previous[field.name] ?? "") : "")]),
     );
     const missing = adapter.fields.filter((field) => !creds[field.name]);
     if (missing.length) throw new Error(`Falta ${missing.map((m) => m.label).join(", ")}`);
     await sql()`
       INSERT INTO network_accounts (network, client_id, account_ref, credentials)
       VALUES (${adapter.id}, ${clientId}, ${adapter.ref(creds)}, ${encryptJson(creds)})
-      ON CONFLICT (network, coalesce(client_id, 0)) DO UPDATE SET
+      ON CONFLICT (network, coalesce(client_id, 0), account_ref) DO UPDATE SET
         account_ref = excluded.account_ref, credentials = excluded.credentials, last_error = ''`;
     await logActivity(`Cuenta de ${adapter.label} ${existing ? "actualizada" : "conectada"}`);
   } catch (e) {

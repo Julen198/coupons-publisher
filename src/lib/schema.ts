@@ -169,6 +169,9 @@ ALTER TABLE network_accounts ENABLE ROW LEVEL SECURITY;
 -- calls made before tracking existed, backfilled from measured averages
 ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS estimated boolean NOT NULL DEFAULT false;
 ALTER TABLE ai_usage ENABLE ROW LEVEL SECURITY;
+-- several publisher ids per network and owner: one row per account_ref (publisher id, ad space id…)
+DROP INDEX IF EXISTS network_accounts_owner_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS network_accounts_owner_ref_idx ON network_accounts(network, coalesce(client_id, 0), account_ref);
 `;
 
 // "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay
