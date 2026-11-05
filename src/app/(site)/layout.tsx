@@ -27,7 +27,9 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
         <LiveHeader />
       </Suspense>
       {/* every page reads the database at request time */}
-      <Suspense fallback={<div className="wrap"><p className="crumbs">Cargando chollos…</p></div>}>{children}</Suspense>
+      <div id="contenido">
+        <Suspense fallback={<div className="wrap"><p className="crumbs">Cargando chollos…</p></div>}>{children}</Suspense>
+      </div>
       <footer className="foot">
         <div className="wrap">
           <span>© CuponLab · Chollos y códigos descuento verificados</span>

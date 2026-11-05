@@ -8,7 +8,7 @@
   --line: #d9dfeb;
   --ink: #141a2b;
   --ink-2: #4a5470;
-  --ink-3: #737d96;
+  --ink-3: #5f6880; /* 4.7:1 or more on every light surface (the prototype's #737d96 was 3.5 to 4.1) */
   --brand: #1d4ed8;
   --brand-ink: #ffffff;
   --brand-soft: #e3eafc;
@@ -16,6 +16,8 @@
   --drop-soft: #fdebdd;
   --ok: #15803d;
   --ok-soft: #e1f3e6;
+  --ok-ink: #13733a; /* badge text: small bold type needs 4.5:1 on its soft background */
+  --drop-ink: #b4380a;
   --muted-soft: #eceef3;
   --f-display: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
   --f-body: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
@@ -30,18 +32,28 @@
 }
 .dark .cl {
   --bg: #0c1120; --surface: #141b2e; --surface-2: #1b2440; --line: #26314f;
-  --ink: #e8ecf6; --ink-2: #aab3cb; --ink-3: #7f89a5;
+  --ink: #e8ecf6; --ink-2: #aab3cb; --ink-3: #848ea9;
   --brand: #6d94ff; --brand-ink: #0c1120; --brand-soft: #1c2a55;
   --drop: #fb8a4c; --drop-soft: #3a2116; --ok: #4ade80; --ok-soft: #12301f;
+  --ok-ink: #4ade80; --drop-ink: #fb8a4c;
   --muted-soft: #1a2136;
 }
-.cl a { color: var(--brand); }
+/* the page behind the site (overscroll, short pages) */
+body:has(.cl) { background: #f3f5fa; }
+.dark body:has(.cl) { background: #0c1120; }
+/* inline text links are underlined, as in the prototype (Tailwind's preflight removes it); nav, cards and buttons opt out */
+.cl a { color: var(--brand); text-decoration: underline; text-underline-offset: 2px; }
 .cl h1, .cl h2, .cl h3 { font-family: var(--f-display); text-wrap: balance; letter-spacing: -0.01em; margin: 0; line-height: 1.15; }
 .cl h1 { font-size: clamp(1.6rem, 1.1rem + 2vw, 2.35rem); font-weight: 800; }
 .cl h2 { font-size: 1.45rem; font-weight: 700; }
 .cl h3 { font-size: 1.1rem; font-weight: 700; }
 .cl p { margin: 0; }
 .cl :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+.cl .skip { position: absolute; left: 16px; top: -100px; z-index: 50; background: var(--brand); color: var(--brand-ink); font-weight: 700; padding: 8px 14px; border-radius: 6px; text-decoration: none; }
+.cl .skip:focus { top: 8px; }
+.cl #chollos, .cl #contenido { scroll-margin-top: 120px; }
+/* long tokens (links, codes, words in other languages) wrap instead of pushing the page sideways */
+.cl .conds li, .cl .kv dd, .cl .verdict p, .cl .deal h3, .cl .dt-hero h1, .cl .dt-meta, .cl .rel b, .cl .answer, .cl .lead, .cl .faq p, .cl .prose, .cl .guide p { overflow-wrap: anywhere; }
 .cl .wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .cl .num { font-variant-numeric: tabular-nums; }
 .cl .small { font-size: .8rem; color: var(--ink-3); }
@@ -53,8 +65,8 @@
 .cl .logo svg { width: 30px; height: 30px; flex: none; }
 .cl .logo b { color: var(--brand); font-weight: 800; }
 .cl .search { flex: 1 1 260px; display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid transparent; border-radius: 6px; padding: 8px 14px; min-width: 0; }
-.cl .search:focus-within { border-color: var(--brand); }
-.cl .search input { border: 0; background: transparent; outline: none; flex: 1; min-width: 0; font: inherit; color: var(--ink); }
+.cl .search:focus-within { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand); }
+.cl .search input { border: 0; background: transparent; outline: none; flex: 1; min-width: 0; font: inherit; color: var(--ink); padding: 1px 2px; }
 .cl .search svg { width: 16px; height: 16px; color: var(--ink-3); flex: none; }
 .cl .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 6px; padding: 8px 16px; font-weight: 600; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--ink); white-space: nowrap; cursor: pointer; font: inherit; font-weight: 600; }
 .cl .btn-primary { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
@@ -68,6 +80,7 @@
 .cl .crumbs { font-size: .85rem; color: var(--ink-3); padding-top: 18px; display: flex; gap: 6px; flex-wrap: wrap; }
 .cl .crumbs a { color: var(--ink-2); text-decoration: none; }
 .cl .crumbs a:hover { text-decoration: underline; }
+.cl .crumbs [aria-current="page"] { max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cl .intro { display: grid; gap: 14px; padding-block: 14px 22px; }
 .cl .meta-line { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .88rem; color: var(--ink-2); align-items: center; }
 .cl .meta-line .live { display: inline-flex; align-items: center; gap: 6px; color: var(--ok); font-weight: 600; }
@@ -88,13 +101,15 @@
 .cl .chip[aria-current="page"] .box { background: var(--brand); border-color: var(--brand); }
 .cl .chip[aria-current="page"] .box::after { content: ""; width: 7px; height: 4px; border: 2px solid var(--brand-ink); border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
 .cl .feed { display: grid; gap: 12px; }
-.cl .pager { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: .9rem; }
+.cl .pager { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; margin-top: 14px; font-size: .9rem; }
+.cl .pager > :last-child { justify-self: end; }
 .cl .pager a { font-weight: 600; text-decoration: none; }
 .cl .empty { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; color: var(--ink-2); }
 
 /* Deal card */
 .cl .deal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); display: grid; grid-template-columns: 52px 112px minmax(0, 1fr); gap: 0 16px; padding: 16px; }
 .cl .deal.expired { opacity: .72; }
+.cl .deal.expired .price-now { text-decoration: line-through; }
 .cl .thumb { grid-row: span 2; width: 112px; height: 112px; border-radius: 4px; background: #fff; border: 1px solid var(--line); display: grid; place-items: center; align-self: start; overflow: hidden; text-decoration: none; }
 .cl .thumb img { width: 64%; height: 64%; object-fit: contain; }
 .cl .thumb .initial { font-family: var(--f-display); font-weight: 800; font-size: 2.4rem; color: #141a2b; }
@@ -103,23 +118,26 @@
 .cl .store:hover { text-decoration: underline; }
 .cl .slogo { width: 18px; height: 18px; border-radius: 4px; object-fit: contain; background: #fff; border: 1px solid var(--line); }
 .cl .badge { display: inline-flex; align-items: center; gap: 4px; font-size: .74rem; font-weight: 700; padding: 1px 6px; border-radius: 3px; }
-.cl .b-ok { background: var(--ok-soft); color: var(--ok); }
-.cl .b-low { background: var(--drop-soft); color: var(--drop); }
+.cl .b-ok { background: var(--ok-soft); color: var(--ok-ink); }
+.cl .b-low { background: var(--drop-soft); color: var(--drop-ink); }
 .cl .b-exp { background: var(--muted-soft); color: var(--ink-3); }
 .cl .deal h3 { margin-block: 6px 8px; font-size: 1.12rem; }
 .cl .deal h3 a { color: var(--ink); text-decoration: none; }
 .cl .deal h3 a:hover { color: var(--brand); }
 .cl .deal-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; align-items: end; }
 .cl .prices { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
-.cl .price-now { font-family: var(--f-display); font-weight: 800; font-size: 1.6rem; color: var(--drop); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.cl .price-now { font-family: var(--f-display); font-weight: 800; font-size: 1.6rem; color: var(--drop); font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; }
 .cl .price-kind { color: var(--ink-3); font-size: .9rem; }
+/* "Oferta" or "Código" with no figure: plain text, not a big orange price */
+.cl .price-now.is-word, .cl .buybox .price-now.is-word, .cl .mbar .price-now.is-word { font-family: var(--f-body); font-size: .9rem; font-weight: 700; color: var(--ink); line-height: inherit; }
 .cl .conds { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--ink-2); margin: 10px 0 0; padding: 0; list-style: none; }
-.cl .conds li { display: inline-flex; gap: 5px; align-items: center; }
-.cl .conds li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.cl .conds li { display: inline-flex; gap: 5px; align-items: flex-start; max-width: 100%; }
+/* the dot sits on the first line, however many lines the condition takes */
+.cl .conds li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); flex: none; margin-top: calc(.775em - 2.5px); }
 .cl .cta { display: grid; gap: 8px; justify-items: stretch; min-width: 190px; }
 .cl .code { display: flex; align-items: stretch; border: 1.5px dashed var(--brand); border-radius: 8px; overflow: hidden; background: var(--brand-soft); }
-.cl .code > span { flex: 1; font-family: var(--f-mono); font-weight: 700; letter-spacing: .06em; padding: 7px 10px; color: var(--brand); text-align: center; user-select: all; }
-.cl .code button { border: 0; border-left: 1.5px dashed var(--brand); background: transparent; padding: 0 12px; font-family: var(--f-body); font-size: .8rem; font-weight: 700; color: var(--brand); cursor: pointer; }
+.cl .code > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--f-mono); font-weight: 700; letter-spacing: .06em; padding: 7px 10px; color: var(--brand); text-align: center; user-select: all; }
+.cl .code button { flex: none; border: 0; border-left: 1.5px dashed var(--brand); background: transparent; padding: 0 12px; font-family: var(--f-body); font-size: .8rem; font-weight: 700; color: var(--brand); cursor: pointer; }
 .cl .vote { grid-row: span 2; display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--surface-2); border-radius: 8px; padding: 6px 0; align-self: start; }
 .cl .vote button { border: 0; background: transparent; width: 30px; height: 28px; border-radius: 6px; display: grid; place-items: center; color: var(--ink-3); cursor: pointer; }
 .cl .vote button:hover { background: var(--line); color: var(--ink); }
@@ -128,8 +146,7 @@
 .cl .vote svg { width: 16px; height: 16px; }
 .cl .vote .score { font-family: var(--f-mono); font-weight: 700; font-size: .95rem; font-variant-numeric: tabular-nums; }
 .cl .deal-foot { grid-column: 3; display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--ink-3); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
-.cl .deal-foot a { color: var(--ink-2); text-decoration: none; font-weight: 600; }
-.cl .deal-foot a:hover { text-decoration: underline; }
+.cl .deal-foot a { color: var(--ink-2); font-weight: 600; }
 @media (max-width: 560px) {
   .cl .deal { grid-template-columns: 64px minmax(0, 1fr); gap: 10px 12px; padding: 14px; }
   .cl .thumb { width: 64px; height: 64px; grid-column: 1; grid-row: 1; }
@@ -160,7 +177,6 @@
 .cl .cal .d b { display: block; font-family: var(--f-display); font-size: 1.2rem; }
 .cl .cal .d small { font-size: .68rem; text-transform: uppercase; color: var(--ink-3); letter-spacing: .06em; }
 .cl .cal .soon .d { border-color: var(--drop); color: var(--drop); }
-.cl .cal .soon .d small { color: var(--drop); }
 
 /* Long-form band */
 .cl .longform { background: var(--surface); border-top: 1px solid var(--line); }
@@ -194,7 +210,7 @@
 .cl .prose { max-width: 68ch; display: grid; gap: 12px; color: var(--ink-2); }
 .cl .prose strong { color: var(--ink); }
 .cl .prose h2 { color: var(--ink); font-size: 1.15rem; margin-top: 8px; }
-.cl .author { display: flex; gap: 14px; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--r); padding: 16px; }
+.cl .author { display: flex; gap: 14px; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--r); padding: 16px; max-width: 80ch; }
 .cl .author .av { width: 44px; height: 44px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; font-weight: 800; flex: none; font-family: var(--f-display); }
 .cl .author p { color: var(--ink-2); font-size: .9rem; }
 .cl .author strong { color: var(--ink); }
@@ -226,7 +242,7 @@
 .cl .dt-sec > h2 { font-size: 1.2rem; }
 .cl .dt-sec .lead { color: var(--ink-2); max-width: 70ch; white-space: pre-line; }
 .cl .verdict { display: grid; gap: 8px; padding: 16px; border-radius: var(--r); background: var(--ok-soft); color: var(--ink); }
-.cl .verdict.meh { background: var(--muted-soft); }
+.cl .verdict.meh { background: var(--drop-soft); }
 .cl .verdict h2 { font-size: 1.1rem; }
 .cl .verdict p { color: var(--ink-2); max-width: 72ch; }
 .cl .kv { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr); margin: 0; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; font-size: .92rem; background: var(--surface); }
@@ -254,12 +270,14 @@
 .cl .rel .ti img { width: 64%; height: 64%; object-fit: contain; }
 .cl .rel .ti .initial { font-family: var(--f-display); font-weight: 800; font-size: 1.2rem; color: #141a2b; }
 .cl .rel b { display: block; font-size: .88rem; line-height: 1.3; }
-.cl .rel span span { font-size: .9rem; color: var(--drop); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cl .rel span span { display: block; font-size: .82rem; color: var(--ink-3); margin-top: 2px; }
+.cl .rel em { font-style: normal; font-size: .9rem; color: var(--drop); font-weight: 700; font-variant-numeric: tabular-nums; }
 .cl .mbar { display: none; }
 @media (max-width: 960px) {
   .cl .mbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; align-items: center; gap: 12px; background: var(--surface); border-top: 1px solid var(--line); padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .cl .mbar .price-now { font-size: 1.35rem; }
   .cl .mbar .code { flex: 1; min-width: 0; }
+  .cl .mbar .code > span { letter-spacing: .02em; font-size: .9rem; padding-inline: 8px; }
   .cl .mbar .btn { margin-left: auto; }
 }
 
@@ -269,9 +287,9 @@
 .cl .store-card:hover { border-color: var(--brand); }
 .cl .store-card .tile { width: 44px; height: 44px; border-radius: 6px; background: #fff; border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; flex: none; }
 .cl .store-card .tile img { width: 70%; height: 70%; object-fit: contain; }
-.cl .store-card .tile .initial { font-weight: 800; color: #141a2b; }
+.cl .store-card .tile .initial { font-weight: 800; font-size: 1.1rem; color: #141a2b; }
 .cl .store-card b { display: block; }
-.cl .store-card span span { font-size: .85rem; color: var(--ink-3); }
+.cl .store-card .tile + span span { font-size: .85rem; color: var(--ink-3); }
 .cl .letters { display: flex; flex-wrap: wrap; gap: 4px; }
 .cl .letters a { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); font-weight: 700; text-decoration: none; color: var(--ink); }
 .cl .letters a:hover { border-color: var(--brand); }

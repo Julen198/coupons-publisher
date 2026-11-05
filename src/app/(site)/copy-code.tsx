@@ -17,7 +17,7 @@ export function CopyCode({ code }: { code: string }) {
   return (
     <div className="code">
       <span>{code}</span>
-      <button type="button" onClick={copy}>
+      <button type="button" onClick={copy} aria-label={`Copiar el código ${code}`}>
         <span aria-live="polite">{copied ? "Copiado" : "Copiar"}</span>
       </button>
     </div>
