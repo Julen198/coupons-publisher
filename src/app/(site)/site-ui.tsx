@@ -73,18 +73,20 @@ export function StoreThumb({ c, className = "thumb", href }: { c: SiteCoupon; cl
   );
 }
 
+const EXPIRED_VOTE_TITLE = "Este chollo ha caducado";
+
 // Vote column from the prototype. A real form, so it works without client JS; signed-out readers are sent to sign in.
-export function VoteColumn({ couponId, score, mine, next }: { couponId: number; score: number; mine: -1 | 0 | 1; next: string }) {
+export function VoteColumn({ couponId, score, mine, next, readOnly = false }: { couponId: number; score: number; mine: -1 | 0 | 1; next: string; readOnly?: boolean }) {
   const arrow = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
   return (
-    <form className="vote" action={vote} aria-label="Votos">
+    <form className="vote" action={vote} role="group" aria-label="Votos">
       <input type="hidden" name="coupon_id" value={couponId} />
       <input type="hidden" name="next" value={next} />
-      <button className="up" type="submit" name="value" value="1" aria-pressed={mine === 1} aria-label="Buen chollo">
+      <button className="up" type="submit" name="value" value="1" aria-pressed={mine === 1} aria-label="Buen chollo" disabled={readOnly} title={readOnly ? EXPIRED_VOTE_TITLE : undefined}>
         <svg {...arrow}><path d="m6 15 6-6 6 6" /></svg>
       </button>
       <span className="score">{score > 0 ? `+${score}` : score}</span>
-      <button className="down" type="submit" name="value" value="-1" aria-pressed={mine === -1} aria-label="No es chollo">
+      <button className="down" type="submit" name="value" value="-1" aria-pressed={mine === -1} aria-label="No es chollo" disabled={readOnly} title={readOnly ? EXPIRED_VOTE_TITLE : undefined}>
         <svg {...arrow}><path d="m6 9 6 6 6-6" /></svg>
       </button>
     </form>

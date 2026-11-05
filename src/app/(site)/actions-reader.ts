@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { cleanComment, cleanHandle, couponIdOf, nextVote, parseSharedDeal, type VoteValue } from "@/lib/community";
+import { cleanComment, cleanHandle, couponIdOf, nextVote, parseSharedDeal, validEmail, type VoteValue } from "@/lib/community";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
@@ -12,12 +12,22 @@ import { siteCoupon } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
 import { READER_COOKIE, SESSION_MAX_AGE, safeNext, signReader } from "@/lib/session";
 
+// Links sent across all readers in the window before we stop sending (a bot could otherwise use us as an email cannon)
+const GLOBAL_LINK_LIMIT = 30;
+const GLOBAL_LINK_WINDOW_MINUTES = 10;
+
 // Same answer for any valid email (new, known, blocked, or inside the cooldown), so the form can't probe who has an account
 export async function requestReaderLink(_prev: FormState, f: FormData): Promise<FormState & { sent?: boolean }> {
   const email = str(f, "email").toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Escribe un email válido." };
+  if (!validEmail(email)) return { error: "Escribe un email válido." };
   const token = newToken();
   try {
+    const [recent] = await sql()<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM readers WHERE link_sent_at > now() - ${GLOBAL_LINK_WINDOW_MINUTES} * interval '1 minute'`;
+    if (recent.n > GLOBAL_LINK_LIMIT) {
+      console.error("[reader-link] global limit reached");
+      return { sent: true };
+    }
     const [reader] = await sql()<{ id: number }[]>`
       INSERT INTO readers (email, login_token_hash, login_expires_at, link_sent_at)
       VALUES (${email}, ${hashToken(token)}, now() + ${MAGIC_LINK_MINUTES} * interval '1 minute', now())
@@ -67,7 +77,7 @@ export async function chooseHandle(_prev: FormState, f: FormData): Promise<FormS
   const handle = cleanHandle(str(f, "handle"));
   if (!handle) return { error: "Usa de 3 a 20 letras, números o guiones bajos" };
   try {
-    await sql()`UPDATE readers SET handle = ${handle} WHERE id = ${reader.id}`;
+    await sql()`UPDATE readers SET handle = ${handle} WHERE id = ${reader.id} AND handle IS NULL`;
   } catch (e) {
     if ((e as { code?: string }).code === "23505") return { error: "Ese nombre ya está cogido" };
     throw e;

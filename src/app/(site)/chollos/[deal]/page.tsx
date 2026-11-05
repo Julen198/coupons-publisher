@@ -196,6 +196,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
             </section>
           )}
 
+          {(live || comments.length > 0) && (
           <section className="dt-sec" id="comentarios">
             <h2>{comments.length === 1 ? "1 comentario" : `${comments.length} comentarios`}</h2>
             <div className="comments">
@@ -212,7 +213,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
               {live &&
                 (!reader ? (
                   <div className="cm-form">
-                    <Link href={`/entrar?next=${encodeURIComponent(dealPath(c))}#comentarios`}>Entra para comentar</Link>
+                    <Link href={`/entrar?next=${encodeURIComponent(`${dealPath(c)}#comentarios`)}`}>Entra para comentar</Link>
                   </div>
                 ) : !reader.handle ? (
                   <div className="cm-form">
@@ -223,6 +224,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
                 ))}
             </div>
           </section>
+          )}
 
           {related.length > 0 && (
             <section className="dt-sec">
@@ -247,7 +249,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
 
         <aside className="buybox" aria-label="Usar el cupón">
           <div className="vote-row">
-            <VoteColumn couponId={c.id} score={c.score} mine={mine.get(c.id) ?? 0} next={dealPath(c)} />
+            <VoteColumn couponId={c.id} score={c.score} mine={mine.get(c.id) ?? 0} next={dealPath(c)} readOnly={!live} />
             <span className="small">votos de la comunidad</span>
           </div>
           <div className="prices">

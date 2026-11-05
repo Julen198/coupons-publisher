@@ -302,6 +302,9 @@
 .cl .cm-form textarea { width: 100%; min-height: 70px; border: 1px solid var(--line); border-radius: 6px; padding: 10px; font: inherit; background: var(--bg); color: var(--ink); resize: vertical; }
 .cl .cm-form .btn { justify-self: end; }
 .cl .top-actions { display: flex; gap: 8px; align-items: center; }
+.cl .top-actions .who { display: flex; gap: 8px; align-items: center; }
+.cl .top-actions .handle { font-weight: 600; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .cl .top-actions { flex-wrap: wrap; } .cl .top-actions .btn { padding: 8px 12px; } }
 .cl .share-form { display: grid; gap: 12px; }
 .cl .share-form label { display: grid; gap: 4px; font-weight: 600; font-size: .9rem; }
 .cl .share-form input, .cl .share-form select, .cl .share-form textarea { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: inherit; font-weight: 400; background: var(--surface); color: var(--ink); }

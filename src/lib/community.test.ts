@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { byVotes, cleanComment, cleanHandle, couponIdOf, flagOf, nextVote, parseSharedDeal, timeAgo } from "./community.ts";
+import { byVotes, cleanComment, cleanHandle, couponIdOf, flagOf, MAX_EMAIL_LENGTH, nextVote, parseSharedDeal, timeAgo, validEmail } from "./community.ts";
 
 test("cleanHandle", () => {
   assert.equal(cleanHandle("  Runner_Bilbo "), "runner_bilbo");
@@ -74,4 +74,14 @@ test("flagOf only accepts 0 and 1", () => {
   assert.equal(flagOf("0"), 0);
   assert.equal(flagOf("true"), null);
   assert.equal(flagOf(""), null);
+});
+
+test("validEmail checks shape and the 254 character cap", () => {
+  assert.equal(validEmail("a@b.co"), true);
+  assert.equal(validEmail("no-at.com"), false);
+  assert.equal(validEmail("a b@c.co"), false);
+  const long = `${"a".repeat(MAX_EMAIL_LENGTH - 5)}@b.co`;
+  assert.equal(long.length, MAX_EMAIL_LENGTH);
+  assert.equal(validEmail(long), true);
+  assert.equal(validEmail(`a${long}`), false);
 });

@@ -8,7 +8,8 @@ export const metadata: Metadata = { title: "Compartir un chollo", robots: { inde
 
 export default async function CompartirPage() {
   const reader = await getReader();
-  if (!reader?.handle) redirect("/entrar?next=/compartir");
+  if (!reader) redirect("/entrar?next=/compartir");
+  if (!reader.handle) redirect("/entrar/nombre?next=/compartir");
   const stores = await siteStoreOptions();
   return (
     <main className="wrap">

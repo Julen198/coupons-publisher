@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CATEGORIES } from "@/lib/catalog";
+import { signOutReader } from "./actions-reader";
+
+// undefined = not known yet (the Suspense fallback); null = signed out
+export type HeaderReader = { handle: string | null } | null;
 
 const LOGO = (
   <svg viewBox="0 0 32 32" aria-hidden="true">
@@ -17,7 +21,7 @@ const LOGO = (
 // "Todos" plus one tab per category; the current one is the home page with that ?cat= ("" = Todos)
 const SECTIONS = [{ slug: "", label: "Todos" }, ...CATEGORIES].map((c) => ({ ...c, href: c.slug ? `/?cat=${c.slug}` : "/" }));
 
-function Shell({ path, cat, q }: { path: string; cat: string; q: string }) {
+function Shell({ path, cat, q, reader }: { path: string; cat: string; q: string; reader?: HeaderReader }) {
   return (
     <header className="top">
       <div className="wrap">
@@ -37,6 +41,13 @@ function Shell({ path, cat, q }: { path: string; cat: string; q: string }) {
         </form>
         <div className="top-actions">
           <Link className="btn btn-primary" href="/compartir">Compartir chollo</Link>
+          {reader === null && <Link className="btn" href="/entrar">Entrar</Link>}
+          {reader && (
+            <form className="who" action={signOutReader}>
+              {reader.handle && <span className="handle">@{reader.handle}</span>}
+              <button className="btn" type="submit">Salir</button>
+            </form>
+          )}
         </div>
       </div>
       <nav className="cats" aria-label="Categorías">
@@ -52,14 +63,14 @@ function Shell({ path, cat, q }: { path: string; cat: string; q: string }) {
   );
 }
 
-function Live() {
+function Live({ reader }: { reader: HeaderReader }) {
   const path = usePathname();
   const sp = useSearchParams();
   const cat = sp.get("cat") ?? "";
   // an unknown ?cat= shows everything, so "Todos" is the current tab
-  return <Shell path={path} cat={CATEGORIES.some((c) => c.slug === cat) ? cat : ""} q={sp.get("q") ?? ""} />;
+  return <Shell path={path} cat={CATEGORIES.some((c) => c.slug === cat) ? cat : ""} q={sp.get("q") ?? ""} reader={reader} />;
 }
 
-export function SiteHeader({ live = false }: { live?: boolean }) {
-  return live ? <Live /> : <Shell path="" cat="" q="" />;
+export function SiteHeader({ live = false, reader }: { live?: boolean; reader?: HeaderReader }) {
+  return live ? <Live reader={reader ?? null} /> : <Shell path="" cat="" q="" />;
 }

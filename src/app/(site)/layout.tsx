@@ -3,6 +3,7 @@ import { Archivo, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import { Suspense } from "react";
 import { siteUrl } from "@/lib/site-text";
+import { LiveHeader } from "./live-header";
 import { SiteHeader } from "./site-header";
 import "./site.css";
 
@@ -23,7 +24,7 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
     <div className={`cl ${archivo.variable} ${jetbrains.variable}`}>
       {/* the header reads the search box and the active section from the URL */}
       <Suspense fallback={<SiteHeader />}>
-        <SiteHeader live />
+        <LiveHeader />
       </Suspense>
       {/* every page reads the database at request time */}
       <Suspense fallback={<div className="wrap"><p className="crumbs">Cargando chollos…</p></div>}>{children}</Suspense>

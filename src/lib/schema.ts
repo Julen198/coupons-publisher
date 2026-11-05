@@ -238,5 +238,5 @@ ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_review_check;
 ALTER TABLE coupons ADD CONSTRAINT coupons_review_check CHECK (review IN ('', 'pending', 'rejected'));
 `;
 
-// "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay
+// "Borrar todos los datos" in Administración: business data only (reader accounts, votes and comments go too); panel users, settings and our own network accounts stay
 export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comments, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;

@@ -51,11 +51,25 @@ test("demo mode can publish unverified web finds (never expired or archived ones
   assert.equal(isPublic({ verified: 0, archived: 0, expires_at: "2026-01-01", source: "web" }, t, true), false);
 });
 
+test("isPublic also requires review to be empty", () => {
+  assert.equal(isPublic({ verified: 1, archived: 0, expires_at: "", review: "pending" }, T), false);
+  assert.equal(isPublic({ verified: 1, archived: 0, expires_at: "", review: "rejected" }, T), false);
+  assert.equal(isPublic({ verified: 1, archived: 0, expires_at: "", review: "" }, T), true);
+});
+
+test("canRedirect keeps archived coupons (exported pages still link them), never reviewed-out ones", () => {
+  const base = { verified: 1, archived: 1, expires_at: "", source: "manual", review: "" };
+  assert.equal(canRedirect(base, T, false), true);
+  assert.equal(canRedirect({ ...base, review: "pending" }, T, false), false);
+  assert.equal(canRedirect({ ...base, review: "rejected" }, T, false), false);
+  assert.equal(canRedirect({ ...base, archived: 0, review: "pending" }, T, false), false);
+  assert.equal(canRedirect({ ...base, source: "web", verified: 0 }, T, false), false);
+  assert.equal(canRedirect({ ...base, source: "web", verified: 0 }, T, true), true);
+});
+
 test("canRedirect only for public, reviewed coupons", () => {
   const live = { verified: 1, archived: 0, expires_at: "", source: "manual", review: "" };
   assert.equal(canRedirect(live, T, false), true);
-  assert.equal(canRedirect({ ...live, archived: 1, review: "pending" }, T, false), false);
-  assert.equal(canRedirect({ ...live, archived: 1, review: "rejected" }, T, false), false);
   assert.equal(canRedirect({ ...live, review: "pending" }, T, false), false);
   assert.equal(canRedirect({ ...live, expires_at: "2026-10-01" }, T, false), true);
   assert.equal(canRedirect({ ...live, expires_at: "2026-10-01", source: "web", verified: 0 }, T, false), false);

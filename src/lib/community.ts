@@ -79,3 +79,7 @@ export function parseSharedDeal(get: (k: string) => string, storeSlugs: Readonly
 export function flagOf(raw: string): 0 | 1 | null {
   return raw === "1" ? 1 : raw === "0" ? 0 : null;
 }
+
+export const MAX_EMAIL_LENGTH = 254;
+
+export const validEmail = (email: string) => email.length <= MAX_EMAIL_LENGTH && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
