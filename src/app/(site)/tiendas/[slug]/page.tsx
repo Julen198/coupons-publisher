@@ -5,7 +5,7 @@ import { pageTitle, parseFaqs } from "@/lib/affiliate";
 import { siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { StoreLogoImg } from "../../store-logo-img";
-import { Crumbs, DealCard, Faqs, JsonLd, badgeOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
+import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
 
 async function load(slug: string) {
   const store = await siteStore(slug);
@@ -144,15 +144,18 @@ export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">
         </div>
       </div>
 
-      {(store.intro || faqs.length > 0) && (
+      {(store.intro || store.facts || faqs.length > 0) && (
         <div className="longform">
           <div className="wrap">
-            {store.intro && (
+            {(store.intro || store.facts) && (
               <section className="two">
                 <div className="section-head">
                   <h2>Lo que conviene saber de {store.name}</h2>
                 </div>
-                <p style={{ color: "var(--ink-2)", whiteSpace: "pre-line" }}>{store.intro}</p>
+                <div style={{ display: "grid", gap: 12 }}>
+                  <StoreFacts text={store.facts} />
+                  {store.intro && <p style={{ color: "var(--ink-2)", whiteSpace: "pre-line" }}>{store.intro}</p>}
+                </div>
               </section>
             )}
             {faqs.length > 0 && (

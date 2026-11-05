@@ -58,7 +58,7 @@ export async function siteCoupon(id: number): Promise<{ coupon: SiteCoupon; live
 export async function siteStore(slug: string): Promise<Store | undefined> {
   await io();
   const [row] = await sql()<Store[]>`
-    SELECT id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, logo_data <> '' AS has_logo
+    SELECT id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo
     FROM stores WHERE slug = ${slug}`;
   return row ? { ...row } : undefined;
 }
@@ -70,11 +70,11 @@ export async function siteStoreById(id: number): Promise<Pick<Store, "intro" | "
 }
 
 // Store intros for the "know before you use a code" guides
-export async function storeGuides(storeIds: number[]): Promise<Pick<Store, "id" | "name" | "slug" | "intro">[]> {
+export async function storeGuides(storeIds: number[]): Promise<Pick<Store, "id" | "name" | "slug" | "intro" | "facts">[]> {
   if (!storeIds.length) return [];
   await io();
-  const rows = await sql()<Pick<Store, "id" | "name" | "slug" | "intro">[]>`
-    SELECT id, name, slug, intro FROM stores WHERE id = ANY(${storeIds}) AND intro <> ''`;
+  const rows = await sql()<Pick<Store, "id" | "name" | "slug" | "intro" | "facts">[]>`
+    SELECT id, name, slug, intro, facts FROM stores WHERE id = ANY(${storeIds}) AND (intro <> '' OR facts <> '')`;
   return plain(rows);
 }
 

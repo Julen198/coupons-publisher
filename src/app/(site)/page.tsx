@@ -3,7 +3,7 @@ import Link from "next/link";
 import { categoryOf, homeHref, type HomeFilters } from "@/lib/catalog";
 import { siteClient, siteCoupons, storeGuides, type SiteCoupon } from "@/lib/public-site";
 import { blackFriday, daysBetween, longDate, madridToday, percentOf, siteUrl, upcomingEvents } from "@/lib/site-text";
-import { Crumbs, DealCard, Faqs, JsonLd, badgeOf, faqLd, offerLd } from "./site-ui";
+import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, faqLd, offerLd } from "./site-ui";
 
 export const metadata: Metadata = {
   title: { absolute: "Chollos y códigos descuento verificados hoy | CuponLab" },
@@ -245,7 +245,8 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 {guides.map((g) => (
                   <article key={g.id} className="guide">
                     <h3>Códigos descuento {g.name}</h3>
-                    <p>{g.intro}</p>
+                    <StoreFacts text={g.facts} />
+                    {g.intro && <p>{g.intro}</p>}
                     <Link href={`/tiendas/${g.slug}`}>
                       Ver los {byStore.get(g.id)?.count} cupones de {g.name}
                     </Link>

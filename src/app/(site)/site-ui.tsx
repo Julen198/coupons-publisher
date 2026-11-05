@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Client } from "@/lib/db";
+import { factsOf } from "@/lib/catalog";
 import { discountBadge } from "@/lib/discount";
 import { goHref, type SiteCoupon } from "@/lib/public-site";
 import { daysBetween, dealPath, longDate } from "@/lib/site-text";
@@ -112,6 +113,22 @@ export function DealCard({ c, client, today }: { c: SiteCoupon; client: Client |
         <Link href={dealPath(c)}>Ver condiciones</Link>
       </div>
     </article>
+  );
+}
+
+// A store's short facts (envío, devoluciones…) as a definition list; nothing when it has none
+export function StoreFacts({ text }: { text: string }) {
+  const facts = factsOf(text);
+  if (!facts.length) return null;
+  return (
+    <dl className="facts">
+      {facts.map((x, i) => (
+        <div key={i} style={{ display: "contents" }}>
+          <dt>{x.label}</dt>
+          <dd>{x.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
