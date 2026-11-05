@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { renderPage } from "./render-page.ts";
 
 const client = { id: 1, name: "Diario <Demo>", slug: "diario-demo", domain: "", awin_affiliate_id: "123", clickref_prefix: "demo", brand_color: "#0b4f8a", logo_url: "", nav_items: "", font_style: "serif" as const, font_family: "", layout: "newspaper" as const };
-const store = { id: 2, name: "adidas", slug: "adidas", website: "https://www.adidas.es", merchant_id: "77008", network: "awin", tracking_url: "", publisher_id: "", intro: "", faqs: "", has_logo: false };
+const store = { id: 2, name: "adidas", slug: "adidas", website: "https://www.adidas.es", merchant_id: "77008", network: "awin", tracking_url: "", publisher_id: "", intro: "", faqs: "", category: "" as const, facts: "", has_logo: false };
 const coupon = { id: 9, store_id: 2, kind: "code" as const, title: "Cupón", code: "SAVE10", discount: "10€", description: "", target_url: "https://www.adidas.es/x", expires_at: "", verified: 1, archived: 0, source: "manual" as const, source_url: "", external_id: null, publisher_id: "" };
 const NOW = new Date(2026, 9, 24);
 

@@ -4,11 +4,12 @@ import { useActionState, useState, useTransition } from "react";
 import { updateStore, type FormState } from "@/app/actions";
 import { generateContent } from "@/app/actions-pages";
 import { pageTitle, parseFaqs } from "@/lib/affiliate";
+import { CATEGORIES } from "@/lib/catalog";
 import { btnCls, btnSecondaryCls, cardCls, Field, inputCls } from "@/app/ui";
 import { NetworkFields } from "../network-fields";
 
 interface StoreContentProps {
-  store: { slug: string; name: string; website: string; network: string; merchant_id: string; tracking_url: string; intro: string; faqs: string };
+  store: { slug: string; name: string; website: string; network: string; merchant_id: string; tracking_url: string; intro: string; faqs: string; category: string; facts: string };
   discounts: string[];
 }
 
@@ -41,6 +42,15 @@ export function StoreContentForm({ store, discounts }: StoreContentProps) {
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Web" name="website" type="url" required defaultValue={store.website} />
           <NetworkFields network={store.network} merchantId={store.merchant_id} trackingUrl={store.tracking_url} />
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-neutral-600 dark:text-neutral-400">Categoría</span>
+            <select name="category" defaultValue={store.category} className={inputCls}>
+              <option value="">Sin categoría</option>
+              {CATEGORIES.map((c) => (
+                <option key={c.slug} value={c.slug}>{c.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 pt-4 dark:border-neutral-800">
@@ -61,6 +71,10 @@ export function StoreContentForm({ store, discounts }: StoreContentProps) {
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-neutral-600 dark:text-neutral-400">FAQs — una por línea: Pregunta | Respuesta</span>
           <textarea name="faqs" rows={8} value={faqs} onChange={(e) => setFaqs(e.target.value)} className={`${inputCls} font-mono text-xs`} aria-busy={generating} />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-neutral-600 dark:text-neutral-400">Datos de la tienda. Una línea por dato: Envío | Gratis desde 50 €</span>
+          <textarea name="facts" rows={4} defaultValue={store.facts} className={`${inputCls} font-mono text-xs`} />
         </label>
 
         {state.error && <p role="alert" className="text-sm text-red-800 dark:text-red-300">{state.error}</p>}

@@ -74,6 +74,8 @@ const SAMPLE_STORE: Store = {
   has_logo: false,
   intro: "Así se verán los cupones de cada tienda cuando la añadas al panel.",
   faqs: "¿Cómo uso un código descuento? | Cópialo y pégalo en el carrito antes de pagar.",
+  category: "",
+  facts: "",
 };
 
 const sample = (id: number, kind: Coupon["kind"], discount: string, title: string, code = ""): Coupon => ({

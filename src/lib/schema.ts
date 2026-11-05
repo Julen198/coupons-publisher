@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS network_accounts (
   last_error text NOT NULL DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS network_accounts_owner_idx ON network_accounts(network, coalesce(client_id, 0));
+-- (the old one-account-per-owner index is dropped below; creating it first fails once an owner has several accounts)
 ALTER TABLE network_accounts ENABLE ROW LEVEL SECURITY;
 -- calls made before tracking existed, backfilled from measured averages
 ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS estimated boolean NOT NULL DEFAULT false;
@@ -193,6 +193,12 @@ ALTER TABLE coupons ADD CONSTRAINT coupons_source_check
 ALTER TABLE network_accounts DROP CONSTRAINT IF EXISTS network_accounts_network_check;
 ALTER TABLE network_accounts ADD CONSTRAINT network_accounts_network_check
   CHECK (network IN ('awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact'));
+-- category readers browse by on the public site ('' = none), and short facts for its guide: "Etiqueta | Valor" per line
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT '';
+ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_category_check;
+ALTER TABLE stores ADD CONSTRAINT stores_category_check
+  CHECK (category IN ('', 'tecnologia', 'zapatillas', 'moda', 'hogar', 'deporte', 'viajes'));
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS facts text NOT NULL DEFAULT '';
 `;
 
 // "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay

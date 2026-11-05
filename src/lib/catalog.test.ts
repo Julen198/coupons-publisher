@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATEGORIES, categoryOf, factsOf } from "./catalog.ts";
+import { CATEGORIES, categoryOf, factsOf, storeCategory } from "./catalog.ts";
 
 test("categoryOf knows the six categories and nothing else", () => {
   assert.deepEqual(CATEGORIES.map((c) => c.slug), ["tecnologia", "zapatillas", "moda", "hogar", "deporte", "viajes"]);
@@ -16,4 +16,10 @@ test("factsOf reads one 'Etiqueta | Valor' per line and skips the rest", () => {
     { label: "Devoluciones", value: "14 días" },
     { label: "Códigos por pedido", value: "1 | extra" },
   ]);
+});
+
+test("storeCategory keeps a known slug and drops anything else", () => {
+  assert.equal(storeCategory("hogar"), "hogar");
+  assert.equal(storeCategory(" hogar "), "hogar");
+  assert.equal(storeCategory("cocina"), "");
 });

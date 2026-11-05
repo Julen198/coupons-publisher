@@ -9,6 +9,7 @@ import { sql, type Client } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
 import { mapStoreLines } from "@/lib/store-import";
 import { asNetwork } from "@/lib/affiliate";
+import { storeCategory } from "@/lib/catalog";
 import { cleanDisguise, cleanFontFamily, darkSvgDataUri, decodeHtml, isSvgUrl, isWhiteSvg, MAX_SVG_LOGO, validLogo, extractDisguise, siteDigest, type Disguise } from "@/lib/disguise";
 import { disguiseFromDigest, storesFromText } from "@/lib/ai-content";
 import { lookup } from "node:dns/promises";
@@ -347,7 +348,8 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
     await sql()`
       UPDATE stores SET website = ${url(f, "website", "La web")}, network = ${t.network}, merchant_id = ${t.merchant_id},
         tracking_url = ${t.tracking_url},
-        intro = ${str(f, "intro")}, faqs = ${str(f, "faqs")}
+        intro = ${str(f, "intro")}, faqs = ${str(f, "faqs")},
+        category = ${storeCategory(str(f, "category"))}, facts = ${str(f, "facts")}
       WHERE slug = ${s}`;
   } catch (e) {
     return { error: errorMessage(e) };

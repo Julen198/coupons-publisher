@@ -24,3 +24,6 @@ export function factsOf(text: string): { label: string; value: string }[] {
     return label && value ? [{ label, value }] : [];
   });
 }
+
+// A store's category from a form field: a known slug, or "" (no category)
+export const storeCategory = (raw: string): CategorySlug | "" => categoryOf(raw.trim())?.slug ?? "";

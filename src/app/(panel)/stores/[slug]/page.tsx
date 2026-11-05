@@ -143,7 +143,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/st
 
       {tab === "contenido" && (
         <StoreContentForm
-          store={{ slug: store.slug, name: store.name, website: store.website, network: store.network, merchant_id: store.merchant_id, tracking_url: store.tracking_url, intro: store.intro, faqs: store.faqs }}
+          store={{ slug: store.slug, name: store.name, website: store.website, network: store.network, merchant_id: store.merchant_id, tracking_url: store.tracking_url, intro: store.intro, faqs: store.faqs, category: store.category, facts: store.facts }}
           discounts={coupons.filter((c) => !c.archived && statusOf(c, t) !== "expired").map((c) => c.discount)}
         />
       )}
