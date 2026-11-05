@@ -9,7 +9,7 @@ import { verifyCoupons } from "@/app/actions";
 import { canEdit, requireUser } from "@/lib/auth";
 import { listAllCoupons, listStores, type CouponWithStore } from "@/lib/db";
 import { daysUntil, expiresSoon, matchesFilter, statusOf, today, type StatusFilter } from "@/lib/coupon-status";
-import { btnCls, btnSecondaryCls, ClearFilters, Pager } from "@/app/ui";
+import { btnCls, btnSecondaryCls, ClearFilters, inputCls, Pager } from "@/app/ui";
 import { SearchInput } from "@/app/search-input";
 import { paginate } from "@/lib/store-filter";
 import { CouponForm, type CouponDraft } from "./coupon-form";
@@ -123,7 +123,6 @@ export default async function CouponsPage({ searchParams }: PageProps<"/panel/co
       <div className="flex flex-wrap items-start gap-6">
         <section aria-label="Lista de cupones" className="min-w-0 flex-[999_1_600px] overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
           <form className="flex flex-wrap items-end gap-3 border-b border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
-            <input type="hidden" name="status" value={status} />
             <label className="flex flex-1 basis-52 flex-col gap-1 text-xs text-neutral-500">
               Buscar
               <SearchInput name="q" defaultValue={q} placeholder="Título o código" submitOnClear />
@@ -142,6 +141,12 @@ export default async function CouponsPage({ searchParams }: PageProps<"/panel/co
                 submitOnClear
               />
             </div>
+            <label className="flex basis-44 flex-col gap-1 text-xs text-neutral-500">
+              Estado
+              <select key={status} name="status" defaultValue={status} className={`${inputCls} min-h-10`}>
+                {TILES.map((tile) => <option key={tile.id} value={tile.id}>{tile.label} ({count(tile.id)})</option>)}
+              </select>
+            </label>
             <button className="min-h-10 rounded-md border border-neutral-300 px-4 text-sm dark:border-neutral-700">Filtrar</button>
             {(q || storeInput || status !== "all") && <ClearFilters href="/panel/coupons" />}
           </form>
