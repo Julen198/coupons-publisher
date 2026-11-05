@@ -9,7 +9,7 @@ export default async function EntrarPage({ searchParams }: PageProps<"/entrar">)
     <main className="wrap">
       <div className="panel auth-card">
         <h1>Entra en CuponLab</h1>
-        <p className="small">Sin contraseña: te mandamos un enlace al email.</p>
+        <p className="small">No hace falta contraseña. Te mandamos un enlace al email.</p>
         <EntrarForm next={typeof next === "string" ? next : "/"} />
       </div>
     </main>

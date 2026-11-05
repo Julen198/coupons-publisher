@@ -50,3 +50,11 @@ test("safeNext falls back per caller", () => {
   assert.equal(safeNext("/chollos/5-x"), "/chollos/5-x");
   assert.equal(safeNext(undefined), "/panel");
 });
+
+test("safeNext rejects backslash, whitespace and control tricks that browsers read as another host", () => {
+  assert.equal(safeNext("/\\evil.com", "/"), "/");
+  assert.equal(safeNext("/\t/evil.com", "/"), "/");
+  assert.equal(safeNext("/\n/evil.com", "/"), "/");
+  assert.equal(safeNext("/%5Cevil.com", "/"), "/%5Cevil.com");
+  assert.equal(safeNext("/chollos/5-x?y=1#z", "/"), "/chollos/5-x?y=1#z");
+});
