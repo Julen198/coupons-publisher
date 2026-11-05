@@ -57,7 +57,7 @@ export async function inviteUser(_prev: InviteState, f: FormData): Promise<Invit
       INSERT INTO users (name, email, role, client_ids, status, invite_token, invite_expires_at)
       VALUES (${name}, ${email}, ${role}, ${parseClients(f, role)}, 'pending', ${token}, now() + ${INVITE_DAYS} * interval '1 day')`;
     await logActivity(`Invitación creada para ${email}`);
-    revalidatePath("/settings");
+    revalidatePath("/panel/settings");
     return { invitePath: `/invite/${token}`, email, emailed: await emailInvite(email, name, admin.name, token) };
   } catch (e) {
     const msg = errorMessage(e);
@@ -94,7 +94,7 @@ export async function deleteUser(_prev: FormState, f: FormData): Promise<FormSta
       RETURNING email, status`;
     if (!u) throw new Error("No se pudo eliminar: ya no existe o es el último administrador activo");
     await logActivity(u.status === "pending" ? `Invitación cancelada para ${u.email}` : `Usuario eliminado: ${u.email}`);
-    revalidatePath("/settings");
+    revalidatePath("/panel/settings");
     return {};
   } catch (e) {
     return { error: errorMessage(e) };
@@ -118,7 +118,7 @@ export async function updateUser(_prev: FormState, f: FormData): Promise<FormSta
         status = CASE WHEN ${disable} THEN 'disabled' WHEN status = 'disabled' THEN 'active' ELSE status END,
         session_version = session_version + CASE WHEN ${disable} THEN 1 ELSE 0 END
       WHERE id = ${id}`;
-    revalidatePath("/settings");
+    revalidatePath("/panel/settings");
     return { saved: true };
   } catch (e) {
     return { error: errorMessage(e) };
@@ -150,7 +150,7 @@ export async function setRetention(f: FormData) {
   const v = str(f, "retention");
   if (!["90", "365", "all"].includes(v)) throw new Error("Valor no válido");
   await sql()`INSERT INTO settings (key, value) VALUES ('click_retention_days', ${v}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
-  revalidatePath("/settings");
+  revalidatePath("/panel/settings");
 }
 
 export async function setPublishUnverified(f: FormData) {
@@ -171,7 +171,7 @@ export async function saveAiLimits(f: FormData) {
   for (const [key, value] of [["ai_budget", String(budget)], ["ai_alert", alert], ["ai_pause_search", pause]]) {
     await sql()`INSERT INTO settings (key, value) VALUES (${key}, ${value}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
   }
-  revalidatePath("/costs");
+  revalidatePath("/panel/costs");
 }
 
 export async function importCoupons(_prev: FormState & { imported?: number; problems?: string[] }, f: FormData) {
@@ -205,5 +205,5 @@ export async function wipeAllData(f: FormData) {
   if (str(f, "confirm") !== "BORRAR") throw new Error("Escribe BORRAR para confirmar");
   await sql().unsafe(WIPE_DATA_SQL);
   revalidatePath("/", "layout");
-  redirect("/settings?tab=data&wiped=1");
+  redirect("/panel/settings?tab=data&wiped=1");
 }

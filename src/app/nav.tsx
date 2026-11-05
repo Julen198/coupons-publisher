@@ -5,17 +5,17 @@ import { usePathname } from "next/navigation";
 
 const MAIN = [
   { href: "/panel", label: "Resumen" },
-  { href: "/clients", label: "Clientes" },
-  { href: "/stores", label: "Tiendas" },
-  { href: "/coupons", label: "Cupones" },
-  { href: "/pages", label: "Páginas" },
-  { href: "/clicks", label: "Clics" },
+  { href: "/panel/clients", label: "Clientes" },
+  { href: "/panel/stores", label: "Tiendas" },
+  { href: "/panel/coupons", label: "Cupones" },
+  { href: "/panel/pages", label: "Páginas" },
+  { href: "/panel/clicks", label: "Clics" },
 ];
 const SECONDARY = [
-  { href: "/networks", label: "Redes de afiliación" },
+  { href: "/panel/networks", label: "Redes de afiliación" },
 ];
 const ADMIN = [
-  { href: "/costs", label: "Costes de IA" },
+  { href: "/panel/costs", label: "Costes de IA" },
 ];
 
 export function Nav({ admin = false }: { admin?: boolean }) {

@@ -12,7 +12,7 @@ const FILTERS: { id: Coverage | "all"; label: string }[] = [
   { id: "draft", label: "Borradores" },
 ];
 
-export default async function PagesPage({ searchParams }: PageProps<"/pages">) {
+export default async function PagesPage({ searchParams }: PageProps<"/panel/pages">) {
   const user = await requireUser();
   const [sp, allPages, allClients] = await Promise.all([searchParams, listPages(), listClients()]);
   const pages = onlyVisible(user, allPages);
@@ -61,7 +61,7 @@ export default async function PagesPage({ searchParams }: PageProps<"/pages">) {
             />
           </div>
           <button className="min-h-10 rounded-md border border-neutral-300 px-3 text-sm dark:border-neutral-700">Filtrar</button>
-          {(clientSlug || filter !== "all") && <ClearFilters href="/pages" />}
+          {(clientSlug || filter !== "all") && <ClearFilters href="/panel/pages" />}
         </form>
       </div>
 
@@ -80,13 +80,13 @@ export default async function PagesPage({ searchParams }: PageProps<"/pages">) {
           <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
             {rows.map((p) => (
               <tr key={`${p.client_id}-${p.store_id}`}>
-                <td className="px-4 py-3 font-medium"><Link href={`/clients/${p.client_slug}`} className="hover:underline">{p.client_name}</Link></td>
-                <td className="px-2 py-3"><Link href={`/stores/${p.store_slug}`} className="hover:underline">{p.store_name}</Link></td>
+                <td className="px-4 py-3 font-medium"><Link href={`/panel/clients/${p.client_slug}`} className="hover:underline">{p.client_name}</Link></td>
+                <td className="px-2 py-3"><Link href={`/panel/stores/${p.store_slug}`} className="hover:underline">{p.store_name}</Link></td>
                 <td className="px-2 py-3 text-neutral-600 dark:text-neutral-400">{DELIVERY_LABEL[p.delivery]}</td>
                 <td className="px-2 py-3"><CoverageBadge coverage={p.coverage} /></td>
                 <td className="px-2 py-3 text-xs text-neutral-500">{p.published_at ? fmtDateTime(p.published_at) : "—"}</td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
-                  <Link href={`/pages/${p.client_slug}/${p.store_slug}`} className="mr-3 text-blue-700 hover:underline dark:text-blue-300">Abrir</Link>
+                  <Link href={`/panel/pages/${p.client_slug}/${p.store_slug}`} className="mr-3 text-blue-700 hover:underline dark:text-blue-300">Abrir</Link>
                   <a href={`/p/${p.client_slug}/${p.store_slug}`} target="_blank" className="text-blue-700 hover:underline dark:text-blue-300">Ver ↗</a>
                 </td>
               </tr>

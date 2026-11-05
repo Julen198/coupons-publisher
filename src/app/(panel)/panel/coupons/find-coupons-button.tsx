@@ -84,7 +84,7 @@ export function FindCouponsButton({ stores, label = "Buscar en internet" }: { st
             ) : run ? (
               <>
                 <button type="button" onClick={() => setRun(null)} className={`${btnSecondaryCls} min-h-10`}>Otra búsqueda</button>
-                {run.added > 0 && <Link href="/coupons?status=pending" onClick={() => ref.current?.close()} className={`${btnCls} min-h-10`}>Revisar {run.added} cupones</Link>}
+                {run.added > 0 && <Link href="/panel/coupons?status=pending" onClick={() => ref.current?.close()} className={`${btnCls} min-h-10`}>Revisar {run.added} cupones</Link>}
               </>
             ) : (
               <button type="button" onClick={start} className={`${btnCls} min-h-10`}>Empezar</button>

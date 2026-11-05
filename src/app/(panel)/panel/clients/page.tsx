@@ -11,7 +11,7 @@ const FILTERS = [
   { id: "bare", label: "Genérico" },
 ] as const;
 
-export default async function ClientsPage({ searchParams }: PageProps<"/clients">) {
+export default async function ClientsPage({ searchParams }: PageProps<"/panel/clients">) {
   const sp = await searchParams;
   const q = String(sp.q ?? "").trim().toLowerCase();
   const filter = FILTERS.some((f) => f.id === sp.filter) ? String(sp.filter) : "all";
@@ -30,7 +30,7 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
           <p className="text-sm text-neutral-500">{clients.length} medios</p>
           <h1 className="text-2xl font-semibold">Clientes</h1>
         </div>
-        {user.role === "admin" && <Link href="/clients/new" className={btnCls}>+ Nuevo cliente</Link>}
+        {user.role === "admin" && <Link href="/panel/clients/new" className={btnCls}>+ Nuevo cliente</Link>}
       </header>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -55,7 +55,7 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
             </Link>
           ))}
         </nav>
-        {(q || filter !== "all") && <ClearFilters href="/clients" />}
+        {(q || filter !== "all") && <ClearFilters href="/panel/clients" />}
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
@@ -74,7 +74,7 @@ export default async function ClientsPage({ searchParams }: PageProps<"/clients"
             {rows.map((c) => (
               <tr key={c.id}>
                 <th scope="row" className="px-4 py-3 text-left font-medium">
-                  <Link href={`/clients/${c.slug}`} className="flex items-center gap-3 hover:underline">
+                  <Link href={`/panel/clients/${c.slug}`} className="flex items-center gap-3 hover:underline">
                     <ClientMark name={c.name} logoUrl={c.logo_url} color={c.brand_color} size="sm" />
                     <span className="flex flex-col">
                       {c.name}

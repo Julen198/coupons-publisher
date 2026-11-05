@@ -40,37 +40,37 @@ export default async function DashboardPage() {
   const noMerchant = stores.filter((s) => !storeTracked(s));
 
   const alerts = [
-    stale.length && { tag: "Mes", href: "/pages?coverage=stale", title: `${stale.length} página(s) HTML con el mes pasado`, detail: shortList(stale.map((p) => `${p.client_name} · ${p.store_name}`)) },
-    soon.length && { tag: "Caducan", href: "/coupons?status=soon", title: `${soon.length} cupón(es) caducan en 7 días`, detail: shortList(soon.map((c) => c.store_name)) },
-    pending.length && { tag: "Verificar", href: "/coupons?status=pending", title: `${pending.length} cupón(es) sin verificar`, detail: shortList(pending.map((c) => c.store_name)) },
-    expiredVisible.length && { tag: "Caducados", href: "/coupons?status=expired", title: `${expiredVisible.length} cupón(es) caducados`, detail: "Ya no salen en las páginas; retíralos o actualiza la fecha" },
-    noAwinClients.length && { tag: "Awin", href: "/clients", title: `${noAwinClients.length} cliente(s) sin affiliate ID`, detail: `${shortList(noAwinClients.map((c) => c.name))}: ${ourAwin ? "sus enlaces de Awin llevan nuestro publisher ID" : "sus enlaces van sin tracking"}` },
-    noMerchant.length && { tag: "Tracking", href: "/stores", title: `${noMerchant.length} tienda(s) sin merchant ID o enlace`, detail: shortList(noMerchant.map((s) => s.name)) },
+    stale.length && { tag: "Mes", href: "/panel/pages?coverage=stale", title: `${stale.length} página(s) HTML con el mes pasado`, detail: shortList(stale.map((p) => `${p.client_name} · ${p.store_name}`)) },
+    soon.length && { tag: "Caducan", href: "/panel/coupons?status=soon", title: `${soon.length} cupón(es) caducan en 7 días`, detail: shortList(soon.map((c) => c.store_name)) },
+    pending.length && { tag: "Verificar", href: "/panel/coupons?status=pending", title: `${pending.length} cupón(es) sin verificar`, detail: shortList(pending.map((c) => c.store_name)) },
+    expiredVisible.length && { tag: "Caducados", href: "/panel/coupons?status=expired", title: `${expiredVisible.length} cupón(es) caducados`, detail: "Ya no salen en las páginas; retíralos o actualiza la fecha" },
+    noAwinClients.length && { tag: "Awin", href: "/panel/clients", title: `${noAwinClients.length} cliente(s) sin affiliate ID`, detail: `${shortList(noAwinClients.map((c) => c.name))}: ${ourAwin ? "sus enlaces de Awin llevan nuestro publisher ID" : "sus enlaces van sin tracking"}` },
+    noMerchant.length && { tag: "Tracking", href: "/panel/stores", title: `${noMerchant.length} tienda(s) sin merchant ID o enlace`, detail: shortList(noMerchant.map((s) => s.name)) },
   ].filter(Boolean) as { tag: string; href: string; title: string; detail: string }[];
 
 
   // first-run guide until the first page is published (editors and admins; viewers can't act on it)
   const firstPage = pages.find((p) => p.status === "published") ? null : pages[0];
   const onboarding = canEdit(user) && published === 0 ? [
-    { done: clients.length > 0, title: "Crea tu primer cliente", detail: "El medio que publicará los cupones: su dominio, su ID de Awin y el estilo de su web.", href: "/clients/new", cta: "Nuevo cliente" },
-    { done: stores.length > 0, title: "Añade una tienda", detail: "El anunciante (adidas, Decathlon…) con su web y su merchant ID de Awin.", href: "/stores", cta: "Nueva tienda" },
-    { done: coupons.length > 0, title: "Añade cupones", detail: "Códigos y ofertas de esa tienda; a mano, desde Awin o importando un CSV.", href: stores[0] ? `/stores/${stores[0].slug}?tab=cupones&new` : "/coupons", cta: "Añadir cupón" },
-    { done: pages.length > 0, title: "Asigna la tienda al cliente", detail: "En la ficha del cliente, «Añadir tienda» crea su página.", href: clients[0] ? `/clients/${clients[0].slug}` : "/clients", cta: "Ir al cliente" },
-    { done: false, title: "Publica la página", detail: "Elige cómo le llega al medio (subdominio, widget o HTML) y publícala.", href: firstPage ? `/pages/${firstPage.client_slug}/${firstPage.store_slug}` : "/pages", cta: "Abrir generador" },
+    { done: clients.length > 0, title: "Crea tu primer cliente", detail: "El medio que publicará los cupones: su dominio, su ID de Awin y el estilo de su web.", href: "/panel/clients/new", cta: "Nuevo cliente" },
+    { done: stores.length > 0, title: "Añade una tienda", detail: "El anunciante (adidas, Decathlon…) con su web y su merchant ID de Awin.", href: "/panel/stores", cta: "Nueva tienda" },
+    { done: coupons.length > 0, title: "Añade cupones", detail: "Códigos y ofertas de esa tienda; a mano, desde Awin o importando un CSV.", href: stores[0] ? `/panel/stores/${stores[0].slug}?tab=cupones&new` : "/panel/coupons", cta: "Añadir cupón" },
+    { done: pages.length > 0, title: "Asigna la tienda al cliente", detail: "En la ficha del cliente, «Añadir tienda» crea su página.", href: clients[0] ? `/panel/clients/${clients[0].slug}` : "/panel/clients", cta: "Ir al cliente" },
+    { done: false, title: "Publica la página", detail: "Elige cómo le llega al medio (subdominio, widget o HTML) y publícala.", href: firstPage ? `/panel/pages/${firstPage.client_slug}/${firstPage.store_slug}` : "/panel/pages", cta: "Abrir generador" },
   ] : null;
 
   const kpis = [
     { label: "Clientes activos", value: activeClients, note: `de ${clients.length} con alguna página publicada` },
     { label: "Páginas publicadas", value: published, note: `de ${clients.length * stores.length} combinaciones cliente × tienda` },
     { label: "Cupones activos", value: coupons.filter((c) => matchesFilter(c, "all", t) && statusOf(c, t) !== "expired").length, note: `en ${stores.length} tiendas` },
-    { label: "Clics (30 días)", value: clicks.total.toLocaleString("es-ES"), note: clicks.previous ? `${clicks.total >= clicks.previous ? "▲" : "▼"} ${Math.abs(Math.round(((clicks.total - clicks.previous) / clicks.previous) * 100))}% frente a los 30 anteriores` : "Ver detalle en Clics", href: "/clicks" },
+    { label: "Clics (30 días)", value: clicks.total.toLocaleString("es-ES"), note: clicks.previous ? `${clicks.total >= clicks.previous ? "▲" : "▼"} ${Math.abs(Math.round(((clicks.total - clicks.previous) / clicks.previous) * 100))}% frente a los 30 anteriores` : "Ver detalle en Clics", href: "/panel/clicks" },
   ];
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader eyebrow={now.toLocaleDateString("es-ES", { month: "long", year: "numeric" })} title="Resumen">
-        {canEdit(user) && <Link href="/stores" className={btnSecondaryCls}>Nueva tienda</Link>}
-        {user.role === "admin" && <Link href="/clients/new" className={btnCls}>Nuevo cliente</Link>}
+        {canEdit(user) && <Link href="/panel/stores" className={btnSecondaryCls}>Nueva tienda</Link>}
+        {user.role === "admin" && <Link href="/panel/clients/new" className={btnCls}>Nuevo cliente</Link>}
       </PageHeader>
 
       {onboarding && <Onboarding steps={onboarding} />}
@@ -118,7 +118,7 @@ export default async function DashboardPage() {
               }
               return (
                 <li key={c.id} className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
-                  <Link href={`/clients/${c.slug}`} className="flex min-w-48 flex-1 items-center gap-2.5 font-medium hover:underline">
+                  <Link href={`/panel/clients/${c.slug}`} className="flex min-w-48 flex-1 items-center gap-2.5 font-medium hover:underline">
                     <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: c.brand_color }} />
                     <span className="flex flex-col">{c.name}<span className="text-xs font-normal text-neutral-500">{mine.length} {mine.length === 1 ? "tienda" : "tiendas"}</span></span>
                   </Link>
@@ -134,7 +134,7 @@ export default async function DashboardPage() {
                   ) : (
                     <span className="flex-[2_1_240px] text-sm text-neutral-500">Sin tiendas asignadas</span>
                   )}
-                  <Link href={mine.length ? `/pages?client=${c.slug}` : `/clients/${c.slug}`} className="text-sm text-blue-700 hover:underline dark:text-blue-300">
+                  <Link href={mine.length ? `/panel/pages?client=${c.slug}` : `/panel/clients/${c.slug}`} className="text-sm text-blue-700 hover:underline dark:text-blue-300">
                     {mine.length ? "Ver sus páginas →" : "Asignar tiendas →"}
                   </Link>
                 </li>

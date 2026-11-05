@@ -18,7 +18,7 @@ function awinCheck(clientId: string, merchantId: string, ourId: string) {
   return { ok: false, text: "Faltan IDs de Awin: los enlaces irán sin tracking" };
 }
 
-export default async function GeneratorPage({ params, searchParams }: PageProps<"/pages/[client]/[store]">) {
+export default async function GeneratorPage({ params, searchParams }: PageProps<"/panel/pages/[client]/[store]">) {
   const [{ client: clientSlug, store: storeSlug }, sp] = await Promise.all([params, searchParams]);
   const user = await requireUser();
   const [client, store] = await Promise.all([getClient(clientSlug), getStore(storeSlug)]);
@@ -44,8 +44,8 @@ export default async function GeneratorPage({ params, searchParams }: PageProps<
       <div className="flex flex-col gap-2">
         {/* back to wherever you came from: the client's page or the Páginas list */}
         {sp.desde === "cliente"
-          ? <Link href={`/clients/${client.slug}`} className="text-sm text-neutral-500 hover:underline">← {client.name}</Link>
-          : <Link href="/pages" className="text-sm text-neutral-500 hover:underline">← Páginas</Link>}
+          ? <Link href={`/panel/clients/${client.slug}`} className="text-sm text-neutral-500 hover:underline">← {client.name}</Link>
+          : <Link href="/panel/pages" className="text-sm text-neutral-500 hover:underline">← Páginas</Link>}
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold">{store.name} en {client.name}</h1>
           <CoverageBadge coverage={coverageOf(page, now)} />

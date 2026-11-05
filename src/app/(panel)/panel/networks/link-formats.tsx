@@ -122,7 +122,7 @@ export function LinkFormats({ clients, examples, ourIds }: { clients: Client[]; 
             <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
               {clients.map((c) => (
                 <tr key={c.id}>
-                  <td className="px-5 py-2"><Link href={`/clients/${c.slug}`} className="hover:underline">{c.name}</Link></td>
+                  <td className="px-5 py-2"><Link href={`/panel/clients/${c.slug}`} className="hover:underline">{c.name}</Link></td>
                   <td className="px-5 py-2 font-mono text-xs">{ref(c)}</td>
                   <td className="px-5 py-2">
                     {c.awin_affiliate_id ? (

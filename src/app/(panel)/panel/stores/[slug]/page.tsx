@@ -9,7 +9,7 @@ import { getStore, listCoupons, listPages, listStores } from "@/lib/db";
 import { expiresSoon, statusOf, today } from "@/lib/coupon-status";
 import { coverageOf, DELIVERY_LABEL } from "@/lib/page-status";
 import { btnCls, btnSecondaryCls, CoverageBadge, PageHeader } from "@/app/ui";
-import { CouponForm, type CouponDraft } from "@/app/(panel)/coupons/coupon-form";
+import { CouponForm, type CouponDraft } from "@/app/(panel)/panel/coupons/coupon-form";
 import { StoreContentForm } from "./store-content-form";
 
 const TABS = [
@@ -25,7 +25,7 @@ const BADGES = {
   archived: ["Retirado", "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"],
 } as const;
 
-export default async function StorePage({ params, searchParams }: PageProps<"/stores/[slug]">) {
+export default async function StorePage({ params, searchParams }: PageProps<"/panel/stores/[slug]">) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const [store, stores, allPages] = await Promise.all([getStore(slug), listStores(), listPages()]);
   if (!store) notFound();
@@ -36,7 +36,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/st
   const tab = TABS.find((x) => x.id === sp.tab)?.id ?? "cupones";
   const t = today();
   const now = new Date();
-  const back = `/stores/${store.slug}?tab=cupones`;
+  const back = `/panel/stores/${store.slug}?tab=cupones`;
 
   const editing = sp.edit ? coupons.find((c) => c.id === Number(sp.edit)) : undefined;
   const draft: CouponDraft | undefined = editing
@@ -52,7 +52,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/st
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Link href="/stores" className="text-sm text-neutral-500 hover:underline">← Tiendas</Link>
+        <Link href="/panel/stores" className="text-sm text-neutral-500 hover:underline">← Tiendas</Link>
         <div className="flex items-center gap-4">
         <StoreMark slug={store.slug} name={store.name} hasLogo={store.has_logo} size="lg" />
         <div className="min-w-0 flex-1">
@@ -69,7 +69,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/st
             </span>
           }
         >
-          {editable && <Link href="/networks" className={btnSecondaryCls}>Importar de redes de afiliación</Link>}
+          {editable && <Link href="/panel/networks" className={btnSecondaryCls}>Importar de redes de afiliación</Link>}
           {editable && <FindCouponsButton stores={[{ id: store.id, name: store.name, coupons: coupons.filter((c) => !c.archived).length }]} label="Buscar cupones en internet" />}
           {editable && <Link href={{ query: { tab: "cupones", new: "" } }} className={btnCls}>+ Añadir cupón</Link>}
         </PageHeader>
@@ -152,10 +152,10 @@ export default async function StorePage({ params, searchParams }: PageProps<"/st
         <ul className="divide-y divide-neutral-200 overflow-hidden rounded-lg border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
           {pages.map((p) => (
             <li key={p.client_id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 text-sm">
-              <Link href={`/clients/${p.client_slug}`} className="w-48 font-medium hover:underline">{p.client_name}</Link>
+              <Link href={`/panel/clients/${p.client_slug}`} className="w-48 font-medium hover:underline">{p.client_name}</Link>
               <CoverageBadge coverage={coverageOf(p, now)} />
               <span className="text-neutral-500">{DELIVERY_LABEL[p.delivery]}</span>
-              <Link href={`/pages/${p.client_slug}/${store.slug}`} className="ml-auto text-blue-700 hover:underline dark:text-blue-300">Generador</Link>
+              <Link href={`/panel/pages/${p.client_slug}/${store.slug}`} className="ml-auto text-blue-700 hover:underline dark:text-blue-300">Generador</Link>
             </li>
           ))}
           {pages.length === 0 && <li className="px-5 py-6 text-sm text-neutral-500">Ningún medio la publica todavía. Añádela desde la ficha de un cliente.</li>}

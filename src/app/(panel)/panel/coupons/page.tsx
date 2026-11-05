@@ -45,7 +45,7 @@ function expiryLabel(c: CouponWithStore, t: string) {
   return fmtDate(c.expires_at);
 }
 
-export default async function CouponsPage({ searchParams }: PageProps<"/coupons">) {
+export default async function CouponsPage({ searchParams }: PageProps<"/panel/coupons">) {
   const sp = await searchParams;
   const user = await requireUser();
   const editable = canEdit(user);
@@ -69,12 +69,12 @@ export default async function CouponsPage({ searchParams }: PageProps<"/coupons"
   const { rows, page, pages, from, to } = paginate(filtered, Number(sp.page), PAGE_SIZE);
   // filters + page, so editing a coupon or going back keeps you on the same page
   const here = { ...filters, ...(page > 1 && { page: String(page) }) };
-  const pageHref = (n: number) => `/coupons?${new URLSearchParams({ ...filters, ...(n > 1 && { page: String(n) }) })}`;
+  const pageHref = (n: number) => `/panel/coupons?${new URLSearchParams({ ...filters, ...(n > 1 && { page: String(n) }) })}`;
   const perStore = new Map<number, number>();
   for (const c of coupons) if (!c.archived) perStore.set(c.store_id, (perStore.get(c.store_id) ?? 0) + 1);
   const count = (f: StatusFilter) => coupons.filter((c) => matchesFilter(c, f, t)).length;
 
-  const back = `/coupons?${new URLSearchParams(here)}`;
+  const back = `/panel/coupons?${new URLSearchParams(here)}`;
   const editing = sp.edit ? coupons.find((c) => c.id === Number(sp.edit)) : undefined;
   const draft: CouponDraft | undefined = editing
     ? {
@@ -94,7 +94,7 @@ export default async function CouponsPage({ searchParams }: PageProps<"/coupons"
           <h1 className="text-2xl font-semibold">Cupones</h1>
         </div>
         {editable && <div className="flex flex-wrap gap-2">
-          <Link href="/networks" className={btnSecondaryCls}>Importar de redes de afiliación</Link>
+          <Link href="/panel/networks" className={btnSecondaryCls}>Importar de redes de afiliación</Link>
           <FindCouponsButton stores={stores.map((s) => ({ id: s.id, name: s.name, coupons: coupons.filter((c) => c.store_id === s.id && !c.archived).length }))} />
           <Link href={{ query: { ...here, new: "" } }} className={btnCls}>+ Nuevo cupón</Link>
         </div>}
@@ -143,7 +143,7 @@ export default async function CouponsPage({ searchParams }: PageProps<"/coupons"
               />
             </div>
             <button className="min-h-10 rounded-md border border-neutral-300 px-4 text-sm dark:border-neutral-700">Filtrar</button>
-            {(q || storeInput || status !== "all") && <ClearFilters href="/coupons" />}
+            {(q || storeInput || status !== "all") && <ClearFilters href="/panel/coupons" />}
           </form>
 
           {/* one hidden form per row so "Verificar" only verifies that row, not the checked ones */}
