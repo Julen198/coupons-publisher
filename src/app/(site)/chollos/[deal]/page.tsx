@@ -6,12 +6,13 @@ import { categoryOf, factsOf } from "@/lib/catalog";
 import { currentVotes, dealComments, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
 import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
+import { badgeInSentence, conditionsOf, lowerFirst, mentionsBadge } from "@/lib/deal-text";
 import { daysBetween, dealPath, longDate, madridToday, parseDealId, siteUrl } from "@/lib/site-text";
 import { CommentForm } from "./comment-form";
 import { CommentItem } from "./comment-item";
 import { CopyCode } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
-import { Crumbs, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, conditionsOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
+import { Crumbs, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, crumbsLd, faqLd, isWordBadge, offerLd, priceClass, shortDate, titleOf } from "../../site-ui";
 
 async function load(param: string) {
   const id = parseDealId(param);
@@ -25,17 +26,17 @@ export async function generateMetadata({ params }: PageProps<"/chollos/[deal]">)
   const badge = badgeOf(c);
   const what = c.kind === "code" ? `Código descuento ${c.store_name}` : `Oferta ${c.store_name}`;
   return {
-    title: `${what}: ${c.title}`,
+    title: `${what}: ${titleOf(c)}`,
     description: [
       `${badge} en ${c.store_name}${c.kind === "code" && c.code ? ` con el código ${c.code}` : ""}.`,
       c.expires_at ? `${live ? "Válido hasta" : "Caducó"} el ${longDate(c.expires_at)}.` : "",
-      c.description,
+      conditionsOf(c.description, c.title).join(". "),
     ]
       .filter(Boolean)
       .join(" ")
       .slice(0, 300),
     alternates: { canonical: dealPath(c) },
-    openGraph: { title: `${what}: ${c.title}`, url: dealPath(c) },
+    openGraph: { title: `${what}: ${titleOf(c)}`, url: dealPath(c) },
   };
 }
 
@@ -82,20 +83,21 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
     { name: "Inicio", href: "/" },
     { name: "Chollos", href: "/" },
     cat ? { name: cat.label, href: `/?cat=${cat.slug}` } : { name: c.store_name, href: `/tiendas/${c.store_slug}` },
-    { name: c.title },
+    { name: titleOf(c) },
   ];
-  const conds = conditionsOf(c.description);
+  const conds = conditionsOf(c.description, c.title);
+  const wordBadge = isWordBadge(c);
 
   const verdictTitle = live
     ? `¿Merece la pena? ${c.verified ? "Sí, está comprobado y activo." : "Sí, está activo."}`
     : "Este cupón ya no funciona";
   const verdict = live
-    ? `${hasCode ? `Con el código ${c.code}` : "Sin código"} tienes ${badge.toLowerCase() === "oferta" ? "esta oferta" : badge} en ${c.store_name}. ${
+    ? `${hasCode ? `Con el código ${c.code}` : "Sin código"} tienes ${wordBadge ? (hasCode ? "este descuento" : "esta oferta") : badgeInSentence(badge)} en ${c.store_name}. ${
         c.expires_at
-          ? `Es válido hasta el ${longDate(c.expires_at)}${left !== null && left <= 7 ? `: ${left <= 0 ? "caduca hoy" : left === 1 ? "caduca mañana" : `quedan ${left} días`}` : ""}.`
+          ? `Es válido hasta el ${longDate(c.expires_at)}${left !== null && left <= 7 ? `, ${left <= 0 ? "caduca hoy" : left === 1 ? "caduca mañana" : `quedan ${left} días`}` : ""}.`
           : "No tiene fecha de caducidad anunciada."
       } ${c.verified ? "Está marcado como comprobado porque viene de la red de afiliación de la tienda o lo ha revisado una persona del equipo." : "Todavía no lo ha comprobado nadie."}${
-        conds.length ? ` Ojo a las condiciones: ${conds.join(", ").toLowerCase()}.` : ""
+        conds.length ? ` Antes de usarlo, revisa las condiciones (${conds.map(lowerFirst).join(", ")}).` : ""
       }`
     : `Este cupón de ${c.store_name} caducó el ${longDate(c.expires_at)}.${fromStore ? ` Abajo tienes cupones de ${c.store_name} que siguen activos.` : ""}`;
 
@@ -113,8 +115,9 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
       ];
 
   const conditions: [string, string][] = [
-    ["Descuento", `${badge}${hasCode ? ` con el código ${c.code}` : ", sin código"}`],
-    ["Válido hasta", c.expires_at ? `${longDate(c.expires_at)} o hasta agotar existencias` : "Sin fecha de caducidad anunciada"],
+    ["Descuento", wordBadge ? (hasCode ? `Con el código ${c.code}` : "Oferta sin código") : `${badge}${hasCode ? ` con el código ${c.code}` : ", sin código"}`],
+    // stock only limits deals; a code lasts until its date
+    ["Válido hasta", c.expires_at ? `${longDate(c.expires_at)}${hasCode ? "" : " o hasta agotar existencias"}` : "Sin fecha de caducidad anunciada"],
     ["Estado", live ? (c.verified ? "Activo y comprobado" : "Activo") : "Caducado"],
     ["Condiciones", conds.length ? conds.join(" · ") : "Las generales de la tienda"],
     ["Tienda", c.store_website.replace(/^https?:\/\//, "").replace(/\/$/, "")],
@@ -145,10 +148,10 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
                 </Link>
                 <StatusBadges c={c} today={today} live={live} />
               </div>
-              <h1>{c.title}</h1>
+              <h1>{titleOf(c)}</h1>
               <div className="dt-meta">
-                <span>{c.expires_at ? <>{live ? "Válido hasta el" : "Caducó el"} <b>{longDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</span>
-                <span>Publicado el <b>{longDate(published)}</b></span>
+                <span>{c.expires_at ? <>{live ? "Válido hasta el" : "Caducó el"} <b>{shortDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</span>
+                <span>Publicado el <b>{shortDate(published)}</b></span>
                 {c.shared_by_handle && <span>Compartido por <b>@{c.shared_by_handle}</b> · {timeAgo(new Date(c.created_at), new Date())}</span>}
                 {hasCode && <span>Código <b>{c.code}</b></span>}
               </div>
@@ -229,17 +232,24 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             <section className="dt-sec">
               <h2>Chollos parecidos</h2>
               <div className="related">
-                {related.map((o) => (
-                  <Link key={o.id} className="rel" href={dealPath(o)}>
-                    <span className="ti">
-                      <StoreLogoImg slug={o.store_slug} name={o.store_name} hasLogo={o.store_has_logo} />
-                    </span>
-                    <span>
-                      <b>{o.title}</b>
-                      <span>{badgeOf(o)}</span>
-                    </span>
-                  </Link>
-                ))}
+                {related.map((o) => {
+                  const t = titleOf(o);
+                  const b = badgeOf(o);
+                  return (
+                    <Link key={o.id} className="rel" href={dealPath(o)}>
+                      <span className="ti">
+                        <StoreLogoImg slug={o.store_slug} name={o.store_name} hasLogo={o.store_has_logo} />
+                      </span>
+                      <span>
+                        <b>{t}</b>
+                        <span>
+                          {o.store_name}
+                          {!isWordBadge(o) && !mentionsBadge(t, b) && <> · <em>{b}</em></>}
+                        </span>
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
               {fromStore > 0 && <Link href={`/tiendas/${c.store_slug}`}>Ver todos los cupones de {c.store_name}</Link>}
             </section>
@@ -252,7 +262,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             <span className="small">votos de la comunidad</span>
           </div>
           <div className="prices">
-            <span className="price-now">{badge}</span>
+            <span className={priceClass(c)}>{badge}</span>
             <span className="price-kind">en {c.store_name}</span>
           </div>
           {live ? (
@@ -268,7 +278,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
           <ul className="facts">
             {fact("envío") && <li>Envío: <b>{fact("envío")}</b></li>}
             {fact("devoluciones") && <li>Devoluciones: <b>{fact("devoluciones")}</b></li>}
-            <li>{c.expires_at ? <>{live ? "Caduca" : "Caducó"} el <b>{longDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</li>
+            <li>{c.expires_at ? <>{live ? "Caduca" : "Caducó"} el <b>{shortDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</li>
             {c.verified ? <li><b>Comprobado</b>, de la red de la tienda o revisado por el equipo</li> : null}
             {fact("códigos por pedido") ? <li>Códigos por pedido: <b>{fact("códigos por pedido")}</b></li> : <li>Un código por pedido salvo que la tienda diga otra cosa</li>}
           </ul>
@@ -278,7 +288,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
 
       {live && (
         <div className="mbar">
-          {hasCode ? <CopyCode code={c.code} /> : <span className="price-now">{badge}</span>}
+          {hasCode ? <CopyCode code={c.code} /> : <span className={priceClass(c)}>{badge}</span>}
           <GoButton client={client} c={c} label="Ir a la tienda" />
         </div>
       )}

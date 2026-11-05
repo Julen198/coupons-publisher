@@ -3,14 +3,27 @@ import Link from "next/link";
 import { byVotes } from "@/lib/community";
 import { categoryOf, hasStoreGuide, homeHref, resetFiltersHref, type HomeFilters } from "@/lib/catalog";
 import { currentVotes, siteClient, siteCoupons, storeGuides, type SiteCoupon } from "@/lib/public-site";
-import { blackFriday, daysBetween, longDate, madridToday, percentOf, siteUrl, upcomingEvents } from "@/lib/site-text";
+import { badgeInSentence } from "@/lib/deal-text";
+import { blackFriday, daysBetween, longDate, madridToday, percentOf, savingOf, siteUrl, upcomingEvents } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, faqLd, offerLd } from "./site-ui";
 
-export const metadata: Metadata = {
-  title: { absolute: "Chollos y códigos descuento verificados hoy | CuponLab" },
-  description: "Los chollos y códigos descuento activos hoy en tiendas españolas, cada uno con su fecha de caducidad y si está comprobado.",
-  alternates: { canonical: "/" },
-};
+// A category page has its own title and canonical; a search page stays out of the index
+export async function generateMetadata({ searchParams }: PageProps<"/">): Promise<Metadata> {
+  const f = readFilters(await searchParams);
+  const cat = categoryOf(f.cat);
+  if (f.q) return { title: { absolute: `Chollos y códigos para «${f.q}» | CuponLab` }, robots: { index: false, follow: true } };
+  if (cat)
+    return {
+      title: { absolute: `Chollos de ${cat.label} verificados hoy | CuponLab` },
+      description: `Los chollos y códigos descuento de ${cat.label} activos hoy en tiendas españolas, cada uno con su fecha de caducidad y si está comprobado.`,
+      alternates: { canonical: `/?cat=${cat.slug}` },
+    };
+  return {
+    title: { absolute: "Chollos y códigos descuento verificados hoy | CuponLab" },
+    description: "Los chollos y códigos descuento activos hoy en tiendas españolas, cada uno con su fecha de caducidad y si está comprobado.",
+    alternates: { canonical: "/" },
+  };
+}
 
 const PER_PAGE = 30;
 const MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -31,7 +44,7 @@ const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 function sortDeals(list: SiteCoupon[], orden: Filters["orden"]) {
   const byId = (a: SiteCoupon, b: SiteCoupon) => b.id - a.id;
   if (orden === "nuevos") return [...list].sort(byId);
-  if (orden === "ahorro") return [...list].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || byId(a, b));
+  if (orden === "ahorro") return [...list].sort((a, b) => savingOf(b.discount) - savingOf(a.discount) || byId(a, b));
   if (orden === "caducan") return [...list].sort((a, b) => (a.expires_at || "9999").localeCompare(b.expires_at || "9999") || byId(a, b));
   // destacados ("Más votados"): community score first, then checked, then discount, then newest
   return [...list].sort(byVotes);
@@ -44,8 +57,12 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const { iso: today, words: todayWords } = madridToday(now);
   const time = now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 
+  const cat = categoryOf(f.cat);
+  const needle = fold(f.q);
+  // a category or a search scopes the intro, the rail and the feed; "tipo" and "comprobados" only narrow the feed
+  const scope = all.filter((c) => (!f.cat || c.store_category === f.cat) && (!needle || fold(`${c.store_name} ${c.title} ${c.code} ${c.description}`).includes(needle)));
   const byStore = new Map<number, { name: string; slug: string; count: number }>();
-  for (const c of all) {
+  for (const c of scope) {
     const s = byStore.get(c.store_id) ?? { name: c.store_name, slug: c.store_slug, count: 0 };
     s.count++;
     byStore.set(c.store_id, s);
@@ -56,21 +73,18 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     .sort((a, b) => (byStore.get(b.id)?.count ?? 0) - (byStore.get(a.id)?.count ?? 0))
     .slice(0, 3);
 
-  const codes = all.filter((c) => c.kind === "code").length;
-  const verified = all.filter((c) => c.verified).length;
-  const soon = all.filter((c) => c.expires_at && daysBetween(today, c.expires_at) <= 7).length;
-  const best = [...all].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
-  const bestCode = all.filter((c) => c.kind === "code" && c.code).sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
+  const allStores = new Set(all.map((c) => c.store_id)).size;
+  const codes = scope.filter((c) => c.kind === "code").length;
+  const verified = scope.filter((c) => c.verified).length;
+  const soon = scope.filter((c) => c.expires_at && daysBetween(today, c.expires_at) <= 7).length;
+  const best = [...scope].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
+  const bestCode = scope.filter((c) => c.kind === "code" && c.code).sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
 
-  const cat = categoryOf(f.cat);
-  const pageName = cat ? `Chollos de ${cat.label}` : "Chollos de hoy";
-  const needle = fold(f.q);
-  const filtered = all.filter(
-    (c) =>
-      (!f.cat || c.store_category === f.cat) &&
-      (f.tipo === "codigos" ? c.kind === "code" : f.tipo === "ofertas" ? c.kind === "deal" : true) &&
-      (!f.comprobados || c.verified) &&
-      (!needle || fold(`${c.store_name} ${c.title} ${c.code} ${c.description}`).includes(needle)),
+  const pageName = f.q ? `Resultados para «${f.q}»` : cat ? `Chollos de ${cat.label}` : "Chollos de hoy";
+  const heading = f.q ? `Chollos y códigos para «${f.q}»` : cat ? `Chollos de ${cat.label} verificados hoy, ${todayWords}` : `Chollos y códigos descuento verificados hoy, ${todayWords}`;
+  const stores = (n: number) => (n === 1 ? "1 tienda" : `${n} tiendas`);
+  const filtered = scope.filter(
+    (c) => (f.tipo === "codigos" ? c.kind === "code" : f.tipo === "ofertas" ? c.kind === "deal" : true) && (!f.comprobados || c.verified),
   );
   const sorted = sortDeals(filtered, f.orden);
   const pages = Math.max(1, Math.ceil(sorted.length / PER_PAGE));
@@ -99,9 +113,9 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
         data={{
           "@context": "https://schema.org",
           "@type": "ItemList",
-          name: `Chollos y códigos descuento verificados, ${todayWords}`,
-          numberOfItems: all.length,
-          itemListElement: sortDeals(all, "destacados").slice(0, 20).map((c, i) => ({ "@type": "ListItem", position: i + 1, item: offerLd(base, c) })),
+          name: heading,
+          numberOfItems: scope.length,
+          itemListElement: sortDeals(scope, "destacados").slice(0, 20).map((c, i) => ({ "@type": "ListItem", position: i + 1, item: offerLd(base, c) })),
         }}
       />
       <JsonLd data={faqLd(faqs)} />
@@ -110,23 +124,34 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
         <Crumbs items={[{ name: "Inicio", href: "/" }, { name: "Chollos", href: "/" }, { name: pageName }]} />
 
         <section className="intro">
-          <h1>Chollos y códigos descuento verificados hoy, {todayWords}</h1>
+          <h1>{heading}</h1>
           <div className="meta-line">
             <span className="live">Actualizado a las {time}</span>
             <span>Los cupones caducados salen de la portada al día siguiente</span>
             <span>Por el equipo editorial de CuponLab</span>
           </div>
           <p className="answer">
-            Hoy hay <strong>{all.length} cupones activos</strong> en {byStore.size} tiendas: {codes} códigos descuento y {all.length - codes} ofertas sin código, {verified} comprobados.
+            {scope.length === 0 ? (
+              f.q ? <>No hay cupones activos para «{f.q}» ahora mismo.</> : <>Ahora mismo no hay cupones activos en {cat?.label}.</>
+            ) : (
+              <>
+                {f.q ? (
+                  <>Hay <strong>{scope.length === 1 ? "1 cupón activo" : `${scope.length} cupones activos`}</strong> para «{f.q}» en {stores(byStore.size)}</>
+                ) : (
+                  <>Hoy hay <strong>{scope.length === 1 ? "1 cupón activo" : `${scope.length} cupones activos`}</strong>{cat ? <> de {cat.label}</> : null} en {stores(byStore.size)}</>
+                )}
+                . De ellos, {codes} {codes === 1 ? "es código descuento" : "son códigos descuento"} y {scope.length - codes} {scope.length - codes === 1 ? "oferta" : "ofertas"} sin código, y {verified} {verified === 1 ? "está comprobado" : "están comprobados"}.
+              </>
+            )}
             {best && percentOf(best.discount) > 0 && (
               <>
-                {" "}El mayor descuento es <strong>{badgeOf(best)} en {best.store_name}</strong>
+                {" "}El mayor descuento es <strong>{badgeInSentence(badgeOf(best))} en {best.store_name}</strong>
                 {best.expires_at ? <>, válido hasta el {longDate(best.expires_at)}</> : null}.
               </>
             )}
             {bestCode && bestCode.id !== best?.id && percentOf(bestCode.discount) > 0 && (
               <>
-                {" "}Con código, <strong>{bestCode.code}</strong> da un {badgeOf(bestCode)} en {bestCode.store_name}.
+                {" "}Con código, <strong>{bestCode.code}</strong> da un {badgeInSentence(badgeOf(bestCode))} en {bestCode.store_name}.
               </>
             )}
             {soon > 0 && <> {soon} caducan en los próximos 7 días.</>}
@@ -134,7 +159,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
         </section>
 
         <div className="grid">
-          <section aria-labelledby="feedTitle">
+          <section id="chollos" aria-labelledby="feedTitle">
             <h2 id="feedTitle" className="feed-title">
               {f.q ? `Resultados para «${f.q}»` : cat ? pageName : f.tipo === "codigos" ? "Códigos descuento de hoy" : f.tipo === "ofertas" ? "Ofertas sin código de hoy" : "Chollos de hoy"}
             </h2>
@@ -187,7 +212,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                     </li>
                   ))}
                 </ul>
-                <Link href="/tiendas" className="small">Ver las {byStore.size} tiendas</Link>
+                <Link href="/tiendas" className="small">Ver las {allStores} tiendas</Link>
               </section>
             )}
             <section className="panel">

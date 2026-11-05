@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Client } from "@/lib/db";
 import { factsOf } from "@/lib/catalog";
-import { discountBadge } from "@/lib/discount";
+import { badgeLabel } from "@/lib/discount";
+import { conditionsOf, displayTitle } from "@/lib/deal-text";
 import { goHref, type SiteCoupon } from "@/lib/public-site";
 import { timeAgo } from "@/lib/community";
 import { daysBetween, dealPath, longDate } from "@/lib/site-text";
@@ -9,17 +10,15 @@ import { vote } from "./actions-reader";
 import { CopyCode } from "./copy-code";
 import { StoreLogoImg } from "./store-logo-img";
 
-export const badgeOf = (c: Pick<SiteCoupon, "discount" | "kind">) => discountBadge(c.discount) || (c.kind === "code" ? "Código" : "Oferta");
-
-// "No válido en lanzamientos. Pedido mínimo 50 €." → ["No válido en lanzamientos", "Pedido mínimo 50 €"]
-export const conditionsOf = (description: string) =>
-  description
-    .split(/(?<=[.;])\s+|\n+/)
-    .map((s) => s.trim().replace(/[.;]$/, ""))
-    .filter(Boolean);
+export const badgeOf = (c: Pick<SiteCoupon, "discount" | "kind">) => badgeLabel(c.discount) || (c.kind === "code" ? "Código" : "Oferta");
+// No figure to show: the badge is just the word "Oferta" or "Código", set as small text instead of a big price
+export const isWordBadge = (c: Pick<SiteCoupon, "discount">) => !badgeLabel(c.discount);
+export const priceClass = (c: Pick<SiteCoupon, "discount">) => (isWordBadge(c) ? "price-now is-word" : "price-now");
+// The title readers see, next to its store
+export const titleOf = (c: Pick<SiteCoupon, "title" | "store_name">) => displayTitle(c.title, c.store_name);
 
 const madridDate = (d: Date) => new Date(d).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
-const shortDate = (iso: string) => longDate(iso).replace(/ de \d{4}$/, "");
+export const shortDate = (iso: string) => longDate(iso).replace(/ de \d{4}$/, "");
 
 // Structured data for search engines and AI answers
 export function JsonLd({ data }: { data: unknown }) {
@@ -96,7 +95,7 @@ export function VoteColumn({ couponId, score, mine, next, readOnly = false }: { 
 type CardProps = { c: SiteCoupon; client: Client | undefined; today: string; mine: Map<number, -1 | 1>; next: string };
 
 export function DealCard({ c, client, today, mine, next }: CardProps) {
-  const conds = conditionsOf(c.description).slice(0, 3);
+  const conds = conditionsOf(c.description, c.title).slice(0, 3);
   return (
     <article className="deal">
       <VoteColumn couponId={c.id} score={c.score} mine={mine.get(c.id) ?? 0} next={next} />
@@ -110,12 +109,12 @@ export function DealCard({ c, client, today, mine, next }: CardProps) {
           <StatusBadges c={c} today={today} />
         </div>
         <h3>
-          <Link href={dealPath(c)}>{c.title}</Link>
+          <Link href={dealPath(c)}>{titleOf(c)}</Link>
         </h3>
         <div className="deal-body">
           <div>
             <div className="prices">
-              <span className="price-now">{badgeOf(c)}</span>
+              <span className={priceClass(c)}>{badgeOf(c)}</span>
               <span className="price-kind">{c.kind === "code" ? "con código" : "sin código"}</span>
             </div>
             {conds.length > 0 && (
@@ -188,8 +187,8 @@ export const crumbsLd = (base: string, items: { name: string; href?: string }[])
 export const offerLd = (base: string, c: SiteCoupon, live = true) => ({
   "@context": "https://schema.org",
   "@type": "Offer",
-  name: c.title,
-  description: [badgeOf(c), c.description].filter(Boolean).join(". "),
+  name: titleOf(c),
+  description: [badgeOf(c), ...conditionsOf(c.description, c.title)].join(". "),
   url: base + dealPath(c),
   ...(c.expires_at ? { validThrough: `${c.expires_at}T23:59:59+01:00` } : {}),
   availability: live ? "https://schema.org/InStock" : "https://schema.org/Discontinued",
