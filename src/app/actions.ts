@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { fillStoreIcons } from "@/lib/fill-store-icons";
+import { fillProductImages } from "@/lib/fill-product-images";
 import { sql, type Client } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
 import { mapStoreLines } from "@/lib/store-import";
@@ -410,6 +411,8 @@ export async function verifyCoupons(f: FormData) {
   if (!list.length) return;
   await sql()`UPDATE coupons SET verified = 1 WHERE id IN ${sql()(list)}`;
   await logActivity(list.length === 1 ? "Cupón verificado" : `${list.length} cupones verificados`);
+  // web finds are published here: look for their product photo once
+  after(() => fillProductImages(list));
   revalidatePath("/", "layout");
 }
 

@@ -137,7 +137,10 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
       ON CONFLICT (external_id) DO UPDATE SET
         kind = excluded.kind, title = excluded.title, code = excluded.code, discount = excluded.discount,
         description = excluded.description, target_url = excluded.target_url, expires_at = excluded.expires_at,
-        image_url = excluded.image_url,
+        -- a feed without a photo keeps the one read from the landing page (fill-product-images), unless the landing changed
+        image_url = CASE WHEN excluded.image_url <> '' THEN excluded.image_url
+          WHEN excluded.target_url <> coupons.target_url THEN '' ELSE coupons.image_url END,
+        image_checked_at = CASE WHEN excluded.target_url <> coupons.target_url THEN NULL ELSE coupons.image_checked_at END,
         -- a client's own account sends "": it never takes over the publisher id our account set
         publisher_id = CASE WHEN excluded.publisher_id <> '' THEN excluded.publisher_id ELSE coupons.publisher_id END
       RETURNING (xmax = 0) AS inserted`;

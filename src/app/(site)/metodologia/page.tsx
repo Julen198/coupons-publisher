@@ -15,6 +15,9 @@ export default function MethodologyPage() {
       <p>
         La mayoría llegan de redes de afiliación como Awin, CJ, Rakuten, Impact, Tradedoubler, Admitad, Webgains o Effiliation. Los publicamos con las condiciones oficiales que fija cada tienda.
       </p>
+      <p>
+        La foto del producto, cuando la hay, es la que la propia tienda publica en la página de esa oferta; si no, mostramos el logo de la tienda.
+      </p>
       <h2>Los que encontramos en la web</h2>
       <p>
         Algunos cupones los buscamos nosotros en la web. Esos no se publican hasta que una persona los comprueba.

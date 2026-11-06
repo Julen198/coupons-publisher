@@ -26,7 +26,7 @@ export type SiteCoupon = Coupon & {
   comments: number;
   shared_by_handle: string | null;
   expiry_reports: number; // readers who marked it as expired ("Marcar como caducado")
-  image_url: string; // product image from a network feed (https), "" = show the store logo
+  image_url: string; // product image (https) from a network feed or the landing page's og:image, "" = show the store logo
 };
 
 const COUPON_SELECT = `
