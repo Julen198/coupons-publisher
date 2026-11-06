@@ -82,8 +82,6 @@ ALTER TABLE stores ADD COLUMN IF NOT EXISTS tracking_url text NOT NULL DEFAULT '
 -- square brand icon as a data: URI, served by /store-logo/<slug> (never selected in lists)
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS logo_data text NOT NULL DEFAULT '';
 ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_source_check;
-ALTER TABLE coupons ADD CONSTRAINT coupons_source_check CHECK (source IN ('manual', 'awin', 'web'));
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS source_url text NOT NULL DEFAULT '';
 ALTER TABLE pages ENABLE ROW LEVEL SECURITY;
 -- the hosted subdomain option was dropped: those pages are served like the widget (always current)
@@ -147,9 +145,6 @@ DO $$ BEGIN
   END IF;
 END $$;
 UPDATE coupons SET external_id = 'awin:' || external_id WHERE source = 'awin' AND external_id NOT LIKE 'awin:%';
-ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_source_check;
-ALTER TABLE coupons ADD CONSTRAINT coupons_source_check
-  CHECK (source IN ('manual', 'web', 'awin', 'tradedoubler', 'admitad', 'webgains'));
 
 -- affiliate network API accounts entered from the panel. client_id NULL = our own account;
 -- a client's id = that client's own publisher account. credentials = AES-GCM JSON (see lib/secrets.ts)
@@ -186,19 +181,13 @@ CREATE TABLE IF NOT EXISTS client_tracking (
   PRIMARY KEY (client_id, store_id)
 );
 ALTER TABLE client_tracking ENABLE ROW LEVEL SECURITY;
--- CJ, Rakuten and Impact read through their APIs too
-ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_source_check;
-ALTER TABLE coupons ADD CONSTRAINT coupons_source_check
-  CHECK (source IN ('manual', 'web', 'awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact'));
-ALTER TABLE network_accounts DROP CONSTRAINT IF EXISTS network_accounts_network_check;
-ALTER TABLE network_accounts ADD CONSTRAINT network_accounts_network_check
-  CHECK (network IN ('awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact'));
 -- category readers browse by on the public site ('' = none), and short facts for its guide: "Etiqueta | Valor" per line
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT '';
 ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_category_check;
 ALTER TABLE stores ADD CONSTRAINT stores_category_check
   CHECK (category IN ('', 'tecnologia', 'zapatillas', 'moda', 'hogar', 'deporte', 'viajes'));
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS facts text NOT NULL DEFAULT '';
+-- the allowed sources and networks, defined once: an older, shorter list re-added first would reject rows a newer network already wrote
 -- Adtraction, Effiliation, Kwanko, Affilae and Partnerize read through their APIs too
 ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_source_check;
 ALTER TABLE coupons ADD CONSTRAINT coupons_source_check
