@@ -37,7 +37,7 @@ function BreakdownTable({ title, rows, hrefFor }: { title: string; rows: ClickRo
   );
 }
 
-export default async function ClicksPage({ searchParams }: PageProps<"/clicks">) {
+export default async function ClicksPage({ searchParams }: PageProps<"/panel/clicks">) {
   const user = await requireUser();
   const [sp, allClients] = await Promise.all([searchParams, listClients()]);
   const clients = onlyVisible(user, allClients, "id");
@@ -95,7 +95,7 @@ export default async function ClicksPage({ searchParams }: PageProps<"/clicks">)
             />
           </div>
           <button className="min-h-10 rounded-md border border-neutral-300 px-3 text-sm dark:border-neutral-700">Filtrar</button>
-          {(client || days !== 30) && <ClearFilters href="/clicks" />}
+          {(client || days !== 30) && <ClearFilters href="/panel/clicks" />}
         </form>
       </div>
 
@@ -115,8 +115,8 @@ export default async function ClicksPage({ searchParams }: PageProps<"/clicks">)
       </section>
 
       <div className="flex flex-wrap items-start gap-6">
-        {!client && <BreakdownTable title="Por medio" rows={stats.byClient} hrefFor={(r) => `/clicks?days=${days}&client=${r.slug}`} />}
-        <BreakdownTable title="Por tienda" rows={stats.byStore} hrefFor={(r) => `/stores/${r.slug}`} />
+        {!client && <BreakdownTable title="Por medio" rows={stats.byClient} hrefFor={(r) => `/panel/clicks?days=${days}&client=${r.slug}`} />}
+        <BreakdownTable title="Por tienda" rows={stats.byStore} hrefFor={(r) => `/panel/stores/${r.slug}`} />
       </div>
 
       <section aria-labelledby="top" className="overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
@@ -129,7 +129,7 @@ export default async function ClicksPage({ searchParams }: PageProps<"/clicks">)
             {stats.topCoupons.map((c) => (
               <tr key={c.id}>
                 <td className="px-5 py-2.5">
-                  <Link href={`/coupons?edit=${c.id}`} className="font-medium hover:underline">{c.title}</Link>
+                  <Link href={`/panel/coupons?edit=${c.id}`} className="font-medium hover:underline">{c.title}</Link>
                   {c.code && <code className="ml-2 rounded border border-dashed border-neutral-400 px-1.5 font-mono text-xs">{c.code}</code>}
                 </td>
                 <td className="px-2 py-2.5 text-neutral-600 dark:text-neutral-400">{c.store_name}</td>

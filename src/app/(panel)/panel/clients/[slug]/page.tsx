@@ -22,7 +22,7 @@ async function usableAccounts(clientId: number): Promise<AccountOption[]> {
   return rows.map((r) => ({ id: r.id, network: r.network, own: r.client_id === null, ref: r.account_ref }));
 }
 
-export default async function ClientPage({ params, searchParams }: PageProps<"/clients/[slug]">) {
+export default async function ClientPage({ params, searchParams }: PageProps<"/panel/clients/[slug]">) {
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const user = await requireUser();
   const [client, stores, allPages, coupons] = await Promise.all([getClient(slug), listStores(), listPages(), listAllCoupons()]);
@@ -45,14 +45,14 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
           </div>
           <div className="flex flex-wrap gap-2 text-sm">
             <a href={`/demo/${client.slug}`} target="_blank" className="flex min-h-11 items-center rounded-md bg-green-700 px-4 font-semibold text-white">Abrir demo ↗</a>
-            <Link href="/clients" className="flex min-h-11 items-center rounded-md border border-green-300 bg-white px-4 text-green-900 dark:border-green-700 dark:bg-green-900 dark:text-green-100">Ver lista de clientes</Link>
-            <Link href="/clients/new" className="flex min-h-11 items-center px-2 text-green-900 underline dark:text-green-200">Crear otro</Link>
+            <Link href="/panel/clients" className="flex min-h-11 items-center rounded-md border border-green-300 bg-white px-4 text-green-900 dark:border-green-700 dark:bg-green-900 dark:text-green-100">Ver lista de clientes</Link>
+            <Link href="/panel/clients/new" className="flex min-h-11 items-center px-2 text-green-900 underline dark:text-green-200">Crear otro</Link>
           </div>
         </div>
       )}
 
       <div className="flex flex-col gap-2">
-        <Link href="/clients" className="text-sm text-neutral-500 hover:underline">← Clientes</Link>
+        <Link href="/panel/clients" className="text-sm text-neutral-500 hover:underline">← Clientes</Link>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <ClientMark name={client.name} logoUrl={client.logo_url} color={client.brand_color} size="lg" />
@@ -79,7 +79,7 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
               <CoverageBadge coverage={coverageOf(p, now)} />
               <span className="text-neutral-500">{DELIVERY_LABEL[p.delivery]}</span>
               <span className="ml-auto flex gap-4">
-                <Link href={`/pages/${client.slug}/${p.store_slug}?desde=cliente`} className="text-blue-700 hover:underline dark:text-blue-300">Generador</Link>
+                <Link href={`/panel/pages/${client.slug}/${p.store_slug}?desde=cliente`} className="text-blue-700 hover:underline dark:text-blue-300">Generador</Link>
                 <a href={`/p/${client.slug}/${p.store_slug}`} target="_blank" className="text-blue-700 hover:underline dark:text-blue-300">Ver página ↗</a>
                 {editable && <RemovePageButton client={{ slug: client.slug, name: client.name }} store={{ slug: p.store_slug, name: p.store_name }} published={p.status === "published"} />}
               </span>
@@ -127,7 +127,7 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/c
                 </ul>
                 {!accounts.length && <p className="text-neutral-500">No hay cuentas conectadas.</p>}
               </div>
-              <Link href="/networks" className="mt-3 inline-block text-sm text-blue-700 hover:underline dark:text-blue-300">Asignar cuentas en Conectar redes →</Link>
+              <Link href="/panel/networks" className="mt-3 inline-block text-sm text-blue-700 hover:underline dark:text-blue-300">Asignar cuentas en Conectar redes →</Link>
             </section>
           }
         />

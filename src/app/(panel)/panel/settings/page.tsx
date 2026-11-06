@@ -39,7 +39,7 @@ const EXPORTS = [
   { table: "clicks", label: "Clics" },
 ] as const;
 
-export default async function AdminPage({ searchParams }: PageProps<"/settings">) {
+export default async function AdminPage({ searchParams }: PageProps<"/panel/settings">) {
   const me = await requireUser();
   if (me.role !== "admin") redirect("/panel");
   const [sp, clients, users, counts, retention, unverified] = await Promise.all([

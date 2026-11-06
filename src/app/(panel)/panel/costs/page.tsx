@@ -24,7 +24,7 @@ function dayList(from: Date, now: Date) {
   return [...new Set(days)];
 }
 
-export default async function CostsPage({ searchParams }: PageProps<"/costs">) {
+export default async function CostsPage({ searchParams }: PageProps<"/panel/costs">) {
   await requireAdmin();
   const sp = await searchParams;
   const range = RANGES.find((r) => r.id === sp.r)?.id ?? "30";
@@ -71,7 +71,7 @@ export default async function CostsPage({ searchParams }: PageProps<"/costs">) {
           {RANGES.map((r) => (
             <Link
               key={r.id}
-              href={r.id === "30" ? "/costs" : `/costs?r=${r.id}`}
+              href={r.id === "30" ? "/panel/costs" : `/panel/costs?r=${r.id}`}
               aria-current={range === r.id ? "page" : undefined}
               className={`flex min-h-9 items-center rounded-md px-3 text-sm ${range === r.id ? "bg-white font-medium shadow-sm dark:bg-neutral-950" : "text-neutral-600 dark:text-neutral-400"}`}
             >

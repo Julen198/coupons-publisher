@@ -187,8 +187,8 @@ export async function createClient(_prev: FormState, f: FormData): Promise<FormS
   } catch (e) {
     return { error: errorMessage(e) };
   }
-  revalidatePath("/clients");
-  redirect(`/clients/${s}?created=1`);
+  revalidatePath("/panel/clients");
+  redirect(`/panel/clients/${s}?created=1`);
 }
 
 export async function updateClient(f: FormData) {
@@ -200,7 +200,7 @@ export async function updateClient(f: FormData) {
     UPDATE clients SET domain = ${bareDomain(str(f, "domain"))},
       clickref_prefix = ${str(f, "clickref_prefix")}
     WHERE slug = ${s}`;
-  revalidatePath(`/clients/${s}`);
+  revalidatePath(`/panel/clients/${s}`);
 }
 
 export async function updateDisguise(f: FormData) {
@@ -215,7 +215,7 @@ export async function updateDisguise(f: FormData) {
       font_style = ${str(f, "font_style") === "sans" ? "sans" : "serif"},
       font_family = ${cleanFontFamily(str(f, "font_family")) ?? ""}, layout = ${str(f, "layout") === "store" ? "store" : "newspaper"}
     WHERE slug = ${s}`;
-  revalidatePath(`/clients/${s}`);
+  revalidatePath(`/panel/clients/${s}`);
 }
 
 // Refills a saved client's disguise from their homepage. Only overwrites what it finds.
@@ -233,7 +233,7 @@ export async function generateDisguise(f: FormData) {
       font_style = ${d.font ?? client.font_style}, font_family = ${d.fontFamily ?? client.font_family},
       layout = ${d.layout ?? client.layout}
     WHERE slug = ${s}`;
-  revalidatePath(`/clients/${s}`);
+  revalidatePath(`/panel/clients/${s}`);
 }
 
 // ---------- stores ----------
@@ -266,7 +266,7 @@ export async function createStore(_prev: FormState, f: FormData): Promise<FormSt
   } catch (e) {
     return { error: errorMessage(e) };
   }
-  redirect(`/stores/${s}`);
+  redirect(`/panel/stores/${s}`);
 }
 
 export type ImportStoresState = FormState & { imported?: number; problems?: string[]; guessed?: string[]; rejected?: string };
@@ -354,7 +354,7 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
   } catch (e) {
     return { error: errorMessage(e) };
   }
-  revalidatePath(`/stores/${s}`);
+  revalidatePath(`/panel/stores/${s}`);
   return {};
 }
 
@@ -363,12 +363,12 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
 export async function deleteCoupon(f: FormData) {
   await requireEditor();
   await sql()`DELETE FROM coupons WHERE id = ${Number(required(f, "id"))}`;
-  revalidatePath(`/stores/${required(f, "store_slug")}`);
+  revalidatePath(`/panel/stores/${required(f, "store_slug")}`);
 }
 
 // Create (no id) or update (id) from the coupon drawer
 export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormState> {
-  const back = /^\/(coupons|stores\/[a-z0-9-]+)(\?|$)/.test(str(f, "back")) ? str(f, "back") : "/coupons";
+  const back = /^\/panel\/(coupons|stores\/[a-z0-9-]+)(\?|$)/.test(str(f, "back")) ? str(f, "back") : "/panel/coupons";
   try {
     await requireEditor();
     const kind = str(f, "kind") === "deal" ? "deal" : "code";
@@ -393,8 +393,8 @@ export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormSta
   } catch (e) {
     return { error: errorMessage(e) };
   }
-  revalidatePath("/coupons");
-  revalidatePath("/stores", "layout");
+  revalidatePath("/panel/coupons");
+  revalidatePath("/panel/stores", "layout");
   redirect(back);
 }
 

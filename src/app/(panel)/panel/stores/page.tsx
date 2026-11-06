@@ -13,7 +13,7 @@ import { SearchInput } from "@/app/search-input";
 const PAGE_SIZE = 15;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
-export default async function StoresPage({ searchParams }: PageProps<"/stores">) {
+export default async function StoresPage({ searchParams }: PageProps<"/panel/stores">) {
   const user = await requireUser();
   const sp = await searchParams;
   const [stores, coupons, pages, unverified] = await Promise.all([listStores(), listAllCoupons(), listPages(), publishUnverified()]);
@@ -40,7 +40,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/stores">)
   const pageHref = (n: number) => {
     const q = new URLSearchParams(Object.entries({ q: filters.q, red: filters.network, tracking: filters.tracking, cupones: filters.coupons }).filter((e): e is [string, string] => !!e[1]));
     if (n > 1) q.set("page", String(n));
-    return `/stores${q.size ? `?${q}` : ""}`;
+    return `/panel/stores${q.size ? `?${q}` : ""}`;
   };
 
   return (
@@ -78,7 +78,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/stores">)
             </select>
           </label>
           <button className="min-h-10 rounded-md border border-neutral-300 px-4 text-sm dark:border-neutral-700">Filtrar</button>
-          {active && <ClearFilters href="/stores" />}
+          {active && <ClearFilters href="/panel/stores" />}
         </form>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
@@ -94,7 +94,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/stores">)
               {rows.map((s) => (
                 <tr key={s.id}>
                   <th scope="row" className="px-4 py-3 text-left font-medium">
-                    <Link href={`/stores/${s.slug}`} className="flex items-center gap-3 hover:underline">
+                    <Link href={`/panel/stores/${s.slug}`} className="flex items-center gap-3 hover:underline">
                       <StoreMark slug={s.slug} name={s.name} hasLogo={s.has_logo} size="md" />
                       <span className="flex flex-col">{s.name}<span className="text-xs font-normal text-neutral-500">{s.website.replace(/^https?:\/\//, "")}</span></span>
                     </Link>
@@ -105,7 +105,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/stores">)
                     {!storeTracked(s) && <span className="ml-1 text-amber-700 dark:text-amber-400">{s.network === "awin" ? "· sin merchant ID" : "· sin enlace"}</span>}
                   </td>
                   <td className="px-2 py-3">
-                    <Link href={`/coupons?store=${s.slug}`} className="flex flex-col hover:underline">
+                    <Link href={`/panel/coupons?store=${s.slug}`} className="flex flex-col hover:underline">
                       <span>{live.get(s.id) ?? 0} visibles</span>
                       {(review.get(s.id) ?? 0) > 0 && <span className="text-xs text-amber-800 dark:text-amber-300">{review.get(s.id)} por revisar</span>}
                     </Link>

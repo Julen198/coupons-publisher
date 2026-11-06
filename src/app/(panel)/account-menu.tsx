@@ -92,7 +92,7 @@ export function AccountMenu({ name, email, role, roleKey, description, isAdmin }
           </div>
 
           {isAdmin && (<Link
-            href="/settings"
+            href="/panel/settings"
             onClick={() => setOpen(false)}
             className="flex min-h-10 items-center gap-2.5 border-t border-neutral-200 px-4 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800/60"
           >

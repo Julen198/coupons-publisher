@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { updateStore, type FormState } from "@/app/actions";
 import { generateContent } from "@/app/actions-pages";
 import { pageTitle, parseFaqs } from "@/lib/affiliate";
-import { CATEGORIES } from "@/lib/catalog";
+import { CATEGORIES, factsOf } from "@/lib/catalog";
 import { btnCls, btnSecondaryCls, cardCls, Field, inputCls } from "@/app/ui";
 import { NetworkFields } from "../network-fields";
 
@@ -16,8 +16,12 @@ interface StoreContentProps {
 export function StoreContentForm({ store, discounts }: StoreContentProps) {
   const [intro, setIntro] = useState(store.intro);
   const [faqs, setFaqs] = useState(store.faqs);
+  // controlled: a form action resets uncontrolled fields to their first value, and the next save would send that
+  const [category, setCategory] = useState(store.category);
+  const [facts, setFacts] = useState(store.facts);
   const [aiError, setAiError] = useState("");
   const [generating, startGenerate] = useTransition();
+  const [, startSave] = useTransition();
   const [state, formAction, saving] = useActionState<FormState & { saved?: boolean }, FormData>(
     async (prev, f) => ({ ...(await updateStore(prev, f)), saved: true }),
     {},
@@ -37,14 +41,23 @@ export function StoreContentForm({ store, discounts }: StoreContentProps) {
 
   return (
     <div className="flex flex-wrap items-start gap-6">
-      <form action={formAction} className={`${cardCls} flex min-w-0 flex-[999_1_480px] flex-col gap-4`}>
+      {/* submitted by hand: a form `action` makes React reset the form afterwards, which puts the <select> and the
+          defaultValue inputs back to their first values while the store already holds the new ones */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          startSave(() => formAction(data));
+        }}
+        className={`${cardCls} flex min-w-0 flex-[999_1_480px] flex-col gap-4`}
+      >
         <input type="hidden" name="slug" value={store.slug} />
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Web" name="website" type="url" required defaultValue={store.website} />
           <NetworkFields network={store.network} merchantId={store.merchant_id} trackingUrl={store.tracking_url} />
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-neutral-600 dark:text-neutral-400">Categoría</span>
-            <select name="category" defaultValue={store.category} className={inputCls}>
+            <select name="category" value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
               <option value="">Sin categoría</option>
               {CATEGORIES.map((c) => (
                 <option key={c.slug} value={c.slug}>{c.label}</option>
@@ -74,7 +87,8 @@ export function StoreContentForm({ store, discounts }: StoreContentProps) {
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-neutral-600 dark:text-neutral-400">Datos de la tienda. Una línea por dato: Envío | Gratis desde 50 €</span>
-          <textarea name="facts" rows={4} defaultValue={store.facts} className={`${inputCls} font-mono text-xs`} />
+          <textarea name="facts" rows={4} value={facts} onChange={(e) => setFacts(e.target.value)} className={`${inputCls} font-mono text-xs`} aria-describedby="facts-count" />
+          <span id="facts-count" className="text-xs text-neutral-600 dark:text-neutral-400">Datos válidos · {factsOf(facts).length}. Las líneas sin «|» no se muestran.</span>
         </label>
 
         {state.error && <p role="alert" className="text-sm text-red-800 dark:text-red-300">{state.error}</p>}

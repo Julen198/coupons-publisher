@@ -46,7 +46,7 @@ export function PageGenerator({ client, store, initialDelivery, published, exist
     if (!autoFaqs || readOnly || faqCount > 0 || autoStarted.current) return;
     autoStarted.current = true;
     generateFaqs();
-    router.replace(`/pages/${client.slug}/${store.slug}${fromClient ? "?desde=cliente" : ""}`, { scroll: false }); // drop ?nueva so a reload doesn't repeat it
+    router.replace(`/panel/pages/${client.slug}/${store.slug}${fromClient ? "?desde=cliente" : ""}`, { scroll: false }); // drop ?nueva so a reload doesn't repeat it
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- run once on mount
 
   function generateFaqs() {

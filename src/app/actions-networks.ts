@@ -66,7 +66,7 @@ export async function deleteNetworkAccount(f: FormData) {
   if (row?.client_id != null) await sql()`DELETE FROM client_tracking WHERE client_id = ${row.client_id} AND network = ${row.network}`;
   await syncClientAwinIds();
   if (row) await logActivity(`Cuenta de ${adapterFor(row.network)?.label ?? row.network} desconectada`);
-  revalidatePath("/networks");
+  revalidatePath("/panel/networks");
 }
 
 // One account (id) or all of them (no id), one after another so a slow network doesn't hide the others' errors
