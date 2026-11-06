@@ -102,3 +102,11 @@ export function flagOf(raw: string): 0 | 1 | null {
 export const MAX_EMAIL_LENGTH = 254;
 
 export const validEmail = (email: string) => email.length <= MAX_EMAIL_LENGTH && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+// "Marcar como caducado": from this many reports by different readers a live deal shows "Puede haber caducado"
+export const EXPIRY_REPORT_THRESHOLD = 3;
+export const mayHaveExpired = (reports: number): boolean => reports >= EXPIRY_REPORT_THRESHOLD;
+
+// Reports one reader may send in 24 hours, so nobody can flag the whole site
+export const EXPIRY_REPORT_LIMIT_PER_DAY = 10;
+export const reportLimitReached = (sentToday: number): boolean => sentToday >= EXPIRY_REPORT_LIMIT_PER_DAY;

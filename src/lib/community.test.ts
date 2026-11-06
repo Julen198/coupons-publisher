@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { byComments, byVotes, cleanComment, cleanHandle, couponIdOf, flagOf, MAX_EMAIL_LENGTH, nextVote, parseSharedDeal, replyParent, usefulLabel, threadComments, timeAgo, validEmail } from "./community.ts";
+import { byComments, byVotes, cleanComment, EXPIRY_REPORT_LIMIT_PER_DAY, mayHaveExpired, reportLimitReached, cleanHandle, couponIdOf, flagOf, MAX_EMAIL_LENGTH, nextVote, parseSharedDeal, replyParent, usefulLabel, threadComments, timeAgo, validEmail } from "./community.ts";
 
 test("cleanHandle", () => {
   assert.equal(cleanHandle("  Runner_Bilbo "), "runner_bilbo");
@@ -115,4 +115,17 @@ test("usefulLabel", () => {
   assert.equal(usefulLabel(0), "0 útiles");
   assert.equal(usefulLabel(1), "1 útil");
   assert.equal(usefulLabel(5), "5 útiles");
+});
+
+test("mayHaveExpired once three different readers reported the deal", () => {
+  assert.equal(mayHaveExpired(0), false);
+  assert.equal(mayHaveExpired(2), false);
+  assert.equal(mayHaveExpired(3), true);
+  assert.equal(mayHaveExpired(12), true);
+});
+
+test("reportLimitReached at ten expiry reports a day", () => {
+  assert.equal(EXPIRY_REPORT_LIMIT_PER_DAY, 10);
+  assert.equal(reportLimitReached(9), false);
+  assert.equal(reportLimitReached(10), true);
 });

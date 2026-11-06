@@ -24,6 +24,7 @@ export type SiteCoupon = Coupon & {
   score: number;
   comments: number;
   shared_by_handle: string | null;
+  expiry_reports: number; // readers who marked it as expired ("Marcar como caducado")
   image_url: string; // product image from a network feed (https), "" = show the store logo
 };
 
@@ -32,7 +33,7 @@ const COUPON_SELECT = `
          s.network AS store_network, s.merchant_id AS store_merchant_id, s.tracking_url AS store_tracking_url,
          coalesce(s.publisher_id, '') AS store_publisher_id,
          coalesce(v.score, 0)::int AS score, coalesce(cm.n, 0)::int AS comments,
-         CASE WHEN sb.status = 'active' THEN sb.handle END AS shared_by_handle
+         CASE WHEN sb.status = 'active' THEN sb.handle END AS shared_by_handle, coalesce(er.n, 0)::int AS expiry_reports
   FROM coupons c JOIN stores s ON s.id = c.store_id
   LEFT JOIN (SELECT vt.coupon_id, sum(vt.value) AS score FROM votes vt JOIN readers vr ON vr.id = vt.reader_id WHERE vr.status = 'active' GROUP BY vt.coupon_id) v ON v.coupon_id = c.id
   LEFT JOIN (
@@ -41,7 +42,8 @@ const COUPON_SELECT = `
     WHERE k.hidden = 0 AND r.status = 'active' AND (k.parent_id IS NULL OR (pk.hidden = 0 AND pr.status = 'active'))
     GROUP BY k.coupon_id
   ) cm ON cm.coupon_id = c.id
-  LEFT JOIN readers sb ON sb.id = c.shared_by`;
+  LEFT JOIN readers sb ON sb.id = c.shared_by
+  LEFT JOIN (SELECT e.coupon_id, count(*) AS n FROM expiry_reports e JOIN readers er_r ON er_r.id = e.reader_id WHERE er_r.status = 'active' GROUP BY e.coupon_id) er ON er.coupon_id = c.id`;
 
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
@@ -86,13 +88,14 @@ export async function currentVotes(): Promise<Map<number, -1 | 1>> {
   return reader ? readerVotes(reader.id) : new Map();
 }
 
-// What the signed-in reader did on one deal (Guardar)
-export async function readerDealMarks(readerId: number | null, couponId: number): Promise<{ saved: boolean }> {
-  if (!readerId) return { saved: false };
+// What the signed-in reader did on one deal: saved it (Guardar), reported it as expired (Marcar como caducado)
+export async function readerDealMarks(readerId: number | null, couponId: number): Promise<{ saved: boolean; reported: boolean }> {
+  if (!readerId) return { saved: false, reported: false };
   await io();
-  const [row] = await sql()<{ saved: boolean }[]>`
-    SELECT EXISTS (SELECT 1 FROM saved_deals WHERE reader_id = ${readerId} AND coupon_id = ${couponId}) AS saved`;
-  return { saved: !!row?.saved };
+  const [row] = await sql()<{ saved: boolean; reported: boolean }[]>`
+    SELECT EXISTS (SELECT 1 FROM saved_deals WHERE reader_id = ${readerId} AND coupon_id = ${couponId}) AS saved,
+           EXISTS (SELECT 1 FROM expiry_reports WHERE reader_id = ${readerId} AND coupon_id = ${couponId}) AS reported`;
+  return { saved: !!row?.saved, reported: !!row?.reported };
 }
 
 export async function siteStore(slug: string): Promise<Store | undefined> {

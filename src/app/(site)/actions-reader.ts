@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { cleanComment, cleanHandle, couponIdOf, flagOf, nextVote, parseSharedDeal, replyParent, validEmail, type VoteValue } from "@/lib/community";
+import { cleanComment, cleanHandle, couponIdOf, flagOf, nextVote, parseSharedDeal, replyParent, reportLimitReached, validEmail, EXPIRY_REPORT_LIMIT_PER_DAY, type VoteValue } from "@/lib/community";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
@@ -212,4 +212,20 @@ export async function toggleSaved(f: FormData): Promise<void> {
     await sql()`INSERT INTO saved_deals (reader_id, coupon_id) VALUES (${reader.id}, ${couponId}) ON CONFLICT DO NOTHING`;
   }
   refresh();
+}
+
+// "Marcar como caducado": one report per reader and deal (the primary key), ten a day per reader
+export async function reportExpired(_prev: FormState & { done?: boolean }, f: FormData): Promise<FormState & { done?: boolean }> {
+  const back = safeNext(str(f, "back"), "/");
+  const reader = await getReader();
+  if (!reader) redirect(`/entrar?next=${encodeURIComponent(back)}`);
+  const couponId = couponIdOf(str(f, "coupon_id"));
+  const found = couponId ? await siteCoupon(couponId) : undefined;
+  if (!found?.live) return { error: "Este chollo ya no está activo" };
+  const [today] = await sql()<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM expiry_reports WHERE reader_id = ${reader.id} AND at > now() - interval '24 hours'`;
+  if (reportLimitReached(today.n)) return { error: `Ya has avisado de ${EXPIRY_REPORT_LIMIT_PER_DAY} chollos hoy. Vuelve mañana` };
+  await sql()`INSERT INTO expiry_reports (reader_id, coupon_id) VALUES (${reader.id}, ${found.coupon.id}) ON CONFLICT DO NOTHING`;
+  refresh();
+  return { done: true };
 }

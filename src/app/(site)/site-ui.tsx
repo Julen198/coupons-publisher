@@ -4,7 +4,7 @@ import { factsOf } from "@/lib/catalog";
 import { badgeLabel } from "@/lib/discount";
 import { conditionsOf, displayTitle } from "@/lib/deal-text";
 import { goHref, type SiteCoupon } from "@/lib/public-site";
-import { timeAgo } from "@/lib/community";
+import { mayHaveExpired, timeAgo } from "@/lib/community";
 import { httpsImage } from "@/lib/networks/types";
 import { daysBetween, dealPath, shortDate } from "@/lib/site-text";
 import { vote } from "./actions-reader";
@@ -53,6 +53,7 @@ export function StatusBadges({ c, today, live = true }: { c: SiteCoupon; today: 
       {left !== null && left <= 7 && (
         <span className="badge b-low">{left <= 0 ? "Caduca hoy" : left === 1 ? "Caduca mañana" : `Caduca en ${left} días`}</span>
       )}
+      {mayHaveExpired(c.expiry_reports ?? 0) && <span className="badge b-low">Puede haber caducado</span>}
     </>
   );
 }

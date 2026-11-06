@@ -71,6 +71,25 @@ export async function setReaderBlocked(f: FormData) {
   refresh();
 }
 
+// "Avisos de caducado": readers say a deal stopped working. Retirar hides it from the site; the reports stay as its record.
+export async function retireReported(f: FormData) {
+  await requireEditor();
+  const id = idOf(f);
+  const rows = await sql()<{ title: string; n: number }[]>`
+    UPDATE coupons SET archived = 1 WHERE id = ${id} AND archived = 0
+    RETURNING title, (SELECT count(*)::int FROM expiry_reports WHERE coupon_id = coupons.id) AS n`;
+  if (rows[0]) await logActivity(`Retirado por avisos de caducado (${rows[0].n}): ${rows[0].title}`);
+  refresh();
+}
+
+// "Sigue activo": the editor checked it works, so its reports go (and the "Puede haber caducado" badge with them)
+export async function dismissExpiryReports(f: FormData) {
+  await requireEditor();
+  const id = idOf(f);
+  await sql()`DELETE FROM expiry_reports WHERE coupon_id = ${id}`;
+  refresh();
+}
+
 // "Sobre este chollo": the AI drafts, an editor approves. Drafts are never public.
 const ABOUT_BATCH = 10;
 

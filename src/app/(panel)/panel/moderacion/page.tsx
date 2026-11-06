@@ -1,4 +1,4 @@
-import { publishShared, rejectShared, setCommentHidden, setReaderBlocked } from "@/app/actions-community";
+import { dismissExpiryReports, publishShared, rejectShared, retireReported, setCommentHidden, setReaderBlocked } from "@/app/actions-community";
 import { btnCls, btnSecondaryCls, cardCls, fmtDateTime, PageHeader } from "@/app/ui";
 import { requireEditor } from "@/lib/auth";
 import { io } from "next/cache";
@@ -23,6 +23,19 @@ async function loadShared() {
     ORDER BY c.id DESC`).map((r) => ({ ...r }));
 }
 
+type Reported = { id: number; title: string; store_name: string; reports: number; last_at: Date };
+
+// Live (not archived) coupons readers marked as expired, most recently reported first
+async function loadReported() {
+  return (await sql()<Reported[]>`
+    SELECT c.id, c.title, s.name AS store_name, count(*)::int AS reports, max(e.at) AS last_at
+    FROM expiry_reports e JOIN coupons c ON c.id = e.coupon_id JOIN stores s ON s.id = c.store_id
+    WHERE c.archived = 0
+    GROUP BY c.id, s.id
+    ORDER BY max(e.at) DESC
+    LIMIT 100`).map((r) => ({ ...r }));
+}
+
 type AboutDraft = { id: number; title: string; about: string; store_name: string };
 
 async function loadAboutDrafts() {
@@ -43,7 +56,7 @@ async function loadComments() {
 export default async function ModerationPage() {
   await requireEditor();
   await io();
-  const [shared, comments, drafts] = await Promise.all([loadShared(), loadComments(), loadAboutDrafts()]);
+  const [shared, comments, drafts, reported] = await Promise.all([loadShared(), loadComments(), loadAboutDrafts(), loadReported()]);
 
   return (
     <div className="space-y-8">
@@ -74,6 +87,34 @@ export default async function ModerationPage() {
               <form action={rejectShared}>
                 <input type="hidden" name="id" value={d.id} />
                 <button className={btnSecondaryCls}>Rechazar</button>
+              </form>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Avisos de caducado</h2>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          Chollos que algún lector ha marcado como caducados. Con 3 avisos el chollo muestra «Puede haber caducado».
+        </p>
+        {reported.length === 0 && <p className="text-sm text-neutral-500">No hay avisos de caducado.</p>}
+        {reported.map((d) => (
+          <div key={d.id} className={`${cardCls} space-y-3`}>
+            <div>
+              <p className="text-sm text-neutral-500">
+                {d.store_name} · {d.reports === 1 ? "1 aviso" : `${d.reports} avisos`} · último {fmtDateTime(d.last_at)}
+              </p>
+              <a href={dealPath(d)} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-700 underline dark:text-blue-400">{d.title}</a>
+            </div>
+            <div className="flex gap-2">
+              <form action={retireReported}>
+                <input type="hidden" name="id" value={d.id} />
+                <button className={btnCls}>Retirar</button>
+              </form>
+              <form action={dismissExpiryReports}>
+                <input type="hidden" name="id" value={d.id} />
+                <button className={btnSecondaryCls}>Sigue activo</button>
               </form>
             </div>
           </div>

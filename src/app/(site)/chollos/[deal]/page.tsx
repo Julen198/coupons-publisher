@@ -290,7 +290,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             <>
               {hasCode && <CopyCode code={c.code} />}
               <GoButton client={client} c={c} />
-              <DealActions couponId={c.id} back={dealPath(c)} saved={marks.saved} />
+              <DealActions couponId={c.id} back={dealPath(c)} saved={marks.saved} reported={marks.reported} />
             </>
           ) : (
             <Link className="btn" href={`/tiendas/${c.store_slug}`}>
