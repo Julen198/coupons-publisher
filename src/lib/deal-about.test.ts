@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { aboutParagraphs, aboutSnippet, cleanAbout, dealAboutInput, pickAboutCandidates, tidyDraft } from "./deal-about.ts";
+import { ABOUT_TIME_BUDGET_MS, aboutOutOfTime, aboutParagraphs, aboutSnippet, cleanAbout, dealAboutInput, draftsDoneMessage, pickAboutCandidates, tidyDraft } from "./deal-about.ts";
 
 const coupon = {
   title: "WORTEN: HASTA 30% EN TELES",
@@ -76,4 +76,17 @@ test("pickAboutCandidates: no text yet, most voted then newest", () => {
   ];
   assert.deepEqual(pickAboutCandidates(rows, 2).map((r) => r.id), [3, 5]);
   assert.deepEqual(pickAboutCandidates(rows, 10).map((r) => r.id), [3, 5, 1]);
+});
+
+test("aboutOutOfTime stops the batch before the function limit", () => {
+  assert.equal(aboutOutOfTime(0, ABOUT_TIME_BUDGET_MS - 1), false);
+  assert.equal(aboutOutOfTime(0, ABOUT_TIME_BUDGET_MS), true);
+  assert.equal(ABOUT_TIME_BUDGET_MS < 300_000, true);
+});
+
+test("draftsDoneMessage", () => {
+  assert.equal(draftsDoneMessage(3, false), "3 borrador(es) creados.");
+  assert.equal(draftsDoneMessage(0, false), "No quedan chollos activos sin texto.");
+  assert.equal(draftsDoneMessage(4, true), "4 borrador(es) creados. Se ha parado por tiempo, pulsa otra vez para seguir.");
+  assert.equal(draftsDoneMessage(0, true), "0 borrador(es) creados. Se ha parado por tiempo, pulsa otra vez para seguir.");
 });

@@ -3,16 +3,16 @@
 import { useActionState, useState } from "react";
 import { approveAbout, discardAbout, draftDealAbouts, type AboutDraftsState } from "@/app/actions-community";
 import { btnCls, btnSecondaryCls, inputCls } from "@/app/ui";
-import { ABOUT_MAX, ABOUT_MIN } from "@/lib/deal-about";
+import { ABOUT_MAX, ABOUT_MIN, draftsDoneMessage } from "@/lib/deal-about";
 
 export function DraftAboutsButton() {
   const [state, action, pending] = useActionState<AboutDraftsState>(draftDealAbouts, {});
   return (
     <form action={action} className="flex flex-wrap items-center gap-3">
-      <button disabled={pending} className={btnCls}>{pending ? "Generando… (puede tardar un minuto)" : "Generar 10 borradores"}</button>
+      <button disabled={pending} className={btnCls}>{pending ? "Generando… (puede tardar unos minutos)" : "Generar 10 borradores"}</button>
       {!pending && state.drafted !== undefined && !state.error && (
         <p role="status" className="text-sm text-neutral-600 dark:text-neutral-400">
-          {state.drafted ? `${state.drafted} borrador(es) creados.` : "No quedan chollos activos sin texto."}
+          {draftsDoneMessage(state.drafted, !!state.stoppedForTime)}
         </p>
       )}
       {!pending && state.error && <p role="alert" className="text-sm text-red-800 dark:text-red-300">{state.error}</p>}

@@ -8,7 +8,7 @@ import { couponIdOf, flagOf } from "@/lib/community";
 import { errorMessage, str } from "@/lib/form";
 import { generateDealAbout } from "@/lib/ai-content";
 import { AiBudgetError } from "@/lib/ai-budget";
-import { ABOUT_MAX, ABOUT_MIN, cleanAbout, pickAboutCandidates } from "@/lib/deal-about";
+import { ABOUT_MAX, ABOUT_MIN, aboutOutOfTime, cleanAbout, pickAboutCandidates } from "@/lib/deal-about";
 import { siteCoupons } from "@/lib/public-site";
 import type { Store } from "@/lib/db";
 
@@ -93,10 +93,12 @@ export async function dismissExpiryReports(f: FormData) {
 // "Sobre este chollo": the AI drafts, an editor approves. Drafts are never public.
 const ABOUT_BATCH = 10;
 
-export type AboutDraftsState = { drafted?: number; error?: string };
+export type AboutDraftsState = { drafted?: number; error?: string; stoppedForTime?: boolean };
 
-// One deal at a time so the budget check runs before each call; stops at the first budget error
+// One deal at a time so the budget check runs before each call; stops at the first budget error, and before
+// the page's maxDuration runs out (aboutOutOfTime), keeping the drafts already saved
 export async function draftDealAbouts(): Promise<AboutDraftsState> {
+  const startedAt = Date.now();
   await requireEditor();
   const picked = pickAboutCandidates(await siteCoupons(), ABOUT_BATCH);
   if (!picked.length) return { drafted: 0 };
@@ -106,7 +108,12 @@ export async function draftDealAbouts(): Promise<AboutDraftsState> {
   );
   let drafted = 0;
   let failed = 0;
+  let stoppedForTime = false;
   for (const c of picked) {
+    if (aboutOutOfTime(startedAt, Date.now())) {
+      stoppedForTime = true;
+      break;
+    }
     const store = stores.get(c.store_id);
     if (!store) continue;
     try {
@@ -124,7 +131,7 @@ export async function draftDealAbouts(): Promise<AboutDraftsState> {
   }
   if (drafted) await logActivity(`${drafted} borrador(es) de «Sobre este chollo» generados con IA`);
   refresh();
-  return failed ? { drafted, error: `No se pudieron generar ${failed} texto(s). Revisa los registros.` } : { drafted };
+  return failed ? { drafted, stoppedForTime, error: `No se pudieron generar ${failed} texto(s). Revisa los registros.` } : { drafted, stoppedForTime };
 }
 
 export async function approveAbout(_prev: { error?: string }, f: FormData): Promise<{ error?: string }> {

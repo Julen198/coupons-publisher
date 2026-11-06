@@ -65,3 +65,13 @@ export function pickAboutCandidates<T extends { id: number; score: number; about
     .sort((a, b) => b.score - a.score || b.id - a.id)
     .slice(0, n);
 }
+
+// "Generar 10 borradores" runs inside one server action (maxDuration 300 s on /panel/moderacion):
+// stop starting new drafts after this long so the request ends cleanly and keeps what is done
+export const ABOUT_TIME_BUDGET_MS = 240_000;
+export const aboutOutOfTime = (startedAt: number, now: number): boolean => now - startedAt >= ABOUT_TIME_BUDGET_MS;
+
+export function draftsDoneMessage(drafted: number, stoppedForTime: boolean): string {
+  if (stoppedForTime) return `${drafted} borrador(es) creados. Se ha parado por tiempo, pulsa otra vez para seguir.`;
+  return drafted ? `${drafted} borrador(es) creados.` : "No quedan chollos activos sin texto.";
+}

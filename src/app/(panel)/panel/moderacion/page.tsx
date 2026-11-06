@@ -6,6 +6,10 @@ import { sql } from "@/lib/db";
 import { dealPath } from "@/lib/site-text";
 import { AboutDraftForm, DraftAboutsButton } from "./about-drafts";
 
+// "Generar 10 borradores" (draftDealAbouts) calls the AI once per deal: give the page's server actions up to
+// 5 minutes; the action itself stops starting new drafts at 4 (ABOUT_TIME_BUDGET_MS)
+export const maxDuration = 300;
+
 type Shared = {
   id: number; title: string; url: string; code: string; discount: string; created_at: Date;
   store_name: string; handle: string | null;
