@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { byVotes } from "@/lib/community";
-import { categoryOf, hasStoreGuide, homeHref, resetFiltersHref, type HomeFilters } from "@/lib/catalog";
+import { categoryOf, emptyFeedText, hasStoreGuide, homeHref, type HomeFilters } from "@/lib/catalog";
 import { currentVotes, siteClient, siteCoupons, storeGuides, type SiteCoupon } from "@/lib/public-site";
 import { badgeInSentence } from "@/lib/deal-text";
-import { blackFriday, daysBetween, longDate, madridToday, percentOf, savingOf, siteUrl, upcomingEvents } from "@/lib/site-text";
+import { blackFriday, daysBetween, longDate, madridToday, monthShort, percentOf, savingOf, siteUrl, upcomingEvents } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, faqLd, offerLd } from "./site-ui";
 
 // A category page has its own title and canonical; a search page stays out of the index
@@ -26,7 +26,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/">): Promis
 }
 
 const PER_PAGE = 30;
-const MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const RAIL_STORES = 6;
 
 type Filters = HomeFilters;
 
@@ -67,7 +67,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     s.count++;
     byStore.set(c.store_id, s);
   }
-  const topStores = [...byStore.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 8);
+  const topStores = [...byStore.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, RAIL_STORES);
   const guides = (await storeGuides(topStores.map(([id]) => id)))
     .filter(hasStoreGuide)
     .sort((a, b) => (byStore.get(b.id)?.count ?? 0) - (byStore.get(a.id)?.count ?? 0))
@@ -90,6 +90,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   const pages = Math.max(1, Math.ceil(sorted.length / PER_PAGE));
   const page = Math.min(f.pagina, pages);
   const shown = sorted.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const empty = emptyFeedText(f, cat?.label ?? "");
 
   const bf = blackFriday(Number(today.slice(0, 4)));
   const faqs = [
@@ -109,6 +110,16 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   return (
     <main>
       <JsonLd data={{ "@context": "https://schema.org", "@type": "WebSite", name: "CuponLab", url: base }} />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "CuponLab",
+          url: base,
+          logo: `${base}/icon.svg`,
+          description: "Chollos y códigos descuento verificados de tiendas españolas, cada uno con su fecha de caducidad.",
+        }}
+      />
       <JsonLd
         data={{
           "@context": "https://schema.org",
@@ -178,14 +189,21 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             {shown.length ? (
               <div className="feed">
                 {shown.map((c) => (
-                  <DealCard key={c.id} c={c} client={client} today={today} mine={mine} next={hrefWith(f, { pagina: f.pagina })} />
+                  <DealCard key={c.id} c={c} client={client} today={today} now={now} mine={mine} next={hrefWith(f, { pagina: f.pagina })} />
                 ))}
               </div>
             ) : (
-              <p className="empty">
-                No hay cupones activos {f.q ? <>para «{f.q}»</> : resetFiltersHref(f) !== "/" ? `en ${cat?.label} con este filtro` : cat ? `en ${cat.label}` : "con este filtro"} ahora mismo.{" "}
-                <Link href={resetFiltersHref(f)}>{resetFiltersHref(f) !== "/" ? `Ver todos los chollos de ${cat?.label}` : "Ver todos los chollos"}</Link>
-              </p>
+              <div className="panel">
+                <h3>{empty.title}</h3>
+                <p className="small">
+                  {empty.hint}
+                  {empty.link && (
+                    <>
+                      {" "}<Link href={empty.link.href}>{empty.link.label}</Link>.
+                    </>
+                  )}
+                </p>
+              </div>
             )}
             {pages > 1 && (
               <nav className="pager" aria-label="Paginación">
@@ -222,7 +240,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                   <li key={e.date} className={e.date === bf ? "soon" : undefined}>
                     <span className="d">
                       <b>{Number(e.date.slice(8))}</b>
-                      <small>{MONTHS_SHORT[Number(e.date.slice(5, 7)) - 1]}</small>
+                      <small>{monthShort(Number(e.date.slice(5, 7)))}</small>
                     </span>
                     <span>
                       <strong>{e.name}</strong>
@@ -304,7 +322,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 <strong>Equipo editorial de CuponLab</strong>
               </p>
               <p>
-                Datos actualizados el {todayWords}. Publicamos los cupones de las redes de afiliación y los que encontramos en la web después de que los revise una persona. <Link href="/metodologia">Cómo elegimos las ofertas</Link>
+                Datos actualizados el {todayWords}. Publicamos los cupones de las redes de afiliación y los que encontramos en la web después de que los revise una persona. <Link href="/metodologia">Cómo elegimos las ofertas</Link>.
               </p>
             </div>
           </div>

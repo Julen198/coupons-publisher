@@ -5,7 +5,7 @@ import { badgeLabel } from "@/lib/discount";
 import { conditionsOf, displayTitle } from "@/lib/deal-text";
 import { goHref, type SiteCoupon } from "@/lib/public-site";
 import { timeAgo } from "@/lib/community";
-import { daysBetween, dealPath, longDate } from "@/lib/site-text";
+import { daysBetween, dealPath, shortDate } from "@/lib/site-text";
 import { vote } from "./actions-reader";
 import { CopyCode } from "./copy-code";
 import { StoreLogoImg } from "./store-logo-img";
@@ -16,9 +16,6 @@ export const isWordBadge = (c: Pick<SiteCoupon, "discount">) => !badgeLabel(c.di
 export const priceClass = (c: Pick<SiteCoupon, "discount">) => (isWordBadge(c) ? "price-now is-word" : "price-now");
 // The title readers see, next to its store
 export const titleOf = (c: Pick<SiteCoupon, "title" | "store_name">) => displayTitle(c.title, c.store_name);
-
-const madridDate = (d: Date) => new Date(d).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
-export const shortDate = (iso: string) => longDate(iso).replace(/ de \d{4}$/, "");
 
 // Structured data for search engines and AI answers
 export function JsonLd({ data }: { data: unknown }) {
@@ -92,9 +89,9 @@ export function VoteColumn({ couponId, score, mine, next, readOnly = false }: { 
   );
 }
 
-type CardProps = { c: SiteCoupon; client: Client | undefined; today: string; mine: Map<number, -1 | 1>; next: string };
+type CardProps = { c: SiteCoupon; client: Client | undefined; today: string; now: Date; mine: Map<number, -1 | 1>; next: string };
 
-export function DealCard({ c, client, today, mine, next }: CardProps) {
+export function DealCard({ c, client, today, now, mine, next }: CardProps) {
   const conds = conditionsOf(c.description, c.title).slice(0, 3);
   return (
     <article className="deal">
@@ -131,12 +128,13 @@ export function DealCard({ c, client, today, mine, next }: CardProps) {
           </div>
         </div>
       </div>
+      {/* as in the prototype: who and when, comments, then until when */}
       <div className="deal-foot">
-        <span>Publicado el {shortDate(madridDate(c.created_at))}</span>
-        {c.shared_by_handle && <span>Compartido por @{c.shared_by_handle} · {timeAgo(new Date(c.created_at), new Date())}</span>}
-        <span>{c.expires_at ? <>Válido hasta el <time dateTime={c.expires_at}>{shortDate(c.expires_at)}</time></> : "Sin fecha de caducidad"}</span>
+        <span>
+          {c.shared_by_handle ? <>Compartido por @{c.shared_by_handle} · </> : "Publicado "}{timeAgo(new Date(c.created_at), now)}
+        </span>
         <Link href={`${dealPath(c)}#comentarios`}>{c.comments === 1 ? "1 comentario" : `${c.comments} comentarios`}</Link>
-        <Link href={dealPath(c)}>Ver condiciones</Link>
+        <span>{c.expires_at ? <>Válido hasta el <time dateTime={c.expires_at}>{shortDate(c.expires_at)}</time></> : "Sin fecha de caducidad"}</span>
       </div>
     </article>
   );
@@ -158,9 +156,9 @@ export function StoreFacts({ text }: { text: string }) {
   );
 }
 
-export function Faqs({ items }: { items: { q: string; a: string }[] }) {
+export function Faqs({ items, seo = "FAQPage" }: { items: { q: string; a: string }[]; seo?: string }) {
   return (
-    <div className="faq" data-seo="FAQPage">
+    <div className="faq" data-seo={seo}>
       {items.map((f, i) => (
         <details key={i} open={i === 0}>
           <summary>{f.q}</summary>

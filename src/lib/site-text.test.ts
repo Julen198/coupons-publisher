@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blackFriday, contactEmail, mothersDay, dealPath, longDate, parseDealId, percentOf, savingOf, slugify, upcomingEvents } from "./site-text.ts";
+import { blackFriday, contactEmail, copiedMessage, mothersDay, dealPath, longDate, parseDealId, percentOf, savingOf, shortDate, slugify, upcomingEvents } from "./site-text.ts";
 
 test("slugify drops accents and symbols", () => {
   assert.equal(slugify("El Corte Inglés: 15% en Moda"), "el-corte-ingles-15-en-moda");
@@ -61,4 +61,14 @@ test("savingOf ranks an upper bound below the same flat figure", () => {
   assert.ok(savingOf("75 %") > savingOf("Hasta 90 %"));
   assert.ok(savingOf("Hasta 90 %") > savingOf("40 %"));
   assert.equal(savingOf("10€"), 0);
+});
+
+test("shortDate writes the day and the short month, as the cards show it", () => {
+  assert.equal(shortDate("2026-11-09"), "9 nov");
+  assert.equal(shortDate("2027-01-31"), "31 ene");
+  assert.equal(shortDate(""), "");
+});
+
+test("copiedMessage tells the reader where to paste the code", () => {
+  assert.equal(copiedMessage("CLAB15"), "Código CLAB15 copiado. Pégalo en el carrito.");
 });

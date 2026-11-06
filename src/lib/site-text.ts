@@ -48,6 +48,19 @@ export function longDate(iso: string): string {
   return `${d} de ${MONTHS[m - 1]} de ${y}`;
 }
 
+const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
+export const monthShort = (month: number) => MONTHS_SHORT[month - 1] ?? "";
+
+// "2026-11-09" → "9 nov", the short form cards and the deal page use
+export function shortDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return `${d} ${monthShort(m)}`;
+}
+
+// The toast after copying a code
+export const copiedMessage = (code: string) => `Código ${code} copiado. Pégalo en el carrito.`;
+
 // Today in Spain as "YYYY-MM-DD" and as words, whatever the server's timezone
 export function madridToday(now = new Date()): { iso: string; words: string } {
   const iso = now.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });

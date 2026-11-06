@@ -64,7 +64,7 @@ export default async function CalendarPage() {
                   {list.map((e) => {
                     const left = daysBetween(today, e.date);
                     return (
-                      <li key={e.date + e.name} className={left <= 30 ? "soon" : undefined}>
+                      <li key={e.date + e.name} className={e.date === bf ? "soon" : undefined}>
                         <span className="d">
                           <b>{Number(e.date.slice(8))}</b>
                           <small>{weekday(e.date).slice(0, 3)}</small>

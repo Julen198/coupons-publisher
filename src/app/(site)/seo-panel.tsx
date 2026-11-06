@@ -98,8 +98,10 @@ export function SeoDrawer() {
   useEffect(() => {
     if (!open) return;
     const id = window.setTimeout(() => {
-      setBlocks(readLd());
-      setTab(0);
+      const found = readLd();
+      setBlocks(found);
+      // open on the feed's ItemList when the page has one, as the prototype does
+      setTab(Math.max(0, found.findIndex((b) => b.label === "ItemList")));
     }, 150);
     return () => window.clearTimeout(id);
   }, [open, path, sp]);

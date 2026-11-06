@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
+import { cacheLife } from "next/cache";
 import { Suspense } from "react";
-import { contactEmail, siteUrl } from "@/lib/site-text";
+import { contactEmail, madridToday, siteUrl } from "@/lib/site-text";
 import { LiveHeader } from "./live-header";
 import { SeoDrawer } from "./seo-panel";
 import { SiteHeader } from "./site-header";
+import { Toaster } from "./toast";
 import "./site.css";
 
 const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
@@ -19,6 +21,13 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
   openGraph: { siteName: "CuponLab", locale: "es_ES", type: "website" },
 };
+
+// The year in the footer, worked out once a day so the shell stays prerendered
+async function FooterYear() {
+  "use cache";
+  cacheLife("days");
+  return madridToday().iso.slice(0, 4);
+}
 
 export default function SiteLayout({ children }: LayoutProps<"/">) {
   return (
@@ -35,11 +44,11 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
       )}
       {/* every page reads the database at request time */}
       <div id="contenido">
-        <Suspense fallback={<div className="wrap"><p className="crumbs">Cargando chollos…</p></div>}>{children}</Suspense>
+        <Suspense fallback={<div className="wrap loading"><p className="crumbs">Cargando chollos…</p></div>}>{children}</Suspense>
       </div>
       <footer className="foot">
         <div className="wrap">
-          <span>© CuponLab · Chollos y códigos descuento verificados</span>
+          <span>© <FooterYear /> CuponLab · Chollos y códigos descuento verificados</span>
           <span>
             <Link href="/tiendas">Tiendas</Link> · <Link href="/calendario">Calendario de ofertas</Link> · <Link href="/metodologia">Metodología</Link> ·{" "}
             <Link href="/aviso-de-afiliacion">Aviso de afiliación</Link>
@@ -51,6 +60,7 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
           </span>
         </div>
       </footer>
+      <Toaster />
     </div>
   );
 }

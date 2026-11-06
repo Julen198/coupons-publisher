@@ -44,7 +44,7 @@ function Shell({ path, cat, q, reader }: { path: string; cat: string; q: string;
             <path d="m20 20-3.5-3.5" />
           </svg>
           <label htmlFor="q" className="sr-only">Buscar</label>
-          <input id="q" name="q" type="search" placeholder="Busca una tienda, un producto o un código" defaultValue={q} key={q} autoComplete="off" />
+          <input id="q" name="q" type="search" placeholder="Busca un producto, tienda o código" defaultValue={q} key={q} autoComplete="off" />
         </form>
         <div className="top-actions">
           <SeoToggle />

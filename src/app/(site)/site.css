@@ -59,6 +59,9 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .cl .num { font-variant-numeric: tabular-nums; }
 .cl .small { font-size: .8rem; color: var(--ink-3); }
+.cl .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* while a page loads, the footer stays down where it will be */
+.cl .loading { min-height: 60vh; }
 
 /* Header */
 .cl .top { position: sticky; top: 0; z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -127,6 +130,8 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .deal h3 a { color: var(--ink); text-decoration: none; }
 .cl .deal h3 a:hover { color: var(--brand); }
 .cl .deal-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; align-items: end; }
+/* the price stays under the title when the code + button column is the taller one */
+.cl .deal-body > :first-child { align-self: start; }
 .cl .prices { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
 .cl .price-now { font-family: var(--f-display); font-weight: 800; font-size: 1.6rem; color: var(--drop); font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; }
 .cl .price-kind { color: var(--ink-3); font-size: .9rem; }
@@ -148,7 +153,9 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .vote svg { width: 16px; height: 16px; }
 .cl .vote .score { font-family: var(--f-mono); font-weight: 700; font-size: .95rem; font-variant-numeric: tabular-nums; }
 .cl .deal-foot { grid-column: 3; display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--ink-3); margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
-.cl .deal-foot a { color: var(--ink-2); font-weight: 600; }
+.cl .deal-foot a { color: var(--ink-2); text-decoration: none; font-weight: 600; }
+.cl .deal-foot a:hover { text-decoration: underline; }
+.cl .deal-foot time { font-variant-numeric: tabular-nums; }
 @media (max-width: 560px) {
   .cl .deal { grid-template-columns: 64px minmax(0, 1fr); gap: 10px 12px; padding: 14px; }
   .cl .thumb { width: 64px; height: 64px; grid-column: 1; grid-row: 1; }
@@ -171,8 +178,8 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .stores a { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 6px; text-decoration: none; color: var(--ink); font-weight: 600; font-size: .92rem; }
 .cl .stores a:hover { background: var(--surface-2); }
 .cl .stores li > span { display: flex; gap: 10px; padding: 7px 6px; font-weight: 600; font-size: .92rem; }
-.cl .stores li > span small { margin-left: auto; color: var(--ink-3); font-weight: 500; font-variant-numeric: tabular-nums; }
-.cl .stores a small { margin-left: auto; color: var(--ink-3); font-weight: 500; font-variant-numeric: tabular-nums; }
+.cl .stores li > span small { margin-left: auto; font-size: smaller; color: var(--ink-3); font-weight: 500; font-variant-numeric: tabular-nums; }
+.cl .stores a small { margin-left: auto; font-size: smaller; color: var(--ink-3); font-weight: 500; font-variant-numeric: tabular-nums; }
 .cl .cal { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .cl .cal li { display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: center; font-size: .9rem; }
 .cl .cal .d { text-align: center; border: 1px solid var(--line); border-radius: 8px; padding: 4px 0; line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -195,14 +202,11 @@ body:has(.cl) { background: #f3f5fa; }
 @media (max-width: 860px) { .cl .store-guides { grid-template-columns: minmax(0, 1fr); } }
 .cl .guide { border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 10px; align-content: start; background: var(--bg); }
 .cl .guide p { font-size: .9rem; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
-.cl .guide a { font-weight: 600; font-size: .9rem; text-decoration: none; }
 .cl dl.facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: .86rem; }
 .cl dl.facts dt { color: var(--ink-3); }
 .cl dl.facts dd { margin: 0; color: var(--ink); font-weight: 600; }
 .cl .faq { display: grid; gap: 8px; max-width: 80ch; }
 .cl .faq details { border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
-.cl .longform .faq details, .cl .dt-main .faq details { background: var(--surface); }
-.cl .longform .faq details { background: var(--bg); }
 .cl .faq summary { padding: 14px 16px; font-weight: 700; cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
 .cl .faq summary::-webkit-details-marker { display: none; }
 .cl .faq summary::after { content: "+"; font-family: var(--f-mono); color: var(--brand); }
@@ -218,7 +222,6 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .author strong { color: var(--ink); }
 .cl .foot { border-top: 1px solid var(--line); }
 .cl .foot .wrap { padding-block: 24px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: .82rem; color: var(--ink-3); }
-.cl .foot a { color: var(--ink-2); }
 
 /* Tables */
 .cl .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
@@ -251,7 +254,8 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .kv dt, .cl .kv dd { margin: 0; padding: 9px 14px; border-top: 1px solid var(--line); }
 .cl .kv dt { color: var(--ink-2); background: var(--surface-2); }
 .cl .kv dd { color: var(--ink); }
-.cl .kv dt:first-of-type, .cl .kv dt:first-of-type + dd { border-top: 0; }
+/* each dt/dd pair sits in a display:contents wrapper, so the first row is the first wrapper's */
+.cl .kv > :first-child > dt, .cl .kv > :first-child > dd { border-top: 0; }
 @media (max-width: 480px) { .cl .kv { grid-template-columns: minmax(0, 1fr); } .cl .kv dd { border-top: 0; padding-top: 0; background: var(--surface-2); } }
 .cl .howto { list-style: none; counter-reset: h; margin: 0; padding: 0; display: grid; gap: 10px; }
 .cl .howto li { counter-increment: h; display: grid; grid-template-columns: 26px 1fr; gap: 10px; color: var(--ink-2); }
@@ -278,9 +282,8 @@ body:has(.cl) { background: #f3f5fa; }
 @media (max-width: 960px) {
   .cl .mbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; align-items: center; gap: 12px; background: var(--surface); border-top: 1px solid var(--line); padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .cl .mbar .price-now { font-size: 1.35rem; }
-  .cl .mbar .code { flex: 1; min-width: 0; }
-  .cl .mbar .code > span { letter-spacing: .02em; font-size: .9rem; padding-inline: 8px; }
   .cl .mbar .btn { margin-left: auto; }
+  .cl .mbar .btn-primary { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 }
 
 /* Store index & calendar */
@@ -357,3 +360,9 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .ld-tabs button { border: 1px solid var(--seo); background: transparent; color: var(--seo); border-radius: 999px; padding: 3px 10px; font-size: .8rem; font-weight: 600; cursor: pointer; }
 .cl .ld-tabs button[aria-selected="true"] { background: var(--seo); color: var(--surface); }
 .cl pre.ld { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-family: var(--f-mono); font-size: .74rem; line-height: 1.5; max-height: 280px; overflow: auto; color: var(--ink-2); white-space: pre; }
+
+/* Toast: one short message at the bottom (copied code) */
+.cl .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: .88rem; z-index: 50; max-width: calc(100% - 32px); box-shadow: 0 6px 20px rgba(0,0,0,.2); }
+.cl .toast[hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) { .cl .toast { animation: cl-toast-up .2s ease-out; } }
+@keyframes cl-toast-up { from { transform: translate(-50%, 8px); opacity: 0; } }

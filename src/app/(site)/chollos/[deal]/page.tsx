@@ -8,12 +8,12 @@ import { getReader } from "@/lib/reader";
 import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
 import { badgeInSentence, conditionsOf, lowerFirst, mentionsBadge } from "@/lib/deal-text";
 import { aboutParagraphs, aboutSnippet } from "@/lib/deal-about";
-import { daysBetween, dealPath, longDate, madridToday, parseDealId, siteUrl } from "@/lib/site-text";
+import { daysBetween, dealPath, longDate, madridToday, parseDealId, shortDate, siteUrl } from "@/lib/site-text";
 import { CommentForm } from "./comment-form";
 import { CommentItem } from "./comment-item";
-import { CopyCode } from "../../copy-code";
+import { CopyCode, CopyCodeButton } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
-import { Crumbs, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, crumbsLd, faqLd, isWordBadge, offerLd, priceClass, shortDate, titleOf } from "../../site-ui";
+import { Crumbs, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, crumbsLd, faqLd, isWordBadge, offerLd, priceClass, titleOf } from "../../site-ui";
 
 async function load(param: string) {
   const id = parseDealId(param);
@@ -152,10 +152,15 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
                 <StatusBadges c={c} today={today} live={live} />
               </div>
               <h1 data-seo="H1: producto + tienda">{titleOf(c)}</h1>
+              {/* as in the prototype: who and when, until when, how many comments */}
               <div className="dt-meta">
+                {c.shared_by_handle ? (
+                  <span>Compartido por <b>@{c.shared_by_handle}</b> {timeAgo(new Date(c.created_at), now)}</span>
+                ) : (
+                  <span>Publicado el <b>{shortDate(published)}</b></span>
+                )}
                 <span>{c.expires_at ? <>{live ? "Válido hasta el" : "Caducó el"} <b>{shortDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</span>
-                <span>Publicado el <b>{shortDate(published)}</b></span>
-                {c.shared_by_handle && <span>Compartido por <b>@{c.shared_by_handle}</b> · {timeAgo(new Date(c.created_at), new Date())}</span>}
+                <span><b>{comments.length}</b> {comments.length === 1 ? "comentario" : "comentarios"}</span>
                 {hasCode && <span>Código <b>{c.code}</b></span>}
               </div>
             </div>
@@ -212,7 +217,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
           {storeFaqs.length > 0 && (
             <section className="dt-sec">
               <h2>Preguntas sobre los descuentos de {c.store_name}</h2>
-              <Faqs items={storeFaqs} />
+              <Faqs items={storeFaqs} seo="FAQPage de la tienda" />
             </section>
           )}
 
@@ -302,8 +307,9 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
 
       {live && (
         <div className="mbar">
-          {hasCode ? <CopyCode code={c.code} /> : <span className={priceClass(c)}>{badge}</span>}
-          <GoButton client={client} c={c} label="Ir a la tienda" />
+          <span className={priceClass(c)}>{badge}</span>
+          {hasCode && <CopyCodeButton code={c.code} />}
+          <GoButton client={client} c={c} />
         </div>
       )}
     </main>

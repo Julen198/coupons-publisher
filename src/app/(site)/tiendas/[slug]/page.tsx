@@ -108,11 +108,16 @@ export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">
             {sorted.length ? (
               <div className="feed">
                 {sorted.map((c) => (
-                  <DealCard key={c.id} c={c} client={client} today={today} mine={mine} next={`/tiendas/${store.slug}`} />
+                  <DealCard key={c.id} c={c} client={client} today={today} now={now} mine={mine} next={`/tiendas/${store.slug}`} />
                 ))}
               </div>
             ) : (
-              <p className="empty">No hay cupones activos de {store.name} hoy.</p>
+              <div className="panel">
+                <h3>No hay cupones activos de {store.name} hoy</h3>
+                <p className="small">
+                  Publicamos cupones nuevos cada día. Mientras tanto, <Link href="/">mira los chollos de otras tiendas</Link>.
+                </p>
+              </div>
             )}
           </section>
           <aside className="rail">
