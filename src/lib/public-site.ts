@@ -66,13 +66,19 @@ export async function siteCoupon(id: number): Promise<{ coupon: SiteCoupon; live
     sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.id = ${id}`,
     publishUnverified(),
   ]);
-  if (!row || !isSpanishMarket(row.store_website)) return undefined;
+  if (!row) return undefined;
   const coupon = { ...row };
-  const t = madridToday().iso;
-  if (isPublic(coupon, t, unverified)) return { coupon, live: true };
-  // expired but once public: keep the page, marked as expired. Archived or never-checked web finds: gone.
-  const wasPublic = statusOf(coupon, t) === "expired" && (unverified || coupon.source !== "web" || coupon.verified);
-  return wasPublic ? { coupon, live: false } : undefined;
+  const seen = visibilityOf(coupon, madridToday().iso, unverified);
+  return seen === "gone" ? undefined : { coupon, live: seen === "live" };
+}
+
+// live: shown everywhere. expired: once public, its page stays up marked as expired.
+// gone: archived, pending, never-checked web finds and other markets have no page.
+function visibilityOf(c: SiteCoupon, today: string, unverified: boolean): "live" | "expired" | "gone" {
+  if (!isSpanishMarket(c.store_website)) return "gone";
+  if (isPublic(c, today, unverified)) return "live";
+  const wasPublic = statusOf(c, today) === "expired" && (unverified || c.source !== "web" || c.verified);
+  return wasPublic ? "expired" : "gone";
 }
 
 // What a reader has voted, by coupon id
@@ -167,4 +173,55 @@ export async function siteStoreOptions(): Promise<{ slug: string; name: string }
   await io();
   const rows = await sql()<{ slug: string; name: string; website: string }[]>`SELECT slug, name, website FROM stores ORDER BY lower(name)`;
   return rows.filter((r) => isSpanishMarket(r.website)).map((r) => ({ slug: r.slug, name: r.name }));
+}
+
+// ---- the reader's account page (/cuenta)
+
+export type AccountStats = { shared: number; votes: number; comments: number };
+
+// Deals they shared (any state), the score of those deals from active readers, their visible comments
+export async function readerStats(readerId: number): Promise<AccountStats> {
+  await io();
+  const [row] = await sql()<AccountStats[]>`
+    SELECT (SELECT count(*) FROM coupons WHERE shared_by = ${readerId})::int AS shared,
+           (SELECT coalesce(sum(v.value), 0) FROM votes v JOIN coupons c ON c.id = v.coupon_id JOIN readers vr ON vr.id = v.reader_id
+            WHERE c.shared_by = ${readerId} AND vr.status = 'active')::int AS votes,
+           (SELECT count(*) FROM comments WHERE reader_id = ${readerId} AND hidden = 0)::int AS comments`;
+  return { ...row };
+}
+
+// A coupon on the account page; `page` = it has a public page to link to
+export type AccountCoupon = SiteCoupon & { live: boolean; page: boolean };
+
+async function withVisibility(rows: readonly SiteCoupon[]): Promise<AccountCoupon[]> {
+  const unverified = await publishUnverified();
+  const t = madridToday().iso;
+  return plain(rows).map((c) => {
+    const seen = visibilityOf(c, t, unverified);
+    return { ...c, live: seen === "live", page: seen !== "gone" };
+  });
+}
+
+export async function readerSharedDeals(readerId: number): Promise<AccountCoupon[]> {
+  await io();
+  return withVisibility(await sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.shared_by = ${readerId} ORDER BY c.id DESC LIMIT 100`);
+}
+
+// Newest saved first (the page then lifts live ones to the top)
+export async function readerSavedDeals(readerId: number): Promise<AccountCoupon[]> {
+  await io();
+  return withVisibility(await sql()<SiteCoupon[]>`
+    ${sql().unsafe(COUPON_SELECT)} JOIN saved_deals sd ON sd.coupon_id = c.id AND sd.reader_id = ${readerId}
+    ORDER BY sd.at DESC, c.id DESC LIMIT 200`);
+}
+
+export type AccountComment = { id: number; body: string; created_at: Date; coupon_id: number; title: string; store_name: string };
+
+export async function readerComments(readerId: number): Promise<AccountComment[]> {
+  await io();
+  return plain(await sql()<AccountComment[]>`
+    SELECT k.id, k.body, k.created_at, c.id AS coupon_id, c.title, s.name AS store_name
+    FROM comments k JOIN coupons c ON c.id = k.coupon_id JOIN stores s ON s.id = c.store_id
+    WHERE k.reader_id = ${readerId} AND k.hidden = 0
+    ORDER BY k.created_at DESC, k.id DESC LIMIT 50`);
 }

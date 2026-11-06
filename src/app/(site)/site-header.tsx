@@ -52,7 +52,7 @@ function Shell({ path, cat, q, reader }: { path: string; cat: string; q: string;
           {reader === null && <Link className="btn" href="/entrar">Entrar</Link>}
           {reader && (
             <form className="who" action={signOutReader}>
-              {reader.handle && <span className="handle">@{reader.handle}</span>}
+              {reader.handle && <Link className="handle" href="/cuenta">@{reader.handle}</Link>}
               <button className="btn" type="submit">Salir</button>
             </form>
           )}
