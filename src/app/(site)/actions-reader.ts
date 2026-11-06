@@ -86,7 +86,10 @@ export async function chooseHandle(_prev: FormState, f: FormData): Promise<FormS
   redirect(safeNext(str(f, "next"), "/"));
 }
 
+// Bumping session_version revokes the signed cookie, so a copy of it stops working too (and the reader's other devices sign out)
 export async function signOutReader(): Promise<void> {
+  const reader = await getReader();
+  if (reader) await sql()`UPDATE readers SET session_version = session_version + 1 WHERE id = ${reader.id} AND session_version = ${reader.session_version}`;
   (await cookies()).delete(READER_COOKIE);
   redirect("/");
 }
