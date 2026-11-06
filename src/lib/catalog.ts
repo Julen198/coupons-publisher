@@ -28,11 +28,17 @@ export function factsOf(text: string): { label: string; value: string }[] {
 // A store's category from a form field: a known slug, or "" (no category)
 export const storeCategory = (raw: string): CategorySlug | "" => categoryOf(raw.trim())?.slug ?? "";
 
+// Home page sorts, in tab order; "destacados" (Más votados) is the default and stays out of the URL
+export const ORDENES = ["destacados", "nuevos", "ahorro", "comentados", "caducan"] as const;
+export type Orden = (typeof ORDENES)[number];
+
+export const ordenOf = (raw: string): Orden => ORDENES.find((o) => o === raw) ?? "destacados";
+
 // Home page filters, as read from the URL
 export type HomeFilters = {
   cat: CategorySlug | "";
   tipo: "todos" | "codigos" | "ofertas";
-  orden: "destacados" | "nuevos" | "ahorro" | "caducan";
+  orden: Orden;
   comprobados: boolean;
   q: string;
   pagina: number;

@@ -52,6 +52,11 @@ export function byVotes(a: Rankable, b: Rankable): number {
   return b.score - a.score || b.verified - a.verified || percentOf(b.discount) - percentOf(a.discount) || b.id - a.id;
 }
 
+// "Comentados": most visible comments first, ties ranked as in Más votados
+export function byComments(a: Rankable & { comments: number }, b: Rankable & { comments: number }): number {
+  return b.comments - a.comments || byVotes(a, b);
+}
+
 export function timeAgo(from: Date, now: Date): string {
   const minutes = Math.floor((now.getTime() - from.getTime()) / 60_000);
   if (minutes < 1) return "hace un momento";

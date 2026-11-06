@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { byVotes } from "@/lib/community";
-import { categoryOf, emptyFeedText, hasStoreGuide, homeHref, type HomeFilters } from "@/lib/catalog";
+import { byComments, byVotes } from "@/lib/community";
+import { categoryOf, emptyFeedText, hasStoreGuide, homeHref, ordenOf, type HomeFilters } from "@/lib/catalog";
 import { currentVotes, siteClient, siteCoupons, storeGuides, type SiteCoupon } from "@/lib/public-site";
 import { badgeInSentence } from "@/lib/deal-text";
 import { blackFriday, daysBetween, longDate, madridToday, monthShort, percentOf, savingOf, siteUrl, upcomingEvents } from "@/lib/site-text";
@@ -34,7 +34,7 @@ type Filters = HomeFilters;
 function readFilters(sp: Record<string, string | string[] | undefined>): Filters {
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
   const tipo = one("tipo") === "codigos" || one("tipo") === "ofertas" ? (one("tipo") as Filters["tipo"]) : "todos";
-  const orden = ["nuevos", "ahorro", "caducan"].includes(one("orden")) ? (one("orden") as Filters["orden"]) : "destacados";
+  const orden = ordenOf(one("orden"));
   return { cat: categoryOf(one("cat"))?.slug ?? "", tipo, orden, comprobados: one("comprobados") === "1", q: one("q").trim().slice(0, 80), pagina: Math.max(1, Number.parseInt(one("pagina"), 10) || 1) };
 }
 
@@ -46,6 +46,7 @@ function sortDeals(list: SiteCoupon[], orden: Filters["orden"]) {
   const byId = (a: SiteCoupon, b: SiteCoupon) => b.id - a.id;
   if (orden === "nuevos") return [...list].sort(byId);
   if (orden === "ahorro") return [...list].sort((a, b) => savingOf(b.discount) - savingOf(a.discount) || byId(a, b));
+  if (orden === "comentados") return [...list].sort(byComments);
   if (orden === "caducan") return [...list].sort((a, b) => (a.expires_at || "9999").localeCompare(b.expires_at || "9999") || byId(a, b));
   // destacados ("Más votados"): community score first, then checked, then discount, then newest
   return [...list].sort(byVotes);
@@ -115,6 +116,7 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
     ["destacados", "Más votados"],
     ["nuevos", "Nuevos"],
     ["ahorro", "Mayor ahorro"],
+    ["comentados", "Comentados"],
     ["caducan", "Caducan pronto"],
   ] as const;
 

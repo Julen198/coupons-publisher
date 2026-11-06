@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { byVotes, cleanComment, cleanHandle, couponIdOf, flagOf, MAX_EMAIL_LENGTH, nextVote, parseSharedDeal, replyParent, usefulLabel, threadComments, timeAgo, validEmail } from "./community.ts";
+import { byComments, byVotes, cleanComment, cleanHandle, couponIdOf, flagOf, MAX_EMAIL_LENGTH, nextVote, parseSharedDeal, replyParent, usefulLabel, threadComments, timeAgo, validEmail } from "./community.ts";
 
 test("cleanHandle", () => {
   assert.equal(cleanHandle("  Runner_Bilbo "), "runner_bilbo");
@@ -33,6 +33,12 @@ test("byVotes ranks by score, then checked, then discount, then newest", () => {
   const d = (id: number, score: number, verified = 0, discount = "") => ({ id, score, verified, discount });
   const list = [d(1, 0, 1, "10%"), d(2, 3), d(3, 0, 1, "30%"), d(4, -1, 1), d(5, 0, 0)];
   assert.deepEqual([...list].sort(byVotes).map((x) => x.id), [2, 3, 1, 5, 4]);
+});
+
+test("byComments ranks by visible comments, then like Más votados", () => {
+  const d = (id: number, comments: number, score = 0) => ({ id, comments, score, verified: 0, discount: "" });
+  const list = [d(1, 2), d(2, 5), d(3, 2, 4), d(4, 0, 9), d(5, 2)];
+  assert.deepEqual([...list].sort(byComments).map((x) => x.id), [2, 3, 5, 1, 4]);
 });
 
 test("cleanComment normalises browser line endings first", () => {

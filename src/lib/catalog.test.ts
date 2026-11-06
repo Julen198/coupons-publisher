@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATEGORIES, categoryOf, emptyFeedText, factsOf, hasStoreGuide, homeHref, resetFiltersHref, storeCategory, type HomeFilters } from "./catalog.ts";
+import { CATEGORIES, categoryOf, emptyFeedText, factsOf, hasStoreGuide, homeHref, ordenOf, resetFiltersHref, storeCategory, type HomeFilters } from "./catalog.ts";
 
 test("categoryOf knows the six categories and nothing else", () => {
   assert.deepEqual(CATEGORIES.map((c) => c.slug), ["tecnologia", "zapatillas", "moda", "hogar", "deporte", "viajes"]);
@@ -31,6 +31,20 @@ test("homeHref keeps the category on every filter link and resets the page", () 
   assert.equal(homeHref(f, { orden: "nuevos" }), "/?cat=moda&orden=nuevos");
   assert.equal(homeHref(f, { comprobados: true }), "/?cat=moda&comprobados=1");
   assert.equal(homeHref(f, { pagina: 4 }), "/?cat=moda&pagina=4");
+});
+
+test("homeHref links the Comentados sort and keeps the other filters", () => {
+  assert.equal(homeHref(base, { orden: "comentados" }), "/?orden=comentados");
+  assert.equal(homeHref({ ...base, cat: "moda", orden: "comentados", pagina: 2 }, { tipo: "codigos" }), "/?cat=moda&tipo=codigos&orden=comentados");
+});
+
+test("ordenOf reads the five sorts from the URL and falls back to Más votados", () => {
+  assert.equal(ordenOf("comentados"), "comentados");
+  assert.equal(ordenOf("nuevos"), "nuevos");
+  assert.equal(ordenOf("caducan"), "caducan");
+  assert.equal(ordenOf("destacados"), "destacados");
+  assert.equal(ordenOf("Comentados"), "destacados");
+  assert.equal(ordenOf(""), "destacados");
 });
 
 test("homeHref for a category tab drops the search", () => {
