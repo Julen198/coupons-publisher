@@ -1,10 +1,11 @@
 "use server";
 
 import { refresh } from "next/cache";
+import type postgres from "postgres";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { cleanComment, cleanHandle, couponIdOf, flagOf, nextVote, parseSharedDeal, replyParent, reportLimitReached, validEmail, EXPIRY_REPORT_LIMIT_PER_DAY, type VoteValue } from "@/lib/community";
+import { cleanComment, cleanHandle, couponIdOf, flagOf, parseSharedDeal, replyParent, reportLimitReached, validEmail, EXPIRY_REPORT_LIMIT_PER_DAY } from "@/lib/community";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
@@ -90,6 +91,17 @@ export async function signOutReader(): Promise<void> {
   redirect("/");
 }
 
+// Per-reader checks (cooldown, daily limits, vote toggle) run inside a transaction holding this advisory lock, so two
+// concurrent requests from the same reader take turns instead of both passing the check. One key space per action.
+const LOCK = { vote: 1, comment: 2, share: 3, expiry: 4 } as const;
+
+async function asReader<T>(scope: keyof typeof LOCK, readerId: number, run: (tx: postgres.TransactionSql) => Promise<T>): Promise<T> {
+  return (await sql().begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(${LOCK[scope]}, ${readerId})`;
+    return run(tx);
+  })) as T;
+}
+
 // Works without client JS: a plain form post. Signed-out readers go to sign in and come back.
 export async function vote(f: FormData): Promise<void> {
   const next = safeNext(str(f, "next"), "/");
@@ -100,15 +112,12 @@ export async function vote(f: FormData): Promise<void> {
   if (!couponId || !pressed) return;
   const found = await siteCoupon(couponId);
   if (!found?.live) return;
-  const [row] = await sql()<{ value: number }[]>`SELECT value FROM votes WHERE reader_id = ${reader.id} AND coupon_id = ${couponId}`;
-  const value = nextVote((row?.value ?? 0) as VoteValue, pressed);
-  if (value === 0) {
-    await sql()`DELETE FROM votes WHERE reader_id = ${reader.id} AND coupon_id = ${couponId}`;
-  } else {
-    await sql()`
-      INSERT INTO votes (reader_id, coupon_id, value) VALUES (${reader.id}, ${couponId}, ${value})
-      ON CONFLICT (reader_id, coupon_id) DO UPDATE SET value = EXCLUDED.value, at = now()`;
-  }
+  // pressing the vote you already gave clears it, otherwise it is set (nextVote): one statement, under the reader's lock
+  await asReader("vote", reader.id, (tx) => tx`
+    WITH cleared AS (DELETE FROM votes WHERE reader_id = ${reader.id} AND coupon_id = ${couponId} AND value = ${pressed} RETURNING 1)
+    INSERT INTO votes (reader_id, coupon_id, value)
+    SELECT ${reader.id}, ${couponId}, ${pressed} WHERE NOT EXISTS (SELECT 1 FROM cleared)
+    ON CONFLICT (reader_id, coupon_id) DO UPDATE SET value = EXCLUDED.value, at = now()`);
   refresh();
 }
 
@@ -139,11 +148,13 @@ export async function postComment(_prev: FormState, f: FormData): Promise<FormSt
     if (!row) return { error: "Ese comentario ya no existe" };
     parentId = replyParent(row.id, row.parent_id);
   }
-  const [recent] = await sql()<{ n: number }[]>`
-    SELECT count(*)::int AS n FROM comments
-    WHERE reader_id = ${reader.id} AND created_at > now() - ${COMMENT_COOLDOWN_SECONDS} * interval '1 second'`;
-  if (recent.n > 0) return { error: "Espera unos segundos antes de volver a comentar" };
-  await sql()`INSERT INTO comments (coupon_id, reader_id, body, parent_id) VALUES (${found.coupon.id}, ${reader.id}, ${body}, ${parentId})`;
+  const inserted = await asReader("comment", reader.id, (tx) => tx`
+    INSERT INTO comments (coupon_id, reader_id, body, parent_id)
+    SELECT ${found.coupon.id}, ${reader.id}, ${body}, ${parentId}
+    WHERE NOT EXISTS (
+      SELECT 1 FROM comments WHERE reader_id = ${reader.id} AND created_at > now() - ${COMMENT_COOLDOWN_SECONDS} * interval '1 second')
+    RETURNING id`);
+  if (!inserted.length) return { error: "Espera unos segundos antes de volver a comentar" };
   // a reply form is a page of its own (?responder=): go back to the thread, which also closes the form
   if (parentId) redirect(safeNext(str(f, "next"), "/"));
   refresh();
@@ -185,13 +196,13 @@ export async function shareDeal(_prev: FormState, f: FormData): Promise<FormStat
   const d = parsed.value;
   const storeId = stores.find((s) => s.slug === d.store)?.id;
   if (!storeId) return { error: "Elige una tienda de la lista." };
-  const [recent] = await sql()<{ n: number }[]>`
-    SELECT count(*)::int AS n FROM coupons WHERE shared_by = ${reader.id} AND created_at > now() - interval '24 hours'`;
-  if (recent.n >= SHARE_LIMIT_PER_DAY) return { error: "Has compartido 5 chollos hoy. Vuelve mañana" };
-  await sql()`
+  const inserted = await asReader("share", reader.id, (tx) => tx`
     INSERT INTO coupons (store_id, kind, title, code, discount, description, target_url, expires_at, source, verified, archived, review, shared_by)
-    VALUES (${storeId}, ${d.code ? "code" : "deal"}, ${d.title}, ${d.code}, ${d.discount}, ${d.description}, ${d.url}, ${d.expires_at},
-            'manual', 0, 1, 'pending', ${reader.id})`;
+    SELECT ${storeId}, ${d.code ? "code" : "deal"}, ${d.title}, ${d.code}, ${d.discount}, ${d.description}, ${d.url}, ${d.expires_at},
+           'manual', 0, 1, 'pending', ${reader.id}
+    WHERE (SELECT count(*) FROM coupons WHERE shared_by = ${reader.id} AND created_at > now() - interval '24 hours') < ${SHARE_LIMIT_PER_DAY}
+    RETURNING id`);
+  if (!inserted.length) return { error: "Has compartido 5 chollos hoy. Vuelve mañana" };
   return { done: true };
 }
 
@@ -222,10 +233,14 @@ export async function reportExpired(_prev: FormState & { done?: boolean }, f: Fo
   const couponId = couponIdOf(str(f, "coupon_id"));
   const found = couponId ? await siteCoupon(couponId) : undefined;
   if (!found?.live) return { error: "Este chollo ya no está activo" };
-  const [today] = await sql()<{ n: number }[]>`
-    SELECT count(*)::int AS n FROM expiry_reports WHERE reader_id = ${reader.id} AND at > now() - interval '24 hours'`;
-  if (reportLimitReached(today.n)) return { error: `Ya has avisado de ${EXPIRY_REPORT_LIMIT_PER_DAY} chollos hoy. Vuelve mañana` };
-  await sql()`INSERT INTO expiry_reports (reader_id, coupon_id) VALUES (${reader.id}, ${found.coupon.id}) ON CONFLICT DO NOTHING`;
+  const limited = await asReader("expiry", reader.id, async (tx) => {
+    const [today] = await tx<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM expiry_reports WHERE reader_id = ${reader.id} AND at > now() - interval '24 hours'`;
+    if (reportLimitReached(today.n)) return true;
+    await tx`INSERT INTO expiry_reports (reader_id, coupon_id) VALUES (${reader.id}, ${found.coupon.id}) ON CONFLICT DO NOTHING`;
+    return false;
+  });
+  if (limited) return { error: `Ya has avisado de ${EXPIRY_REPORT_LIMIT_PER_DAY} chollos hoy. Vuelve mañana` };
   refresh();
   return { done: true };
 }
