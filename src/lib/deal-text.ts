@@ -35,17 +35,32 @@ const isShouting = (s: string) => {
   return letters.length >= 5 && upper.length / letters.length > 0.7;
 };
 
-// Lowercase every word except those with digits (codes, figures), then give the store back its own spelling
+// Short all-caps words that are plain words in a shouting title (es, pt, de, it, fr, en), not acronyms
+const SHORT_WORDS = new Set(
+  "a al ate com da das de del dos do el em en es et la las le les los mas mit nel nur o per por que sin sur su sul un una und von zu auf bis aus fur du des dans avec pour alle the and for off all new con del tout solo todo sale pack moda ropa casa fino desde hasta di il in ab y e day days black friday cyber extra".split(" "),
+);
+
+// An all-caps 2-4 letter word that reads as an acronym or brand (TV, LG, OLED), not a short Spanish word
+const isAcronym = (w: string) => {
+  const bare = w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+  return /^\p{Lu}{2,4}$/u.test(bare) && !SHORT_WORDS.has(fold(bare));
+};
+
+// Lowercase every word except those with digits (codes, figures) and acronyms, then give the store back its own spelling
 function sentenceCase(s: string, storeName: string): string {
   const lower = s
     .split(" ")
-    .map((w) => (/\d/.test(w) ? w : w.toLowerCase()))
+    .map((w) => (/\d/.test(w) || isAcronym(w) ? w : w.toLowerCase()))
     .join(" ");
-  const restored = storeName ? lower.replace(new RegExp(escapeRe(storeName), "giu"), storeName) : lower;
+  const restored = storeName
+    ? lower.replace(new RegExp(`(?<!\\p{L})${escapeRe(storeName)}(?!\\p{L})`, "giu"), storeName)
+    : lower;
   return capitalize(restored);
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+// Capitalise a plain lowercase first word only: "iPhone", "eBay" and "iPad" keep their own spelling
+const capitalizeWord = (s: string) => (/^\p{Ll}\p{Lu}/u.test(s) ? s : capitalize(s));
 
 // A feed title for display: "WORTEN: HASTA 90% | TELES" next to the store Worten → "Hasta 90% · teles".
 // Caps become sentence case, a leading "<Store>:" or "<Store> -" and a trailing "| <Store>" go, pipes become " · ".
@@ -62,14 +77,14 @@ export function displayTitle(title: string, storeName: string): string {
   t = t.replace(/\s*\|\s*/g, " · ").trim();
   if (!t) return raw;
   if (isShouting(t)) return sentenceCase(t, store);
-  return cut ? capitalize(t) : t;
+  return cut ? capitalizeWord(t) : t;
 }
 
-type Dedupable = { id: number; store_id: number; title: string; verified: number };
+type Dedupable = { id: number; store_id: number; title: string; code?: string; verified: number };
 
-// One card per store and title: the verified one wins, then the newest. Keeps the list's order.
+// One card per store, title and code: the verified one wins, then the newest. Keeps the list's order.
 export function dedupeDeals<T extends Dedupable>(list: T[]): T[] {
-  const keyOf = (c: T) => `${c.store_id}|${textKey(c.title)}`;
+  const keyOf = (c: T) => `${c.store_id}|${textKey(c.title)}|${textKey(c.code ?? "")}`;
   const best = new Map<string, T>();
   for (const c of list) {
     const held = best.get(keyOf(c));

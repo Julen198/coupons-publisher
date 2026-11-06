@@ -132,7 +132,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
           </div>
           <p className="answer">
             {scope.length === 0 ? (
-              f.q ? <>No hay cupones activos para «{f.q}» ahora mismo.</> : <>Ahora mismo no hay cupones activos en {cat?.label}.</>
+              f.q ? <>No hay cupones activos para «{f.q}» ahora mismo.</> : cat ? <>Ahora mismo no hay cupones activos en {cat.label}.</> : <>Ahora mismo no hay cupones activos.</>
             ) : (
               <>
                 {f.q ? (

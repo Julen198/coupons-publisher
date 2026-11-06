@@ -36,3 +36,9 @@ test("Spanish and international websites stay", () => {
     "   ",
   ]) assert.equal(isSpanishMarket(site), true, site);
 });
+
+test("a country-like label before .es or .com.es is not a market, a real ccTLD is", () => {
+  assert.equal(isSpanishMarket("https://www.jdsports.es"), true);
+  assert.equal(isSpanishMarket("https://x.com.es"), true);
+  assert.equal(isSpanishMarket("https://x.co.uk"), false);
+});

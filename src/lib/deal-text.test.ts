@@ -101,3 +101,28 @@ test("badgeInSentence lowercases «hasta» inside a sentence", () => {
   assert.equal(badgeInSentence("Envío gratis"), "envío gratis");
   assert.equal(badgeInSentence("2x1"), "2x1");
 });
+
+test("displayTitle keeps brand spellings like iPhone and eBay after cutting the store prefix", () => {
+  assert.equal(displayTitle("Worten: iPhone 15 a mitad de precio", "Worten"), "iPhone 15 a mitad de precio");
+  assert.equal(displayTitle("Worten: eBay y iPad en oferta", "Worten"), "eBay y iPad en oferta");
+  assert.equal(displayTitle("eBay: 10 % en todo", "eBay"), "10 % en todo");
+  assert.equal(displayTitle("Worten: ofertas en tele", "Worten"), "Ofertas en tele");
+});
+
+test("displayTitle restores the store name only as a whole word in a shouting title", () => {
+  assert.equal(displayTitle("CAMISETAS DE MONTAÑA ON", "On"), "Camisetas de montaña On");
+});
+
+test("displayTitle keeps short acronyms in capitals inside a shouting title", () => {
+  assert.equal(displayTitle("TV LG OLED -30%", "Worten"), "TV LG OLED -30%");
+  assert.equal(displayTitle("OFERTAS EN TV Y SSD CON USB", "Worten"), "Ofertas en TV y SSD con USB");
+});
+
+test("dedupeDeals keeps coupons with the same title but different codes", () => {
+  const deals = [
+    { id: 1, store_id: 7, title: "10 % en todo", code: "AAA", verified: 0 },
+    { id: 2, store_id: 7, title: "10 % en todo", code: "bbb", verified: 0 },
+    { id: 3, store_id: 7, title: "10 % en todo", code: " aaa ", verified: 1 },
+  ];
+  assert.deepEqual(dedupeDeals(deals).map((d) => d.id), [2, 3]);
+});
