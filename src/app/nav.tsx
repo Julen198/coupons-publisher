@@ -8,6 +8,7 @@ const MAIN = [
   { href: "/panel/clients", label: "Clientes" },
   { href: "/panel/stores", label: "Tiendas" },
   { href: "/panel/coupons", label: "Cupones" },
+  { href: "/panel/moderacion", label: "Moderación" },
   { href: "/panel/pages", label: "Páginas" },
   { href: "/panel/clicks", label: "Clics" },
 ];
