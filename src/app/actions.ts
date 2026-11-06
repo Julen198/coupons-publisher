@@ -242,9 +242,14 @@ export async function generateDisguise(f: FormData) {
 // any other network keeps the tracking link it gives ({url}/{ref} placeholders)
 function storeTracking(f: FormData) {
   const network = asNetwork(str(f, "network"));
-  const merchant_id = digits(f, "merchant_id", "El ID del anunciante");
+  // Awin ids are numbers; Affilae's are hex and Partnerize's mix letters ("10l176")
+  const merchant_id = network === "awin" ? digits(f, "merchant_id", "El ID del anunciante") : str(f, "merchant_id");
+  if (!/^[\w-]*$/.test(merchant_id)) throw new Error("El ID del anunciante solo lleva letras, números y guiones");
   if (network === "awin") return { network, merchant_id, tracking_url: "" };
-  return { network, merchant_id, tracking_url: str(f, "tracking_url") ? url(f, "tracking_url", "El enlace de seguimiento") : "" };
+  // "{url}?ae=…" (Affilae) tracks on the shop's own page: it isn't a URL by itself
+  const template = str(f, "tracking_url");
+  if (/^\{url\}[?&][^\s]+$/.test(template)) return { network, merchant_id, tracking_url: template };
+  return { network, merchant_id, tracking_url: template ? url(f, "tracking_url", "El enlace de seguimiento") : "" };
 }
 
 export async function createStore(_prev: FormState, f: FormData): Promise<FormState> {

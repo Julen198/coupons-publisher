@@ -28,13 +28,16 @@ export interface SyncSummary {
 export async function syncAccount(account: NetworkAccount): Promise<SyncSummary> {
   const adapter = adapterFor(account.network);
   if (!adapter) throw new Error(`Red sin integración: ${account.network}`);
-  const creds = decryptJson<Credentials>(account.credentials);
+  return syncCredentials(adapter, decryptJson<Credentials>(account.credentials), account.client_id);
+}
+
+// Also how a new account is checked before it's saved: a feed that comes back is credentials that work
+export async function syncCredentials(adapter: NetworkAdapter, creds: Credentials, clientId: number | null): Promise<SyncSummary> {
   const feed = await adapter.fetchFeed(creds);
-  const ownAccount = account.client_id === null;
   // Awin links are built from merchant id + publisher id: remember which of our publisher ids can track each
   // coupon and store, so clients without an affiliate id of their own still get tracked links
-  const publisherId = account.network === "awin" && ownAccount ? (creds.publisherId ?? "") : "";
-  return mergeFeed(adapter, feed, account.client_id, publisherId);
+  const publisherId = adapter.id === "awin" && clientId === null ? (creds.publisherId ?? "") : "";
+  return mergeFeed(adapter, feed, clientId, publisherId);
 }
 
 async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, clientId: number | null, publisherId: string): Promise<SyncSummary> {

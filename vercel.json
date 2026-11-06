@@ -1,3 +1,4 @@
 {
-  "regions": ["arn1"]
+  "regions": ["arn1"],
+  "crons": [{ "path": "/api/telegram/cron", "schedule": "0 8 * * *" }]
 }

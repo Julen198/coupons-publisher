@@ -46,7 +46,7 @@ export type Coupon = {
   expires_at: string;
   verified: number;
   archived: number;
-  source: "manual" | "web" | "awin" | "tradedoubler" | "admitad" | "webgains" | "cj" | "rakuten" | "impact"; // web = found by the coupon finder, hidden until verified
+  source: "manual" | "web" | "awin" | "tradedoubler" | "admitad" | "webgains" | "cj" | "rakuten" | "impact" | "adtraction" | "effiliation" | "kwanko" | "affilae" | "partnerize"; // web = found by the coupon finder, hidden until verified
   source_url: string; // where a web find was seen, for whoever verifies it
   external_id: string | null;
   publisher_id: string; // Awin: publisher id of our account that imported it ("" = manual or a client's own account)

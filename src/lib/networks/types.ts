@@ -31,12 +31,13 @@ export interface CredentialField {
   help?: string;
   placeholder?: string;
   numeric?: boolean; // digits only: numeric keyboard on phones and checked before saving
+  optional?: string; // when it may be left empty, and why (shown next to the label)
 }
 
 export type Credentials = Record<string, string>;
 
 export interface NetworkAdapter {
-  id: "awin" | "tradedoubler" | "admitad" | "webgains" | "cj" | "rakuten" | "impact";
+  id: "awin" | "tradedoubler" | "admitad" | "webgains" | "cj" | "rakuten" | "impact" | "adtraction" | "effiliation" | "kwanko" | "affilae" | "partnerize";
   label: string;
   fields: CredentialField[];
   where: string; // where to find the credentials in the network's own panel
@@ -49,11 +50,48 @@ export interface NetworkAdapter {
 export const REGION = "ES";
 const MAX_PAGES = 50;
 
+// What a failed call means for whoever pasted the credentials; the caller prefixes the network's name.
+// 401: the network doesn't know the key; 403: it knows it, but the key can't read this account
+export function httpError(status: number, body: string): string {
+  // Tradedoubler answers an unknown token with 403 "Token not authorized for request": that's a 401 really
+  if (status === 401 || (status === 403 && /not authori[sz]ed|invalid token/i.test(body))) return "no reconoce estas credenciales (401): revisa que sean las de la API, o genera unas nuevas";
+  if (status === 403) return "acepta las credenciales pero no les deja leer esto (403): revisa que sean del tipo que se pide y tengan permiso de lectura";
+  if (status === 429 || status === 503) return "pide esperar: prueba en unos minutos";
+  return `respondió ${status}${body ? `: ${body}` : ""}`;
+}
+
+// "<Red>: <what went wrong>"; a 400/403 also names the ids that network asks for (a wrong one reads as no permission),
+// and none when the network only takes a token
+export function networkError(adapter: Pick<NetworkAdapter, "label" | "fields">, e: unknown): string {
+  const message = e instanceof Error ? e.message : String(e);
+  const ids = adapter.fields.filter((f) => !f.secret).map((f) => f.label);
+  const hint = /\(403\)|respondió 400/.test(message) && ids.length ? `; revisa también ${ids.join(" y ")}` : "";
+  return `${adapter.label}: ${message}${hint}`;
+}
+
+// The message inside an error body: CJ/Rakuten answer XML, most others JSON ({ message } / { error_description })
+export function readableBody(body: string): string {
+  const raw = body.trim();
+  if (raw.startsWith("{")) {
+    try {
+      const j = JSON.parse(raw) as Record<string, unknown>;
+      const m = [j.error_description, j.message, j.error, j.detail].find((v) => typeof v === "string" && v);
+      if (m) return String(m).slice(0, 200);
+    } catch {
+      // not JSON after all: shown as text below
+    }
+  }
+  return raw.replace(/<\?xml[^>]*\?>/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+}
+
 async function fetchOk(url: string, init: RequestInit): Promise<Response> {
-  const r = await fetch(url, { ...init, signal: AbortSignal.timeout(30_000) });
+  const host = new URL(url).hostname;
+  const r = await fetch(url, { ...init, signal: AbortSignal.timeout(30_000) }).catch((e: unknown) => {
+    throw new Error(e instanceof Error && e.name === "TimeoutError" ? `${host} no respondió a tiempo` : `${host} no responde`, { cause: e });
+  });
   if (!r.ok) {
-    const body = (await r.text().catch(() => "")).slice(0, 200);
-    throw new Error(`${new URL(url).hostname} respondió ${r.status}${body ? `: ${body}` : ""}`);
+    const body = readableBody(await r.text().catch(() => ""));
+    throw new Error(`${host} ${httpError(r.status, body)}`);
   }
   return r;
 }

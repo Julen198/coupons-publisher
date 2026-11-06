@@ -8,18 +8,20 @@ import { requireAdmin, requireEditor } from "@/lib/auth";
 import { fillStoreIcons } from "@/lib/fill-store-icons";
 import { errorMessage, required, str, type FormState } from "@/lib/form";
 import { adapterFor } from "@/lib/networks/index";
-import { describeSync, recordSync, syncAccount, syncClientAwinIds, type NetworkAccount } from "@/lib/network-sync";
+import { awinPublisherId } from "@/lib/networks/awin";
+import { describeSync, recordSync, syncAccount, syncClientAwinIds, syncCredentials, type NetworkAccount } from "@/lib/network-sync";
 import { decryptJson, encryptJson } from "@/lib/secrets";
-import type { Credentials } from "@/lib/networks/types";
+import { networkError, type Credentials, type NetworkAdapter } from "@/lib/networks/types";
 
 export type SyncState = FormState & { result?: string };
 
 // Credentials are admin-only. owner "" = our own account, otherwise a client's id.
 // Leaving a secret blank on an existing account keeps the stored one.
+// They are checked by syncing once (as the affiliate checker does): only credentials that work get saved.
 export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise<FormState> {
+  const adapter = adapterFor(str(f, "network"));
   try {
     await requireAdmin();
-    const adapter = adapterFor(required(f, "network", "la red"));
     if (!adapter) throw new Error("Red no válida");
     const owner = str(f, "owner");
     const clientId = owner ? Number(owner) : null;
@@ -27,36 +29,52 @@ export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise
       const [client] = await sql()`SELECT id FROM clients WHERE id = ${clientId}`;
       if (!client) throw new Error("Cliente no encontrado");
     }
-    const entered: Credentials = Object.fromEntries(
-      adapter.fields.map((field) => {
-        const v = str(f, field.name);
-        if (v.length > 500) throw new Error(`${field.label}: demasiado largo`);
-        if (v && field.numeric && !/^\d+$/.test(v)) throw new Error(`${field.label}: solo números`);
-        return [field.name, v];
-      }),
-    );
-    // one account per network, owner and publisher id: the same id updates it, a new id adds another account
-    const [existing] = await sql()<{ credentials: string }[]>`
-      SELECT credentials FROM network_accounts
-      WHERE network = ${adapter.id} AND coalesce(client_id, 0) = ${clientId ?? 0} AND account_ref = ${adapter.ref(entered)}`;
-    const previous = existing ? decryptJson<Credentials>(existing.credentials) : {};
-    const creds: Credentials = Object.fromEntries(
-      adapter.fields.map((field) => [field.name, entered[field.name] || (field.secret ? (previous[field.name] ?? "") : "")]),
-    );
-    const missing = adapter.fields.filter((field) => !creds[field.name]);
-    if (missing.length) throw new Error(`Falta ${missing.map((m) => m.label).join(", ")}`);
+    const { creds, existing } = await readCredentials(adapter, f, clientId);
+    const summary = await syncCredentials(adapter, creds, clientId).catch((e: unknown) => {
+      throw new Error(networkError(adapter, e), { cause: e });
+    });
     await sql()`
-      INSERT INTO network_accounts (network, client_id, account_ref, credentials)
-      VALUES (${adapter.id}, ${clientId}, ${adapter.ref(creds)}, ${encryptJson(creds)})
+      INSERT INTO network_accounts (network, client_id, account_ref, credentials, last_sync_at, last_result)
+      VALUES (${adapter.id}, ${clientId}, ${adapter.ref(creds)}, ${encryptJson(creds)}, now(), ${describeSync(summary)})
       ON CONFLICT (network, coalesce(client_id, 0), account_ref) DO UPDATE SET
-        account_ref = excluded.account_ref, credentials = excluded.credentials, last_error = ''`;
+        credentials = excluded.credentials, last_sync_at = excluded.last_sync_at, last_result = excluded.last_result, last_error = ''`;
     await syncClientAwinIds();
-    await logActivity(`Cuenta de ${adapter.label} ${existing ? "actualizada" : "conectada"}`);
+    await logActivity(`Cuenta de ${adapter.label} ${existing ? "actualizada" : "conectada"}: ${describeSync(summary)}`);
+    after(() => fillStoreIcons(summary.newStores));
   } catch (e) {
     return { error: errorMessage(e) };
   }
-  revalidatePath("/networks");
+  revalidatePath("/", "layout");
   return {};
+}
+
+// The form's fields, checked, with the saved secrets where they were left blank. Awin's publisher id may be left
+// empty: the token says which account it is (or lists them when it reaches several).
+async function readCredentials(adapter: NetworkAdapter, f: FormData, clientId: number | null) {
+  const typed: Credentials = Object.fromEntries(
+    adapter.fields.map((field) => {
+      const v = str(f, field.name);
+      if (v.length > 500) throw new Error(`${field.label}: demasiado largo`);
+      if (v && field.numeric && !/^\d+$/.test(v)) throw new Error(`${field.label}: solo números`);
+      return [field.name, v];
+    }),
+  );
+  const findAwinId = adapter.id === "awin" && !typed.publisherId;
+  if (findAwinId && !typed.token) throw new Error("Falta API token");
+  const entered: Credentials = findAwinId
+    ? { ...typed, publisherId: await awinPublisherId(typed.token).catch((e: unknown) => { throw new Error(`Awin: ${errorMessage(e)}`, { cause: e }); }) }
+    : typed;
+  // one account per network, owner and publisher id: the same id updates it, a new id adds another account
+  const [existing] = await sql()<{ credentials: string }[]>`
+    SELECT credentials FROM network_accounts
+    WHERE network = ${adapter.id} AND coalesce(client_id, 0) = ${clientId ?? 0} AND account_ref = ${adapter.ref(entered)}`;
+  const previous = existing ? decryptJson<Credentials>(existing.credentials) : {};
+  const creds: Credentials = Object.fromEntries(
+    adapter.fields.map((field) => [field.name, entered[field.name] || (field.secret ? (previous[field.name] ?? "") : "")]),
+  );
+  const missing = adapter.fields.filter((field) => !creds[field.name] && !field.optional);
+  if (missing.length) throw new Error(`Falta ${missing.map((m) => m.label).join(", ")}`);
+  return { creds, existing: Boolean(existing) };
 }
 
 export async function deleteNetworkAccount(f: FormData) {
@@ -82,7 +100,8 @@ export async function syncNetworks(_prev: SyncState, f: FormData): Promise<SyncS
     const newStores: string[] = [];
     let failed = 0;
     for (const account of accounts) {
-      const label = adapterFor(account.network)?.label ?? account.network;
+      const adapter = adapterFor(account.network);
+      const label = adapter?.label ?? account.network;
       try {
         const summary = await syncAccount(account);
         await recordSync(account, { summary });
@@ -90,8 +109,9 @@ export async function syncNetworks(_prev: SyncState, f: FormData): Promise<SyncS
         lines.push(`${label}: ${describeSync(summary)}`);
       } catch (e) {
         console.error("network sync failed", account.network, account.id, e);
-        await recordSync(account, { error: errorMessage(e) });
-        lines.push(`${label}: error — ${errorMessage(e)}`);
+        const error = adapter ? networkError(adapter, e) : `${label}: ${errorMessage(e)}`;
+        await recordSync(account, { error });
+        lines.push(error);
         failed++;
       }
     }

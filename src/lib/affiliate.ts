@@ -18,8 +18,13 @@ export function affiliateUrl(
 
 // Networks other than Awin: the store keeps the tracking link the network gives, with {url} where the
 // destination goes and {ref} where the subid/clickref goes. No link yet → straight to the store.
+// A template that starts with {url} tracks by adding parameters to the page itself (Affilae: "{url}?ae=42&aev={ref}").
 export function trackingUrl(template: string, targetUrl: string, clickref: string) {
   if (!template) return targetUrl;
+  if (template.startsWith("{url}")) {
+    const params = template.slice("{url}".length).replace(/^[?&]/, "").replaceAll("{ref}", encodeURIComponent(clickref));
+    return `${targetUrl}${targetUrl.includes("?") ? "&" : "?"}${params}`;
+  }
   return template.replaceAll("{url}", encodeURIComponent(targetUrl)).replaceAll("{ref}", encodeURIComponent(clickref));
 }
 
@@ -31,12 +36,14 @@ export const NETWORKS = [
   { id: "cj", label: "CJ" },
   { id: "rakuten", label: "Rakuten" },
   { id: "impact", label: "Impact" },
+  { id: "adtraction", label: "Adtraction" },
+  { id: "effiliation", label: "Effiliation" },
+  { id: "kwanko", label: "Kwanko" },
+  { id: "affilae", label: "Affilae" },
+  { id: "partnerize", label: "Partnerize" },
   // no API integration yet: stores keep the tracking link pasted by hand
   { id: "tradetracker", label: "TradeTracker" },
   { id: "daisycon", label: "Daisycon" },
-  { id: "kwanko", label: "Kwanko" },
-  { id: "partnerize", label: "Partnerize" },
-  { id: "effiliation", label: "Effiliation" },
   { id: "other", label: "Otra red" },
 ] as const;
 

@@ -199,6 +199,16 @@ ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_category_check;
 ALTER TABLE stores ADD CONSTRAINT stores_category_check
   CHECK (category IN ('', 'tecnologia', 'zapatillas', 'moda', 'hogar', 'deporte', 'viajes'));
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS facts text NOT NULL DEFAULT '';
+-- Adtraction, Effiliation, Kwanko, Affilae and Partnerize read through their APIs too
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_source_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_source_check
+  CHECK (source IN ('manual', 'web', 'awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact', 'adtraction', 'effiliation', 'kwanko', 'affilae', 'partnerize'));
+ALTER TABLE network_accounts DROP CONSTRAINT IF EXISTS network_accounts_network_check;
+ALTER TABLE network_accounts ADD CONSTRAINT network_accounts_network_check
+  CHECK (network IN ('awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact', 'adtraction', 'effiliation', 'kwanko', 'affilae', 'partnerize'));
+-- Telegram: '' = not sent yet, review = in the admin's chat, published / discarded / expired in the public channel
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS telegram_status text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS telegram_message_id bigint;
 `;
 
 // "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay

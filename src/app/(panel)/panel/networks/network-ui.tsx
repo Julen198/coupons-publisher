@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import { deleteNetworkAccount, saveNetworkAccount, syncNetworks, type SyncState } from "@/app/actions-networks";
 import type { FormState } from "@/lib/form";
 import type { CredentialField } from "@/lib/networks/types";
@@ -40,6 +40,8 @@ export function DeleteAccountButton({ id, label }: { id: number; label: string }
 }
 
 // Connect a new account or edit one (defaults). Secrets are never sent back: blank = keep the saved one.
+// Saving checks the credentials with one sync. Sent without React's form reset, so after an error everything typed
+// (the token too) stays in the form to fix and retry; it never comes back from the server.
 export function AccountDialog({ networks, clients, defaults, trigger }: {
   networks: NetworkOption[];
   clients: { id: number; name: string }[];
@@ -59,7 +61,14 @@ export function AccountDialog({ networks, clients, defaults, trigger }: {
     <>
       <button type="button" onClick={() => ref.current?.showModal()} className={editing ? `${btnSecondaryCls} min-h-10` : `${btnCls} min-h-10`}>{trigger}</button>
       <Dialog title={editing ? `Editar cuenta de ${net.label}` : "Conectar una red"} dialogRef={ref}>
-        <form action={action} className="flex flex-col gap-4 p-5">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            startTransition(() => action(data));
+          }}
+          className="flex flex-col gap-4 p-5"
+        >
           {editing ? (
             <>
               <input type="hidden" name="network" value={network} />
@@ -88,7 +97,7 @@ export function AccountDialog({ networks, clients, defaults, trigger }: {
             {net.fields.map((field) => (
               <div key={field.name} className="flex flex-col gap-1">
                 <Field
-                  label={field.label}
+                  label={field.optional ? `${field.label} (${field.optional})` : field.label}
                   name={field.name}
                   type={field.secret ? "password" : "text"}
                   autoComplete="off"
@@ -98,20 +107,21 @@ export function AccountDialog({ networks, clients, defaults, trigger }: {
                   title={field.numeric ? "Solo números" : undefined}
                   defaultValue={field.secret ? "" : (defaults?.values[field.name] ?? "")}
                   placeholder={field.secret && editing ? "Sin cambios" : (field.placeholder ?? "")}
-                  required={!(field.secret && editing)}
+                  required={!field.optional && !(field.secret && editing)}
                 />
                 {field.help && <p className="text-xs text-neutral-500">{field.help}</p>}
               </div>
             ))}
           </fieldset>
           <p className="text-xs text-neutral-500">
-            Dónde encontrarlo: {net.where}.{" "}
-            <a href={net.docs} target="_blank" rel="noreferrer" className="underline">API de {net.label}</a>. Se guarda cifrado.
+            {net.label} no tiene «iniciar sesión con {net.label}»: copia tus credenciales en {net.where} y pégalas aquí.{" "}
+            <a href={net.docs} target="_blank" rel="noreferrer" className="underline">API de {net.label}</a>. Se guardan cifradas y,
+            antes de guardarlas, se comprueban sincronizando una vez.
           </p>
           {state.error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{state.error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => ref.current?.close()} className={`${btnSecondaryCls} min-h-10`}>Cancelar</button>
-            <button disabled={pending} className={`${btnCls} min-h-10 disabled:opacity-60`}>{pending ? "Guardando…" : "Guardar"}</button>
+            <button disabled={pending} className={`${btnCls} min-h-10 disabled:opacity-60`}>{pending ? `Comprobando con ${net.label}…` : editing ? "Guardar y sincronizar" : "Conectar y sincronizar"}</button>
           </div>
         </form>
       </Dialog>

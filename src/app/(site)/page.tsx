@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { categoryOf, hasStoreGuide, homeHref, resetFiltersHref, type HomeFilters } from "@/lib/catalog";
 import { siteClient, siteCoupons, storeGuides, type SiteCoupon } from "@/lib/public-site";
 import { blackFriday, daysBetween, longDate, madridToday, percentOf, siteUrl, upcomingEvents } from "@/lib/site-text";
@@ -36,7 +37,17 @@ function sortDeals(list: SiteCoupon[], orden: Filters["orden"]) {
   return [...list].sort((a, b) => b.verified - a.verified || percentOf(b.discount) - percentOf(a.discount) || byId(a, b));
 }
 
-export default async function HomePage({ searchParams }: PageProps<"/">) {
+// The page reads the database, so it streams behind its own boundary: the layout's Suspense does not
+// cover a navigation between two filters of this same route (/?cat=moda -> /?cat=hogar)
+export default function HomePage(props: PageProps<"/">) {
+  return (
+    <Suspense fallback={<main className="wrap"><p className="crumbs">Cargando chollos…</p></main>}>
+      <HomeContent {...props} />
+    </Suspense>
+  );
+}
+
+async function HomeContent({ searchParams }: PageProps<"/">) {
   const f = readFilters(await searchParams);
   const [all, client] = await Promise.all([siteCoupons(), siteClient()]);
   const now = new Date();

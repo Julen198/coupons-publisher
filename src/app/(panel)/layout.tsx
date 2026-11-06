@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Nav, NavList } from "@/app/nav";
 import { getUser } from "@/lib/auth";
+import { REVIEW_BOT_URL, channelUrl } from "@/lib/telegram";
 import { AccountSlot } from "./account-slot";
 
 export default function PanelLayout({ children }: LayoutProps<"/">) {
@@ -32,8 +33,51 @@ export default function PanelLayout({ children }: LayoutProps<"/">) {
   );
 }
 
-// admin-only entries (Costes de IA) need the user, which is read at request time
+const TELEGRAM_ICON = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="shrink-0 text-sky-500">
+    <path d="M21.9 4.3 18.7 19.4c-.2 1.1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.3-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.2 13.1l-4.8-1.5c-1-.3-1.1-1 .2-1.5L20.5 2.9c.9-.3 1.6.2 1.4 1.4z" />
+  </svg>
+);
+
+const ITEM = "flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm";
+
+function TelegramLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={`${ITEM} text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800`}>
+      {TELEGRAM_ICON}
+      {label}
+      <span aria-hidden="true" className="ml-auto text-xs text-neutral-400">↗</span>
+      <span className="sr-only">(se abre en otra pestaña)</span>
+    </a>
+  );
+}
+
+// Public channel for everyone (greyed out until TELEGRAM_CHANNEL_ID is a public @username); the review bot for admins only
+function TelegramLinks({ admin }: { admin: boolean }) {
+  const channel = channelUrl();
+  return (
+    <div className="-mt-5 flex flex-col gap-1">
+      {channel ? (
+        <TelegramLink href={channel} label="Canal de Telegram" />
+      ) : (
+        <p className={`${ITEM} text-neutral-400 dark:text-neutral-500`} title="Falta crear el canal y poner TELEGRAM_CHANNEL_ID">
+          {TELEGRAM_ICON}
+          Canal de Telegram
+          <span className="ml-auto text-[11px]">pendiente</span>
+        </p>
+      )}
+      {admin && <TelegramLink href={REVIEW_BOT_URL} label="Bot de revisión" />}
+    </div>
+  );
+}
+
+// admin-only entries (Costes de IA, the review bot) need the user, which is read at request time
 async function NavSlot() {
-  const user = await getUser();
-  return <Nav admin={user?.role === "admin"} />;
+  const admin = (await getUser())?.role === "admin";
+  return (
+    <>
+      <Nav admin={admin} />
+      <TelegramLinks admin={admin} />
+    </>
+  );
 }

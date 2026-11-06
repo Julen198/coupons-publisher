@@ -2,9 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
 // The public deals site: indexable, open to everyone
-const SITE = [/^\/$/, /^\/chollos\/[^/]+$/, /^\/tiendas(\/[^/]+)?$/, /^\/calendario$/, /^\/sitemap\.xml$/];
+const SITE = [/^\/$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/calendario$/, /^\/sitemap\.xml$/];
 // Reachable without signing in: the public site, login, accepting an invitation, and what publishers embed on their sites
-const PUBLIC = [...SITE, /^\/login$/, /^\/login\/magic$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//];
+const PUBLIC = [...SITE, /^\/login$/, /^\/login\/magic$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//,
+  // Telegram webhook and its daily cron: each checks its own secret header instead of a session
+  /^\/api\/telegram(\/cron)?$/];
 
 // First gate only (signature check, no DB). Pages and actions re-check the user, role and session version.
 export async function proxy(req: NextRequest) {

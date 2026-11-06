@@ -35,6 +35,26 @@ const FORMATS: Record<string, { format: string; affiliate: string }> = {
     format: "https://<dominio de la marca>/c/<ID de partner>/<anuncio>/<campaña>?subId1=<ref>&u=<destino>",
     affiliate: "Va dentro del enlace de seguimiento de cada campaña (por cuenta)",
   },
+  adtraction: {
+    format: "https://track.adtraction.com/t/t?a=<anuncio>&as=<ID del canal>&t=2&tk=1&epi=<ref>&url=<destino>",
+    affiliate: "El ID del canal de la cuenta conectada, ya dentro del enlace que da la API",
+  },
+  effiliation: {
+    format: "https://track.effiliation.com/servlet/effi.redir?id_compteur=<contador del programa>&effi_id=<ref>&url=<destino>",
+    affiliate: "Va dentro del contador de cada programa (por cuenta)",
+  },
+  kwanko: {
+    format: "https://action.metaffiliation.com/trk.php?mclic=<enlace del sitio>&redir=<destino>&argsite=<ref>",
+    affiliate: "Va dentro del enlace profundo que da la API por sitio",
+  },
+  affilae: {
+    format: "<destino>?ae=<ID de seguimiento>&aev=<ref>",
+    affiliate: "El ID de seguimiento de la colaboración; solo para programas con enlaces por parámetro",
+  },
+  partnerize: {
+    format: "https://prf.hn/click/camref:<camref>/pubref:<ref>/destination:<destino>",
+    affiliate: "El camref de cada campaña, por cuenta",
+  },
 };
 
 export interface LinkExample {
