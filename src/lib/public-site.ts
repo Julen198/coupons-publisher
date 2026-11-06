@@ -1,6 +1,7 @@
 import { io } from "next/cache";
 import { sql, type Client, type Coupon, type Store } from "./db";
-import { isPublic, statusOf } from "./coupon-status.ts";
+import { isPublic } from "./coupon-status.ts";
+import { dealVisibility } from "./site-routes.ts";
 import { publishUnverified } from "./settings.ts";
 import { couponAffiliateUrl } from "./render-page.ts";
 import { getReader } from "./reader";
@@ -68,17 +69,8 @@ export async function siteCoupon(id: number): Promise<{ coupon: SiteCoupon; live
   ]);
   if (!row) return undefined;
   const coupon = { ...row };
-  const seen = visibilityOf(coupon, madridToday().iso, unverified);
+  const seen = dealVisibility(coupon, madridToday().iso, unverified);
   return seen === "gone" ? undefined : { coupon, live: seen === "live" };
-}
-
-// live: shown everywhere. expired: once public, its page stays up marked as expired.
-// gone: archived, pending, never-checked web finds and other markets have no page.
-function visibilityOf(c: SiteCoupon, today: string, unverified: boolean): "live" | "expired" | "gone" {
-  if (!isSpanishMarket(c.store_website)) return "gone";
-  if (isPublic(c, today, unverified)) return "live";
-  const wasPublic = statusOf(c, today) === "expired" && (unverified || c.source !== "web" || c.verified);
-  return wasPublic ? "expired" : "gone";
 }
 
 // What a reader has voted, by coupon id
@@ -197,7 +189,7 @@ async function withVisibility(rows: readonly SiteCoupon[]): Promise<AccountCoupo
   const unverified = await publishUnverified();
   const t = madridToday().iso;
   return plain(rows).map((c) => {
-    const seen = visibilityOf(c, t, unverified);
+    const seen = dealVisibility(c, t, unverified);
     return { ...c, live: seen === "live", page: seen !== "gone" };
   });
 }
