@@ -16,7 +16,8 @@ export const badgeOf = (c: Pick<SiteCoupon, "discount" | "kind">) => badgeLabel(
 export const isWordBadge = (c: Pick<SiteCoupon, "discount">) => !badgeLabel(c.discount);
 export const priceClass = (c: Pick<SiteCoupon, "discount">) => (isWordBadge(c) ? "price-now is-word" : "price-now");
 // The title readers see, next to its store
-export const titleOf = (c: Pick<SiteCoupon, "title" | "store_name">) => displayTitle(c.title, c.store_name);
+// display_title carries the known brands (see public-site); rows without it fall back to the store alone
+export const titleOf = (c: Pick<SiteCoupon, "title" | "store_name"> & { display_title?: string }) => c.display_title || displayTitle(c.title, c.store_name);
 // The deal's product picture ("" = none, show the store logo); checked again here since it came from a network feed
 export const productImageOf = (c: Pick<SiteCoupon, "image_url">) => httpsImage(c.image_url);
 

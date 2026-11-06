@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { badgeInSentence, conditionsOf, dedupeDeals, displayTitle, lowerFirst, mentionsBadge, storeHeading } from "./deal-text.ts";
+import { BRAND_ALLOWLIST, badgeInSentence, conditionsOf, dedupeDeals, displayTitle, lowerFirst, mentionsBadge, storeHeading } from "./deal-text.ts";
 
 test("conditionsOf splits a description into short reader-facing bullets", () => {
   assert.deepEqual(conditionsOf("No válido en lanzamientos. Pedido mínimo 50 €."), ["No válido en lanzamientos", "Pedido mínimo 50 €"]);
@@ -132,4 +132,22 @@ test("displayTitle lowercases every shouting word except known acronyms", () => 
   assert.equal(displayTitle("PRECIOS MUY BAJOS HOY", "Worten"), "Precios muy bajos hoy");
   assert.equal(displayTitle("COMPRA TUS GAFAS AHORA", "Worten"), "Compra tus gafas ahora");
   assert.equal(displayTitle("TUTTO A META PREZZO", "Worten"), "Tutto a meta prezzo");
+});
+
+test("displayTitle gives known brands and stores back their case in a shouting title", () => {
+  const brands = ["Nike", "New Balance", "Adidas", "El Corte Inglés", "zooplus"];
+  assert.equal(displayTitle("HASTA 40% EN NIKE Y NEW BALANCE", "Deporvillage", brands), "Hasta 40% en Nike y New Balance");
+  assert.equal(displayTitle("ADIDAS: 30% EN ZAPATILLAS DE EL CORTE INGLÉS", "JD Sports", brands), "Adidas: 30% en zapatillas de El Corte Inglés");
+  // whole words only: "nikel" is not Nike
+  assert.equal(displayTitle("OFERTA EN NIKEL Y NIKES", "Tienda", brands), "Oferta en nikel y nikes");
+  // titles that are not shouting are left as written
+  assert.equal(displayTitle("Hasta 40% en nike", "Deporvillage", brands), "Hasta 40% en nike");
+  // the store keeps its own spelling even when it is also in the list
+  assert.equal(displayTitle("20% EXTRA EN ZOOPLUS", "zooplus", brands), "20% extra en zooplus");
+});
+
+test("BRAND_ALLOWLIST covers the usual sports and electronics brands", () => {
+  for (const b of ["Nike", "Adidas", "Puma", "Reebok", "Asics", "Samsung", "Apple", "Xiaomi", "Sony", "Philips", "Dyson", "Lego", "Garmin", "Logitech", "New Balance", "Converse", "Vans"])
+    assert.ok(BRAND_ALLOWLIST.includes(b), b);
+  assert.equal(displayTitle("ATÉ 60 % DE DESCONTO EM ARTIGOS DA REEBOK", "JD Sports PT", BRAND_ALLOWLIST), "Até 60 % de desconto em artigos da Reebok");
 });

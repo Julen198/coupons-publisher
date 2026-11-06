@@ -6,7 +6,7 @@ import { publishUnverified } from "./settings.ts";
 import { couponAffiliateUrl } from "./render-page.ts";
 import { getReader } from "./reader";
 import { madridToday } from "./site-text.ts";
-import { dedupeDeals } from "./deal-text.ts";
+import { BRAND_ALLOWLIST, dedupeDeals, displayTitle } from "./deal-text.ts";
 import { isSpanishMarket } from "./market.ts";
 import type { CategorySlug } from "./catalog.ts";
 
@@ -27,6 +27,7 @@ export type SiteCoupon = Coupon & {
   shared_by_handle: string | null;
   expiry_reports: number; // readers who marked it as expired ("Marcar como caducado")
   image_url: string; // product image from a network feed (https), "" = show the store logo
+  display_title: string; // the title as the site shows it (displayTitle with the known brands)
 };
 
 const COUPON_SELECT = `
@@ -48,27 +49,40 @@ const COUPON_SELECT = `
 
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
+// Store names plus BRAND_ALLOWLIST: words a shouting feed title gives back their own case ("NIKE" → "Nike")
+async function knownBrands(): Promise<string[]> {
+  const rows = await sql()<{ name: string }[]>`SELECT name FROM stores`;
+  return [...BRAND_ALLOWLIST, ...rows.map((r) => r.name)];
+}
+
+// Plain copies with display_title filled in
+function titled<T extends { title: string; store_name: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string })[] {
+  return rows.map((r) => ({ ...r, display_title: displayTitle(r.title, r.store_name, brands) }));
+}
+
 // Every live coupon readers may see (same rule as clients' pages), newest first. Stores of other European
 // markets stay out (the site is Spanish), and a deal listed twice by its store shows once.
 export async function siteCoupons(): Promise<SiteCoupon[]> {
   await io();
-  const [rows, unverified] = await Promise.all([
+  const [rows, unverified, brands] = await Promise.all([
     sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.archived = 0 ORDER BY c.verified DESC, c.id DESC`,
     publishUnverified(),
+    knownBrands(),
   ]);
   const t = madridToday().iso;
-  return dedupeDeals(plain(rows).filter((c) => isPublic(c, t, unverified) && isSpanishMarket(c.store_website)));
+  return dedupeDeals(titled(rows, brands).filter((c) => isPublic(c, t, unverified) && isSpanishMarket(c.store_website)));
 }
 
 // One coupon for its own page: live ones, and expired ones too (shown as expired so the URL keeps working)
 export async function siteCoupon(id: number): Promise<{ coupon: SiteCoupon; live: boolean } | undefined> {
   await io();
-  const [[row], unverified] = await Promise.all([
+  const [[row], unverified, brands] = await Promise.all([
     sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.id = ${id}`,
     publishUnverified(),
+    knownBrands(),
   ]);
   if (!row) return undefined;
-  const coupon = { ...row };
+  const [coupon] = titled([row], brands);
   const seen = dealVisibility(coupon, madridToday().iso, unverified);
   return seen === "gone" ? undefined : { coupon, live: seen === "live" };
 }
@@ -186,9 +200,9 @@ export async function readerStats(readerId: number): Promise<AccountStats> {
 export type AccountCoupon = SiteCoupon & { live: boolean; page: boolean };
 
 async function withVisibility(rows: readonly SiteCoupon[]): Promise<AccountCoupon[]> {
-  const unverified = await publishUnverified();
+  const [unverified, brands] = await Promise.all([publishUnverified(), knownBrands()]);
   const t = madridToday().iso;
-  return plain(rows).map((c) => {
+  return titled(rows, brands).map((c) => {
     const seen = dealVisibility(c, t, unverified);
     return { ...c, live: seen === "live", page: seen !== "gone" };
   });

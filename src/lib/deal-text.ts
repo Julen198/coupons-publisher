@@ -41,15 +41,37 @@ const ACRONYMS = new Set(
 );
 const isAcronym = (w: string) => ACRONYMS.has(w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "").toLowerCase());
 
-// Lowercase every word except those with digits (codes, figures) and acronyms, then give the store back its own spelling
-function sentenceCase(s: string, storeName: string): string {
+// Brands that keep their own case inside a shouting title, on top of the store names from the stores table
+export const BRAND_ALLOWLIST: readonly string[] = [
+  "Nike", "Adidas", "Puma", "Reebok", "Asics", "Samsung", "Apple", "Xiaomi", "Sony", "Philips", "Dyson", "Lego", "Garmin", "Logitech",
+  "New Balance", "Converse", "Vans",
+];
+
+// Whole words (or phrases) only, longest first so "New Balance" wins over a shorter name inside it; built once per list
+const brandPatterns = new WeakMap<readonly string[], { re: RegExp; spelling: Map<string, string> } | null>();
+function brandPattern(brands: readonly string[]) {
+  if (!brandPatterns.has(brands)) {
+    const names = [...new Set(brands.map((b) => b.trim()).filter((b) => b.length >= 3))].sort((a, b) => b.length - a.length);
+    brandPatterns.set(
+      brands,
+      names.length ? { re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${names.map(escapeRe).join("|")})(?![\\p{L}\\p{N}])`, "giu"), spelling: new Map(names.map((n) => [n.toLowerCase(), n])) } : null,
+    );
+  }
+  return brandPatterns.get(brands) ?? null;
+}
+
+// Lowercase every word except those with digits (codes, figures) and acronyms, then give known brands and the store
+// back their own spelling
+function sentenceCase(s: string, storeName: string, brands: readonly string[]): string {
   const lower = s
     .split(" ")
     .map((w) => (/\d/.test(w) || isAcronym(w) ? w : w.toLowerCase()))
     .join(" ");
+  const pattern = brandPattern(brands);
+  const branded = pattern ? lower.replace(pattern.re, (m) => pattern.spelling.get(m.toLowerCase()) ?? m) : lower;
   const restored = storeName
-    ? lower.replace(new RegExp(`(?<!\\p{L})${escapeRe(storeName)}(?!\\p{L})`, "giu"), storeName)
-    : lower;
+    ? branded.replace(new RegExp(`(?<!\\p{L})${escapeRe(storeName)}(?!\\p{L})`, "giu"), storeName)
+    : branded;
   return capitalize(restored);
 }
 
@@ -58,8 +80,9 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const capitalizeWord = (s: string) => (/^\p{Ll}\p{Lu}/u.test(s) ? s : capitalize(s));
 
 // A feed title for display: "WORTEN: HASTA 90% | TELES" next to the store Worten → "Hasta 90% · teles".
-// Caps become sentence case, a leading "<Store>:" or "<Store> -" and a trailing "| <Store>" go, pipes become " · ".
-export function displayTitle(title: string, storeName: string): string {
+// Caps become sentence case (brands in `brands`, e.g. store names plus BRAND_ALLOWLIST, keep their case), a leading
+// "<Store>:" or "<Store> -" and a trailing "| <Store>" go, pipes become " · ".
+export function displayTitle(title: string, storeName: string, brands: readonly string[] = []): string {
   const raw = title.trim().replace(/\s+/g, " ");
   const store = storeName.trim();
   let t = raw;
@@ -71,7 +94,7 @@ export function displayTitle(title: string, storeName: string): string {
   }
   t = t.replace(/\s*\|\s*/g, " · ").trim();
   if (!t) return raw;
-  if (isShouting(t)) return sentenceCase(t, store);
+  if (isShouting(t)) return sentenceCase(t, store, brands);
   return cut ? capitalizeWord(t) : t;
 }
 
