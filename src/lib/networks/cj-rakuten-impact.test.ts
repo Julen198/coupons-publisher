@@ -66,6 +66,17 @@ test("Impact campaign deep link and deals: percent/amount badges, expired droppe
   assert.equal(mapDeal({ ...deal, State: "EXPIRED" }), null);
 });
 
+test("Impact deal takes its product image (https only); BOGO deals take the get or buy image", () => {
+  const deal = { Id: "5", Name: "Zapatillas", CampaignId: "9", State: "ACTIVE" };
+  assert.equal(mapDeal(deal)?.image, undefined);
+  assert.equal(mapDeal({ ...deal, Products: [{ ProductImageUrl: "https://img.marca.es/z.jpg" }] })?.image, "https://img.marca.es/z.jpg");
+  assert.equal(mapDeal({ ...deal, Products: [{ ProductImageUrl: "http://img.marca.es/z.jpg" }] })?.image, undefined);
+  assert.equal(mapDeal({ ...deal, Products: [{ ProductImageUrl: "javascript:alert(1)" }] })?.image, undefined);
+  const bogo = { ...deal, Type: "BOGO", BogoBuyImageUrl: "https://img.marca.es/buy.jpg" };
+  assert.equal(mapDeal(bogo)?.image, "https://img.marca.es/buy.jpg");
+  assert.equal(mapDeal({ ...bogo, BogoGetImageUrl: "https://img.marca.es/get.jpg" })?.image, "https://img.marca.es/get.jpg");
+});
+
 test("impact reads deals per campaign, the partner API's only deals route", async () => {
   const calls: string[] = [];
   const real = globalThis.fetch;

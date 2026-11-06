@@ -5,10 +5,11 @@ import { badgeLabel } from "@/lib/discount";
 import { conditionsOf, displayTitle } from "@/lib/deal-text";
 import { goHref, type SiteCoupon } from "@/lib/public-site";
 import { timeAgo } from "@/lib/community";
+import { httpsImage } from "@/lib/networks/types";
 import { daysBetween, dealPath, shortDate } from "@/lib/site-text";
 import { vote } from "./actions-reader";
 import { CopyCode } from "./copy-code";
-import { StoreLogoImg } from "./store-logo-img";
+import { DealImg, StoreLogoImg } from "./store-logo-img";
 
 export const badgeOf = (c: Pick<SiteCoupon, "discount" | "kind">) => badgeLabel(c.discount) || (c.kind === "code" ? "Código" : "Oferta");
 // No figure to show: the badge is just the word "Oferta" or "Código", set as small text instead of a big price
@@ -16,6 +17,13 @@ export const isWordBadge = (c: Pick<SiteCoupon, "discount">) => !badgeLabel(c.di
 export const priceClass = (c: Pick<SiteCoupon, "discount">) => (isWordBadge(c) ? "price-now is-word" : "price-now");
 // The title readers see, next to its store
 export const titleOf = (c: Pick<SiteCoupon, "title" | "store_name">) => displayTitle(c.title, c.store_name);
+// The deal's product picture ("" = none, show the store logo); checked again here since it came from a network feed
+export const productImageOf = (c: Pick<SiteCoupon, "image_url">) => httpsImage(c.image_url);
+
+// Product image when the deal has one, else the store logo
+export function DealPicture({ c }: { c: SiteCoupon }) {
+  return <DealImg src={productImageOf(c)} title={titleOf(c)} slug={c.store_slug} name={c.store_name} hasLogo={c.store_has_logo} />;
+}
 
 // Structured data for search engines and AI answers
 export function JsonLd({ data }: { data: unknown }) {
@@ -59,9 +67,9 @@ export function GoButton({ client, c, label }: { client: Client | undefined; c: 
 }
 
 export function StoreThumb({ c, className = "thumb", href }: { c: SiteCoupon; className?: string; href?: string }) {
-  const img = <StoreLogoImg slug={c.store_slug} name={c.store_name} hasLogo={c.store_has_logo} />;
+  const img = <DealPicture c={c} />;
   return href ? (
-    <Link className={className} href={href} title={c.store_name}>
+    <Link className={className} href={href} title={productImageOf(c) ? titleOf(c) : c.store_name}>
       {img}
     </Link>
   ) : (
@@ -190,5 +198,6 @@ export const offerLd = (base: string, c: SiteCoupon, live = true) => ({
   url: base + dealPath(c),
   ...(c.expires_at ? { validThrough: `${c.expires_at}T23:59:59+01:00` } : {}),
   availability: live ? "https://schema.org/InStock" : "https://schema.org/Discontinued",
+  ...(productImageOf(c) ? { image: productImageOf(c) } : {}),
   seller: { "@type": "Organization", name: c.store_name, url: c.store_website },
 });

@@ -10,6 +10,7 @@ export interface NetOffer {
   description: string;
   url: string; // landing page on the advertiser's site
   expires: string; // YYYY-MM-DD or ""
+  image?: string; // product image (https), when the network sends one
 }
 
 export interface NetAdvertiser {
@@ -124,6 +125,14 @@ export function siteOf(raw: string | null | undefined): string {
   if (!URL.canParse(withScheme)) return "";
   const u = new URL(withScheme);
   return /^https?:$/.test(u.protocol) && u.hostname.includes(".") ? u.origin : "";
+}
+
+// A product image address from a feed: kept only when it is a valid https URL (it ends up in an <img> on the public site)
+export function httpsImage(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim();
+  if (!s || s.length > 2048 || !URL.canParse(s)) return "";
+  const u = new URL(s);
+  return u.protocol === "https:" ? u.href : "";
 }
 
 // "2026-12-31T00:00:00.000" / "2026-12-31 23:59:59" keep their calendar day (no timezone shift); epoch ms → UTC day

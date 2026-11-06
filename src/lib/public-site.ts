@@ -24,6 +24,7 @@ export type SiteCoupon = Coupon & {
   score: number;
   comments: number;
   shared_by_handle: string | null;
+  image_url: string; // product image from a network feed (https), "" = show the store logo
 };
 
 const COUPON_SELECT = `

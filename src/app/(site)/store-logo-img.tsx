@@ -36,3 +36,13 @@ export function StoreLogoImg({ slug, name, hasLogo, className }: { slug: string;
     </span>
   );
 }
+
+// A deal's product picture from the network feed; falls back to the store logo if the image fails to load
+export function DealImg({ src, title, slug, name, hasLogo }: { src: string; title: string; slug: string; name: string; hasLogo: boolean }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <StoreLogoImg slug={slug} name={name} hasLogo={hasLogo} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- remote product image from the network's CDN, any host
+    <img src={src} alt={title} className="prod" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+  );
+}

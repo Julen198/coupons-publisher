@@ -13,7 +13,7 @@ import { CommentForm } from "./comment-form";
 import { CommentItem } from "./comment-item";
 import { CopyCode, CopyCodeButton } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
-import { Crumbs, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, crumbsLd, faqLd, isWordBadge, offerLd, priceClass, titleOf } from "../../site-ui";
+import { Crumbs, DealPicture, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, crumbsLd, faqLd, isWordBadge, offerLd, priceClass, titleOf } from "../../site-ui";
 
 async function load(param: string) {
   const id = parseDealId(param);
@@ -257,7 +257,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
                   return (
                     <Link key={o.id} className="rel" href={dealPath(o)}>
                       <span className="ti">
-                        <StoreLogoImg slug={o.store_slug} name={o.store_name} hasLogo={o.store_has_logo} />
+                        <DealPicture c={o} />
                       </span>
                       <span>
                         <b>{t}</b>

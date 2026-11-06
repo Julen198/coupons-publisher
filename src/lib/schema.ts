@@ -251,7 +251,24 @@ ALTER TABLE coupons ADD COLUMN IF NOT EXISTS about text NOT NULL DEFAULT '';
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS about_status text NOT NULL DEFAULT '';
 ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_about_status_check;
 ALTER TABLE coupons ADD CONSTRAINT coupons_about_status_check CHECK (about_status IN ('', 'draft', 'approved'));
+-- product image from a network feed (https only, '' = none), deals readers save, and readers' "ha caducado" reports
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS image_url text NOT NULL DEFAULT '';
+CREATE TABLE IF NOT EXISTS saved_deals (
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, coupon_id)
+);
+ALTER TABLE saved_deals ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS expiry_reports (
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, coupon_id)
+);
+CREATE INDEX IF NOT EXISTS expiry_reports_coupon_idx ON expiry_reports(coupon_id);
+ALTER TABLE expiry_reports ENABLE ROW LEVEL SECURITY;
 `;
 
-// "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks go too); panel users, settings and our own network accounts stay
-export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comment_votes, comments, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;
+// "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals and expiry reports go too); panel users, settings and our own network accounts stay
+export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comment_votes, comments, saved_deals, expiry_reports, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;

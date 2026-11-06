@@ -1,5 +1,5 @@
 import { discountBadge } from "../discount.ts";
-import { getJson, isoDay, required, siteOf, type Credentials, type NetAdvertiser, type NetOffer, type NetworkAdapter } from "./types.ts";
+import { getJson, httpsImage, isoDay, required, siteOf, type Credentials, type NetAdvertiser, type NetOffer, type NetworkAdapter } from "./types.ts";
 
 // impact.com Partner (Mediapartners) API — integrations.impact.com/impact-publisher: Basic auth Account SID + Auth Token,
 // GET /Mediapartners/{SID}/Campaigns (our contracts, with the tracking link), then /Campaigns/{id}/Deals per campaign:
@@ -32,6 +32,15 @@ export interface Deal {
   DiscountPercent?: string;
   DiscountCurrency?: string;
   Uri?: string;
+  Products?: { ProductImageUrl?: string }[];
+  BogoBuyImageUrl?: string;
+  BogoGetImageUrl?: string;
+}
+
+// The deal's product picture: the first product's, or for "buy one get one" deals the free item's (else the bought one's)
+export function imageOf(d: Deal): string {
+  const bogo = /BOGO/i.test(d.Type ?? "") ? httpsImage(d.BogoGetImageUrl) || httpsImage(d.BogoBuyImageUrl) : "";
+  return bogo || httpsImage(d.Products?.[0]?.ProductImageUrl);
 }
 
 const yes = (v: unknown) => v === true || String(v).toLowerCase() === "true";
@@ -61,6 +70,7 @@ export function discountOf(d: Deal): string {
 export function mapDeal(d: Deal, website = ""): NetOffer | null {
   if (d.State && !/^(ACTIVE|PENDING)$/i.test(d.State)) return null; // expired / paused deals
   const code = (d.DefaultPromoCode ?? "").trim();
+  const image = imageOf(d);
   return {
     id: String(d.Id),
     advertiserId: String(d.CampaignId),
@@ -71,6 +81,7 @@ export function mapDeal(d: Deal, website = ""): NetOffer | null {
     description: (d.Description ?? "").trim(),
     url: website,
     expires: isoDay(d.EndDate),
+    ...(image ? { image } : {}),
   };
 }
 

@@ -4,7 +4,7 @@ import { slugify } from "./form.ts";
 import { decryptJson } from "./secrets.ts";
 import { adapterFor } from "./networks/index.ts";
 import { cleanAdvertiserName, matchStore, type StoreRef } from "./networks/match.ts";
-import type { Credentials, NetAdvertiser, NetFeed, NetOffer, NetworkAdapter } from "./networks/types.ts";
+import { httpsImage, type Credentials, type NetAdvertiser, type NetFeed, type NetOffer, type NetworkAdapter } from "./networks/types.ts";
 
 export interface NetworkAccount {
   id: number;
@@ -114,7 +114,7 @@ async function createStore(net: string, adv: NetAdvertiser): Promise<StoreRef | 
 
 const CHUNK = 500;
 
-// New offers come in verified (the network vouches for them); re-syncs refresh the text, code and dates
+// New offers come in verified (the network vouches for them); re-syncs refresh the text, code, dates and product image
 // but leave archived/verified as the team set them.
 async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<string, number>, publisherId: string) {
   // one row per offer: Postgres refuses to upsert the same key twice in one statement (pages can overlap)
@@ -126,6 +126,7 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
       store_id, kind: o.kind, title: o.title.slice(0, 300), code: o.code, discount: o.discount,
       description: o.description.slice(0, 2000), target_url: o.url, expires_at: o.expires,
       verified: 1, source: net, external_id: `${net}:${o.id}`, publisher_id: publisherId,
+      image_url: httpsImage(o.image),
     }];
   });
   let created = 0;
@@ -136,6 +137,7 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
       ON CONFLICT (external_id) DO UPDATE SET
         kind = excluded.kind, title = excluded.title, code = excluded.code, discount = excluded.discount,
         description = excluded.description, target_url = excluded.target_url, expires_at = excluded.expires_at,
+        image_url = excluded.image_url,
         -- a client's own account sends "": it never takes over the publisher id our account set
         publisher_id = CASE WHEN excluded.publisher_id <> '' THEN excluded.publisher_id ELSE coupons.publisher_id END
       RETURNING (xmax = 0) AS inserted`;
