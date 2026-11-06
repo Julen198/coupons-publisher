@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { fillProductImages } from "@/lib/fill-product-images";
 import { sql } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
 import { requireEditor } from "@/lib/auth";
@@ -31,6 +33,7 @@ export async function publishShared(f: FormData) {
     WHERE id = ${id} AND shared_by IS NOT NULL AND review = 'pending'
     RETURNING title, (SELECT handle FROM readers WHERE id = coupons.shared_by) AS handle`;
   if (rows[0]) await logActivity(publishedActivity(rows[0].handle, rows[0].title));
+  if (rows[0]) after(() => fillProductImages([id]));
   refresh();
 }
 
