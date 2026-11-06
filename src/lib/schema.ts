@@ -247,6 +247,11 @@ CREATE INDEX IF NOT EXISTS comment_votes_comment_idx ON comment_votes(comment_id
 ALTER TABLE comment_votes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id int REFERENCES comments(id) ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS comments_parent_idx ON comments(parent_id) WHERE parent_id IS NOT NULL;
+-- "Sobre este chollo": original text per deal, drafted by AI and public only once an editor approves it
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS about text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS about_status text NOT NULL DEFAULT '';
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_about_status_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_about_status_check CHECK (about_status IN ('', 'draft', 'approved'));
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks go too); panel users, settings and our own network accounts stay

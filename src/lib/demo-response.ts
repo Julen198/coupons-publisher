@@ -80,7 +80,7 @@ const SAMPLE_STORE: Store = {
 
 const sample = (id: number, kind: Coupon["kind"], discount: string, title: string, code = ""): Coupon => ({
   id, store_id: -1, kind, title, code, discount, description: "Cupón de ejemplo", target_url: "https://www.example.com",
-  expires_at: "", verified: 1, archived: 0, source: "manual", source_url: "", external_id: null, publisher_id: "", shared_by: null, review: "",
+  expires_at: "", verified: 1, archived: 0, source: "manual", source_url: "", external_id: null, publisher_id: "", shared_by: null, review: "", about: "", about_status: "",
 });
 
 const SAMPLE_COUPONS: Coupon[] = [

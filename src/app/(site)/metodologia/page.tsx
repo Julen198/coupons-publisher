@@ -35,6 +35,10 @@ export default function MethodologyPage() {
       <p>
         Los chollos que comparten los lectores solo se publican después de que un editor los revise.
       </p>
+      <h2>Textos «Sobre este chollo»</h2>
+      <p>
+        Algunos chollos tienen un texto redactado con IA a partir de los datos del propio cupón, y un editor lo revisa antes de publicarlo.
+      </p>
       <h2>Comisiones y orden</h2>
       <p>
         Las comisiones de afiliación no cambian qué cupones mostramos ni en qué orden. Más detalles en el <Link href="/aviso-de-afiliacion">aviso de afiliación</Link>.

@@ -3,6 +3,8 @@ import { btnCls, btnSecondaryCls, cardCls, fmtDateTime, PageHeader } from "@/app
 import { requireEditor } from "@/lib/auth";
 import { io } from "next/cache";
 import { sql } from "@/lib/db";
+import { dealPath } from "@/lib/site-text";
+import { AboutDraftForm, DraftAboutsButton } from "./about-drafts";
 
 type Shared = {
   id: number; title: string; url: string; code: string; discount: string; created_at: Date;
@@ -21,6 +23,16 @@ async function loadShared() {
     ORDER BY c.id DESC`).map((r) => ({ ...r }));
 }
 
+type AboutDraft = { id: number; title: string; about: string; store_name: string };
+
+async function loadAboutDrafts() {
+  return (await sql()<AboutDraft[]>`
+    SELECT c.id, c.title, c.about, s.name AS store_name
+    FROM coupons c JOIN stores s ON s.id = c.store_id
+    WHERE c.about_status = 'draft'
+    ORDER BY c.id DESC`).map((r) => ({ ...r }));
+}
+
 async function loadComments() {
   return (await sql()<CommentRow[]>`
     SELECT k.id, k.parent_id, k.body, k.hidden, k.created_at, r.id AS reader_id, r.handle, r.status, c.title
@@ -31,7 +43,7 @@ async function loadComments() {
 export default async function ModerationPage() {
   await requireEditor();
   await io();
-  const [shared, comments] = await Promise.all([loadShared(), loadComments()]);
+  const [shared, comments, drafts] = await Promise.all([loadShared(), loadComments(), loadAboutDrafts()]);
 
   return (
     <div className="space-y-8">
@@ -64,6 +76,24 @@ export default async function ModerationPage() {
                 <button className={btnSecondaryCls}>Rechazar</button>
               </form>
             </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Textos de chollos</h2>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          La IA escribe un borrador de «Sobre este chollo» con los datos del cupón y de su tienda. Solo se publica cuando lo apruebas.
+        </p>
+        <DraftAboutsButton />
+        {drafts.length === 0 && <p className="text-sm text-neutral-500">No hay borradores pendientes.</p>}
+        {drafts.map((d) => (
+          <div key={d.id} className={`${cardCls} space-y-3`}>
+            <p className="text-sm text-neutral-500">
+              {d.store_name} ·{" "}
+              <a href={dealPath(d)} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-700 underline dark:text-blue-400">{d.title}</a>
+            </p>
+            <AboutDraftForm id={d.id} about={d.about} />
           </div>
         ))}
       </section>

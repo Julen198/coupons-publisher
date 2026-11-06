@@ -7,6 +7,7 @@ import { currentVotes, dealComments, siteClient, siteCoupon, siteCoupons, siteSt
 import { getReader } from "@/lib/reader";
 import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
 import { badgeInSentence, conditionsOf, lowerFirst, mentionsBadge } from "@/lib/deal-text";
+import { aboutParagraphs, aboutSnippet } from "@/lib/deal-about";
 import { daysBetween, dealPath, longDate, madridToday, parseDealId, siteUrl } from "@/lib/site-text";
 import { CommentForm } from "./comment-form";
 import { CommentItem } from "./comment-item";
@@ -28,6 +29,7 @@ export async function generateMetadata({ params }: PageProps<"/chollos/[deal]">)
   return {
     title: `${what}: ${titleOf(c)}`,
     description: [
+      c.about_status === "approved" ? aboutSnippet(c.about) : "",
       `${badge} en ${c.store_name}${c.kind === "code" && c.code ? ` con el código ${c.code}` : ""}.`,
       c.expires_at ? `${live ? "Válido hasta" : "Caducó"} el ${longDate(c.expires_at)}.` : "",
       conditionsOf(c.description, c.title).join(". "),
@@ -86,6 +88,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
     { name: titleOf(c) },
   ];
   const conds = conditionsOf(c.description, c.title);
+  const about = c.about_status === "approved" ? aboutParagraphs(c.about) : [];
   const wordBadge = isWordBadge(c);
 
   const verdictTitle = live
@@ -162,6 +165,17 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             <h2>{verdictTitle}</h2>
             <p>{verdict}</p>
           </section>
+
+          {about.length > 0 && (
+            <section className="dt-sec" data-seo="Texto propio del chollo">
+              <h2>Sobre este chollo</h2>
+              <div className="prose">
+                {about.map((p, i) => (
+                  <p key={i}>{p}</p>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="dt-sec" data-seo="Condiciones claras">
             <h2>Condiciones del cupón</h2>

@@ -20,6 +20,7 @@ const NOTES: Record<PageKind, { title: string; text: string }[]> = {
   deal: [
     { title: "H1 con producto y tienda.", text: "El título del chollo nombra el descuento y la tienda." },
     { title: "Veredicto citable.", text: "Un párrafo corto con descuento, código, vigencia y condiciones." },
+    { title: "Texto propio del chollo.", text: "«Sobre este chollo»: dos párrafos originales redactados con IA a partir de los datos del cupón y revisados por un editor. Solo aparece cuando está aprobado y abre la meta description." },
     { title: "Schema.org.", text: "Offer y BreadcrumbList; FAQPage cuando la tienda tiene preguntas frecuentes. Los pasos de uso son HTML, sin HowTo." },
     { title: "Condiciones claras.", text: "Lista de descuento, validez, estado, condiciones y tienda." },
     { title: "Caducados con su URL.", text: "Un cupón caducado no da 404: sigue en su dirección, marcado como caducado, con enlaces a cupones activos de la tienda." },
