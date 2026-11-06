@@ -5,7 +5,11 @@ import type postgres from "postgres";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { cleanComment, cleanHandle, couponIdOf, flagOf, parseSharedDeal, replyParent, reportLimitReached, validEmail, EXPIRY_REPORT_LIMIT_PER_DAY } from "@/lib/community";
+import { cleanComment, cleanHandle, couponIdOf, parseSharedDeal, replyParent, reportLimitReached, validEmail } from "@/lib/community";
+import {
+  COMMENT_COOLDOWN_MESSAGE, PARENT_GONE_MESSAGE, SHARE_LIMIT_PER_DAY, commentInputError, expiryLimitMessage, REPORT_INACTIVE_MESSAGE, savedRequest,
+  shareLimitMessage, storeIdFor, voteRequest,
+} from "@/lib/community-rules";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
@@ -110,9 +114,9 @@ export async function vote(f: FormData): Promise<void> {
   const next = safeNext(str(f, "next"), "/");
   const reader = await getReader();
   if (!reader) redirect(`/entrar?next=${encodeURIComponent(next)}`);
-  const couponId = couponIdOf(str(f, "coupon_id"));
-  const pressed = str(f, "value") === "1" ? 1 : str(f, "value") === "-1" ? -1 : 0;
-  if (!couponId || !pressed) return;
+  const req = voteRequest(str(f, "coupon_id"), str(f, "value"));
+  if (!req) return;
+  const { couponId, pressed } = req;
   const found = await siteCoupon(couponId);
   if (!found?.live) return;
   // pressing the vote you already gave clears it, otherwise it is set (nextVote): one statement, under the reader's lock
@@ -132,10 +136,10 @@ export async function postComment(_prev: FormState, f: FormData): Promise<FormSt
   if (!reader.handle) redirect("/entrar/nombre");
   const couponId = couponIdOf(str(f, "coupon_id"));
   const found = couponId ? await siteCoupon(couponId) : undefined;
-  if (!found?.live) return { error: "Este chollo ya no admite comentarios" };
   // raw value, not str(): str() trims, and cleanComment owns the trimming
   const body = cleanComment(String(f.get("body") ?? ""));
-  if (!body) return { error: "Escribe entre 2 y 1000 caracteres" };
+  // commentInputError always has a message when the deal is not live or the body is not valid
+  if (!found?.live || !body) return { error: commentInputError(!!found?.live, body)! };
   // a reply points at a visible comment of this same coupon; replying to a reply joins the top-level thread
   const rawParent = str(f, "parent_id");
   let parentId: number | null = null;
@@ -148,7 +152,7 @@ export async function postComment(_prev: FormState, f: FormData): Promise<FormSt
           WHERE k.id = ${target} AND k.coupon_id = ${found.coupon.id} AND k.hidden = 0 AND r.status = 'active'
             AND (k.parent_id IS NULL OR (pk.hidden = 0 AND pr.status = 'active'))`
       : [];
-    if (!row) return { error: "Ese comentario ya no existe" };
+    if (!row) return { error: PARENT_GONE_MESSAGE };
     parentId = replyParent(row.id, row.parent_id);
   }
   const inserted = await asReader("comment", reader.id, (tx) => tx`
@@ -157,7 +161,7 @@ export async function postComment(_prev: FormState, f: FormData): Promise<FormSt
     WHERE NOT EXISTS (
       SELECT 1 FROM comments WHERE reader_id = ${reader.id} AND created_at > now() - ${COMMENT_COOLDOWN_SECONDS} * interval '1 second')
     RETURNING id`);
-  if (!inserted.length) return { error: "Espera unos segundos antes de volver a comentar" };
+  if (!inserted.length) return { error: COMMENT_COOLDOWN_MESSAGE };
   // a reply form is a page of its own (?responder=): go back to the thread, which also closes the form
   if (parentId) redirect(safeNext(str(f, "next"), "/"));
   refresh();
@@ -186,8 +190,6 @@ export async function toggleHelpful(f: FormData): Promise<void> {
   refresh();
 }
 
-const SHARE_LIMIT_PER_DAY = 5;
-
 // Stored hidden (archived + pending) until an editor publishes it
 export async function shareDeal(_prev: FormState, f: FormData): Promise<FormState & { done?: boolean }> {
   const reader = await getReader();
@@ -197,7 +199,7 @@ export async function shareDeal(_prev: FormState, f: FormData): Promise<FormStat
   const parsed = parseSharedDeal((k) => String(f.get(k) ?? ""), new Set(stores.map((s) => s.slug)));
   if (!parsed.ok) return { error: parsed.error };
   const d = parsed.value;
-  const storeId = stores.find((s) => s.slug === d.store)?.id;
+  const storeId = storeIdFor(stores, d.store);
   if (!storeId) return { error: "Elige una tienda de la lista." };
   const inserted = await asReader("share", reader.id, (tx) => tx`
     INSERT INTO coupons (store_id, kind, title, code, discount, description, target_url, expires_at, source, verified, archived, review, shared_by)
@@ -205,7 +207,7 @@ export async function shareDeal(_prev: FormState, f: FormData): Promise<FormStat
            'manual', 0, 1, 'pending', ${reader.id}
     WHERE (SELECT count(*) FROM coupons WHERE shared_by = ${reader.id} AND created_at > now() - interval '24 hours') < ${SHARE_LIMIT_PER_DAY}
     RETURNING id`);
-  if (!inserted.length) return { error: "Has compartido 5 chollos hoy. Vuelve mañana" };
+  if (!inserted.length) return { error: shareLimitMessage };
   return { done: true };
 }
 
@@ -215,9 +217,9 @@ export async function toggleSaved(f: FormData): Promise<void> {
   const back = safeNext(str(f, "back"), "/");
   const reader = await getReader();
   if (!reader) redirect(`/entrar?next=${encodeURIComponent(back)}`);
-  const couponId = couponIdOf(str(f, "coupon_id"));
-  const save = flagOf(str(f, "next"));
-  if (!couponId || save === null) return;
+  const req = savedRequest(str(f, "coupon_id"), str(f, "next"));
+  if (!req) return;
+  const { couponId, save } = req;
   if (save === 0) {
     await sql()`DELETE FROM saved_deals WHERE reader_id = ${reader.id} AND coupon_id = ${couponId}`;
   } else {
@@ -235,7 +237,7 @@ export async function reportExpired(_prev: FormState & { done?: boolean }, f: Fo
   if (!reader) redirect(`/entrar?next=${encodeURIComponent(back)}`);
   const couponId = couponIdOf(str(f, "coupon_id"));
   const found = couponId ? await siteCoupon(couponId) : undefined;
-  if (!found?.live) return { error: "Este chollo ya no está activo" };
+  if (!found?.live) return { error: REPORT_INACTIVE_MESSAGE };
   const limited = await asReader("expiry", reader.id, async (tx) => {
     const [today] = await tx<{ n: number }[]>`
       SELECT count(*)::int AS n FROM expiry_reports WHERE reader_id = ${reader.id} AND at > now() - interval '24 hours'`;
@@ -243,7 +245,7 @@ export async function reportExpired(_prev: FormState & { done?: boolean }, f: Fo
     await tx`INSERT INTO expiry_reports (reader_id, coupon_id) VALUES (${reader.id}, ${found.coupon.id}) ON CONFLICT DO NOTHING`;
     return false;
   });
-  if (limited) return { error: `Ya has avisado de ${EXPIRY_REPORT_LIMIT_PER_DAY} chollos hoy. Vuelve mañana` };
+  if (limited) return { error: expiryLimitMessage };
   refresh();
   return { done: true };
 }
