@@ -76,13 +76,13 @@ export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">
             <span className="thumb" style={{ width: 72, height: 72 }}>
               <StoreLogoImg slug={store.slug} name={store.name} hasLogo={store.has_logo} />
             </span>
-            <h1>{title}</h1>
+            <h1 data-seo="H1 con intención">{title}</h1>
           </div>
           <div className="meta-line">
             <span className="live">Actualizado el {todayWords}</span>
             <span>Por el equipo editorial de CuponLab</span>
           </div>
-          <p className="answer">
+          <p className="answer" data-seo="Respuesta citable (GEO)">
             {coupons.length ? (
               <>
                 Hoy hay <strong>{coupons.length} {coupons.length === 1 ? "cupón activo" : "cupones activos"}</strong> de {store.name}, {codes} con código y {coupons.length - codes} sin código. {verified === 1 ? "1 está comprobado" : `${verified} están comprobados`}.
@@ -130,7 +130,7 @@ export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">
               )}
             </section>
             {otherStores.length > 0 && (
-              <section className="panel">
+              <section className="panel" data-seo="Enlazado interno a tiendas">
                 <h2>Otras tiendas con cupones</h2>
                 <ul className="stores">
                   {otherStores.map((s) => (
@@ -153,7 +153,7 @@ export default async function StorePage({ params }: PageProps<"/tiendas/[slug]">
         <div className="longform">
           <div className="wrap">
             {hasStoreGuide(store) && (
-              <section className="two">
+              <section className="two" data-seo="Texto único por tienda">
                 <div className="section-head">
                   <h2>Lo que conviene saber de {store.name}</h2>
                 </div>

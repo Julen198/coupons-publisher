@@ -46,7 +46,7 @@ export default async function CalendarPage() {
             <span className="live">Actualizado el {todayWords}</span>
           </div>
           {next && (
-            <p className="answer">
+            <p className="answer" data-seo="Respuesta citable (GEO)">
               La próxima fecha de ofertas es <strong>{next.name}</strong>, el {weekday(next.date)} {longDate(next.date)}
               {daysBetween(today, next.date) > 0 ? <> (dentro de {daysBetween(today, next.date)} días)</> : <> (hoy)</>}. El <strong>Black Friday {bfYear}</strong> cae el {longDate(bf)}.
             </p>

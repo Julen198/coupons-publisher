@@ -121,16 +121,16 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
       <JsonLd data={faqLd(faqs)} />
 
       <div className="wrap">
-        <Crumbs items={[{ name: "Inicio", href: "/" }, { name: "Chollos", href: "/" }, { name: pageName }]} />
+        <Crumbs seo="Migas de pan" items={[{ name: "Inicio", href: "/" }, { name: "Chollos", href: "/" }, { name: pageName }]} />
 
         <section className="intro">
-          <h1>{heading}</h1>
+          <h1 data-seo="H1 con intención + fecha">{heading}</h1>
           <div className="meta-line">
             <span className="live">Actualizado a las {time}</span>
             <span>Los cupones caducados salen de la portada al día siguiente</span>
             <span>Por el equipo editorial de CuponLab</span>
           </div>
-          <p className="answer">
+          <p className="answer" data-seo="Respuesta citable (GEO)">
             {scope.length === 0 ? (
               f.q ? <>No hay cupones activos para «{f.q}» ahora mismo.</> : cat ? <>Ahora mismo no hay cupones activos en {cat.label}.</> : <>Ahora mismo no hay cupones activos.</>
             ) : (
@@ -198,7 +198,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
           <aside className="rail">
             {topStores.length > 0 && (
-              <section className="panel">
+              <section className="panel" data-seo="Enlazado interno a tiendas">
                 <h2>Tiendas con más cupones</h2>
                 <ul className="stores">
                   {topStores.map(([id, st]) => (
@@ -215,7 +215,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 <Link href="/tiendas" className="small">Ver las {allStores} tiendas</Link>
               </section>
             )}
-            <section className="panel">
+            <section className="panel" data-seo="Contenido estacional">
               <h2>Calendario de ofertas</h2>
               <ul className="cal">
                 {upcomingEvents(today).map((e) => (
@@ -233,14 +233,14 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
                 ))}
               </ul>
             </section>
-            <p className="small">Algunos enlaces son de afiliado. Si compras, la tienda nos paga una comisión y tu precio no cambia. Las comisiones no influyen en el orden de los chollos.</p>
+            <p className="small" data-seo="Aviso de afiliación">Algunos enlaces son de afiliado. Si compras, la tienda nos paga una comisión y tu precio no cambia. Las comisiones no influyen en el orden de los chollos.</p>
           </aside>
         </div>
       </div>
 
       <div className="longform">
         <div className="wrap">
-          <section className="two">
+          <section className="two" data-seo="Metodología (E-E-A-T)">
             <div className="section-head">
               <h2>Cómo comprobamos cada cupón</h2>
               <p>Un cupón solo sale en CuponLab si se puede usar hoy. Esto es lo que hacemos antes de publicarlo y mientras sigue activo.</p>
@@ -270,7 +270,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
           </section>
 
           {guides.length > 0 && (
-            <section>
+            <section data-seo="Texto único por tienda">
               <div className="section-head" style={{ marginBottom: 14 }}>
                 <h2>Lo que conviene saber antes de usar un código</h2>
               </div>
@@ -297,7 +297,7 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
             <Faqs items={faqs} />
           </section>
 
-          <div className="author">
+          <div className="author" data-seo="Autoría y fecha de revisión">
             <span className="av" aria-hidden="true">CL</span>
             <div>
               <p>

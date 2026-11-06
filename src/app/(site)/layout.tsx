@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { contactEmail, siteUrl } from "@/lib/site-text";
 import { LiveHeader } from "./live-header";
+import { SeoDrawer } from "./seo-panel";
 import { SiteHeader } from "./site-header";
 import "./site.css";
 
@@ -26,6 +27,12 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
       <Suspense fallback={<SiteHeader />}>
         <LiveHeader />
       </Suspense>
+      {/* development only: decided on the server, so production ships neither the markup nor the drawer code */}
+      {process.env.NODE_ENV !== "production" && (
+        <Suspense fallback={null}>
+          <SeoDrawer />
+        </Suspense>
+      )}
       {/* every page reads the database at request time */}
       <div id="contenido">
         <Suspense fallback={<div className="wrap"><p className="crumbs">Cargando chollos…</p></div>}>{children}</Suspense>

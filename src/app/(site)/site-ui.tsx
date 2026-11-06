@@ -26,9 +26,9 @@ export function JsonLd({ data }: { data: unknown }) {
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }} />;
 }
 
-export function Crumbs({ items }: { items: { name: string; href?: string }[] }) {
+export function Crumbs({ items, seo = "BreadcrumbList" }: { items: { name: string; href?: string }[]; seo?: string }) {
   return (
-    <nav className="crumbs" aria-label="Migas de pan">
+    <nav className="crumbs" aria-label="Migas de pan" data-seo={seo}>
       {items.map((it, i) => (
         <span key={i} style={{ display: "contents" }}>
           {i > 0 && <span aria-hidden="true">/</span>}
@@ -160,7 +160,7 @@ export function StoreFacts({ text }: { text: string }) {
 
 export function Faqs({ items }: { items: { q: string; a: string }[] }) {
   return (
-    <div className="faq">
+    <div className="faq" data-seo="FAQPage">
       {items.map((f, i) => (
         <details key={i} open={i === 0}>
           <summary>{f.q}</summary>

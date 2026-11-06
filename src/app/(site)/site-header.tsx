@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CATEGORIES } from "@/lib/catalog";
 import { signOutReader } from "./actions-reader";
+import { SeoToggle } from "./seo-panel";
 
 // undefined = not known yet (the Suspense fallback); null = signed out
 export type HeaderReader = { handle: string | null } | null;
@@ -46,6 +47,7 @@ function Shell({ path, cat, q, reader }: { path: string; cat: string; q: string;
           <input id="q" name="q" type="search" placeholder="Busca una tienda, un producto o un código" defaultValue={q} key={q} autoComplete="off" />
         </form>
         <div className="top-actions">
+          <SeoToggle />
           <Link className="btn btn-primary" href="/compartir">Compartir chollo</Link>
           {reader === null && <Link className="btn" href="/entrar">Entrar</Link>}
           {reader && (

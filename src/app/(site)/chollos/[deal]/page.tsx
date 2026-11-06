@@ -148,7 +148,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
                 </Link>
                 <StatusBadges c={c} today={today} live={live} />
               </div>
-              <h1>{titleOf(c)}</h1>
+              <h1 data-seo="H1: producto + tienda">{titleOf(c)}</h1>
               <div className="dt-meta">
                 <span>{c.expires_at ? <>{live ? "Válido hasta el" : "Caducó el"} <b>{shortDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</span>
                 <span>Publicado el <b>{shortDate(published)}</b></span>
@@ -158,12 +158,12 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             </div>
           </section>
 
-          <section className={`verdict${live ? "" : " meh"}`}>
+          <section className={`verdict${live ? "" : " meh"}`} data-seo="Respuesta citable (GEO)">
             <h2>{verdictTitle}</h2>
             <p>{verdict}</p>
           </section>
 
-          <section className="dt-sec">
+          <section className="dt-sec" data-seo="Condiciones claras">
             <h2>Condiciones del cupón</h2>
             <dl className="kv">
               {conditions.map(([k, v]) => (
@@ -176,7 +176,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
           </section>
 
           {live && (
-            <section className="dt-sec">
+            <section className="dt-sec" data-seo="HowTo: pasos">
               <h2>{hasCode ? `Cómo usar el código ${c.code}` : "Cómo conseguir este descuento"}</h2>
               <ol className="howto">
                 {steps.map((s, i) => (
@@ -189,7 +189,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
           )}
 
           {store?.intro && (
-            <section className="dt-sec">
+            <section className="dt-sec" data-seo="Texto único por tienda">
               <h2>Lo que conviene saber de {c.store_name}</h2>
               <p className="lead">{store.intro}</p>
             </section>
@@ -203,7 +203,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
           )}
 
           {(live || comments.length > 0) && (
-          <section className="dt-sec" id="comentarios">
+          <section className="dt-sec" id="comentarios" data-seo="Contenido de la comunidad">
             <h2>{comments.length === 1 ? "1 comentario" : `${comments.length} comentarios`}</h2>
             <div className="comments">
               {threads.map(({ comment: m, replies }) => {
@@ -229,7 +229,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
           )}
 
           {related.length > 0 && (
-            <section className="dt-sec">
+            <section className="dt-sec" data-seo="Enlazado interno">
               <h2>Chollos parecidos</h2>
               <div className="related">
                 {related.map((o) => {
@@ -282,7 +282,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             {c.verified ? <li><b>Comprobado</b>, de la red de la tienda o revisado por el equipo</li> : null}
             {fact("códigos por pedido") ? <li>Códigos por pedido: <b>{fact("códigos por pedido")}</b></li> : <li>Un código por pedido salvo que la tienda diga otra cosa</li>}
           </ul>
-          <p className="small">Enlace de afiliado: si compras, la tienda nos paga una comisión y tu precio no cambia.</p>
+          <p className="small" data-seo="Aviso de afiliación">Enlace de afiliado: si compras, la tienda nos paga una comisión y tu precio no cambia.</p>
         </aside>
       </div>
 

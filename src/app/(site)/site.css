@@ -19,6 +19,8 @@
   --ok-ink: #13733a; /* badge text: small bold type needs 4.5:1 on its soft background */
   --drop-ink: #b4380a;
   --muted-soft: #eceef3;
+  --seo: #7c3aed;
+  --seo-soft: #f1eafe;
   --f-display: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
   --f-body: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
   --f-mono: var(--font-jetbrains), ui-monospace, Menlo, monospace;
@@ -36,7 +38,7 @@
   --brand: #6d94ff; --brand-ink: #0c1120; --brand-soft: #1c2a55;
   --drop: #fb8a4c; --drop-soft: #3a2116; --ok: #4ade80; --ok-soft: #12301f;
   --ok-ink: #4ade80; --drop-ink: #fb8a4c;
-  --muted-soft: #1a2136;
+  --muted-soft: #1a2136; --seo: #b794ff; --seo-soft: #2a1f47;
 }
 /* the page behind the site (overscroll, short pages) */
 body:has(.cl) { background: #f3f5fa; }
@@ -337,3 +339,21 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .share-form input, .cl .share-form select, .cl .share-form textarea { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: inherit; font-weight: 400; background: var(--surface); color: var(--ink); }
 .cl .share-form .hint { font-weight: 400; font-size: .8rem; color: var(--ink-3); }
 .cl .share-card { max-width: 560px; margin: 32px auto; }
+
+/* SEO/GEO inspector (development only): outlines + labels on [data-seo] while .cl.annotate, and the notes drawer */
+.cl [data-seo] { position: relative; }
+.cl.annotate [data-seo] { outline: 2px dashed var(--seo); outline-offset: 4px; border-radius: 6px; }
+.cl.annotate [data-seo]::after { content: attr(data-seo); position: absolute; top: -12px; right: 8px; z-index: 5; background: var(--seo); color: var(--surface); font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; max-width: calc(100% - 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--f-body); letter-spacing: 0; text-transform: none; pointer-events: none; }
+.cl .btn-seo { border-color: var(--seo); color: var(--seo); background: var(--seo-soft); }
+.cl .btn-seo[aria-pressed="true"] { background: var(--seo); color: var(--surface); }
+.cl .seo-drawer { background: var(--seo-soft); border-bottom: 1px solid var(--seo); }
+.cl .seo-drawer[hidden] { display: none; }
+.cl .seo-drawer .wrap { padding-block: 18px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 24px; }
+@media (max-width: 860px) { .cl .seo-drawer .wrap { grid-template-columns: minmax(0, 1fr); } }
+.cl .seo-drawer h2 { font-size: 1.05rem; color: var(--seo); }
+.cl .seo-list { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: .88rem; color: var(--ink-2); }
+.cl .seo-list b { color: var(--ink); }
+.cl .ld-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-block: 8px; }
+.cl .ld-tabs button { border: 1px solid var(--seo); background: transparent; color: var(--seo); border-radius: 999px; padding: 3px 10px; font-size: .8rem; font-weight: 600; cursor: pointer; }
+.cl .ld-tabs button[aria-selected="true"] { background: var(--seo); color: var(--surface); }
+.cl pre.ld { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-family: var(--f-mono); font-size: .74rem; line-height: 1.5; max-height: 280px; overflow: auto; color: var(--ink-2); white-space: pre; }
