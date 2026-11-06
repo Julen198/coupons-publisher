@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { cleanComment, cleanHandle, couponIdOf, nextVote, parseSharedDeal, replyParent, validEmail, type VoteValue } from "@/lib/community";
+import { cleanComment, cleanHandle, couponIdOf, flagOf, nextVote, parseSharedDeal, replyParent, validEmail, type VoteValue } from "@/lib/community";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
@@ -193,4 +193,23 @@ export async function shareDeal(_prev: FormState, f: FormData): Promise<FormStat
     VALUES (${storeId}, ${d.code ? "code" : "deal"}, ${d.title}, ${d.code}, ${d.discount}, ${d.description}, ${d.url}, ${d.expires_at},
             'manual', 0, 1, 'pending', ${reader.id})`;
   return { done: true };
+}
+
+// "Guardar" / "Guardado". `next` is the state the button asks for (1 save, 0 remove), so a double click can't flip it back.
+// Saving needs a live deal; removing works on any (the account page lists expired saved deals too).
+export async function toggleSaved(f: FormData): Promise<void> {
+  const back = safeNext(str(f, "back"), "/");
+  const reader = await getReader();
+  if (!reader) redirect(`/entrar?next=${encodeURIComponent(back)}`);
+  const couponId = couponIdOf(str(f, "coupon_id"));
+  const save = flagOf(str(f, "next"));
+  if (!couponId || save === null) return;
+  if (save === 0) {
+    await sql()`DELETE FROM saved_deals WHERE reader_id = ${reader.id} AND coupon_id = ${couponId}`;
+  } else {
+    const found = await siteCoupon(couponId);
+    if (!found?.live) return;
+    await sql()`INSERT INTO saved_deals (reader_id, coupon_id) VALUES (${reader.id}, ${couponId}) ON CONFLICT DO NOTHING`;
+  }
+  refresh();
 }

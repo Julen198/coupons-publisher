@@ -86,6 +86,15 @@ export async function currentVotes(): Promise<Map<number, -1 | 1>> {
   return reader ? readerVotes(reader.id) : new Map();
 }
 
+// What the signed-in reader did on one deal (Guardar)
+export async function readerDealMarks(readerId: number | null, couponId: number): Promise<{ saved: boolean }> {
+  if (!readerId) return { saved: false };
+  await io();
+  const [row] = await sql()<{ saved: boolean }[]>`
+    SELECT EXISTS (SELECT 1 FROM saved_deals WHERE reader_id = ${readerId} AND coupon_id = ${couponId}) AS saved`;
+  return { saved: !!row?.saved };
+}
+
 export async function siteStore(slug: string): Promise<Store | undefined> {
   await io();
   const [row] = await sql()<Store[]>`

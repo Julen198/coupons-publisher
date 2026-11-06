@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, factsOf } from "@/lib/catalog";
-import { currentVotes, dealComments, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
+import { currentVotes, dealComments, readerDealMarks, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
 import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
 import { badgeInSentence, conditionsOf, lowerFirst, mentionsBadge } from "@/lib/deal-text";
@@ -11,6 +11,7 @@ import { aboutParagraphs, aboutSnippet } from "@/lib/deal-about";
 import { daysBetween, dealPath, longDate, madridToday, parseDealId, shortDate, siteUrl } from "@/lib/site-text";
 import { CommentForm } from "./comment-form";
 import { CommentItem } from "./comment-item";
+import { DealActions } from "./deal-actions";
 import { CopyCode, CopyCodeButton } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
 import { Crumbs, DealPicture, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, crumbsLd, faqLd, isWordBadge, offerLd, priceClass, titleOf } from "../../site-ui";
@@ -51,12 +52,13 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
   if (`/chollos/${param}` !== dealPath(c)) permanentRedirect(dealPath(c));
 
   const reader = await getReader();
-  const [client, store, all, mine, comments] = await Promise.all([
+  const [client, store, all, mine, comments, marks] = await Promise.all([
     siteClient(),
     siteStoreById(c.store_id),
     siteCoupons(),
     currentVotes(),
     dealComments(c.id, reader?.id ?? null),
+    readerDealMarks(reader?.id ?? null, c.id),
   ]);
   const replyingTo = couponIdOf(String((await searchParams).responder ?? ""));
   const threads = threadComments(comments);
@@ -288,6 +290,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             <>
               {hasCode && <CopyCode code={c.code} />}
               <GoButton client={client} c={c} />
+              <DealActions couponId={c.id} back={dealPath(c)} saved={marks.saved} />
             </>
           ) : (
             <Link className="btn" href={`/tiendas/${c.store_slug}`}>

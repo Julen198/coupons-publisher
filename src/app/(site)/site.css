@@ -274,6 +274,12 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .rel:hover { border-color: var(--brand); }
 .cl .rel .ti { width: 56px; height: 56px; background: #fff; border: 1px solid var(--line); border-radius: 4px; display: grid; place-items: center; overflow: hidden; }
 .cl .rel .ti img { width: 64%; height: 64%; object-fit: contain; }
+/* deal page buy box: Guardar and Marcar como caducado, two equal buttons side by side */
+.cl .dt-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cl .dt-actions form { display: contents; }
+.cl .dt-actions .btn { flex: 1 1 0; min-width: 0; white-space: normal; }
+.cl .dt-actions .btn[aria-pressed="true"] { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); }
+.cl .dt-actions .auth-error { flex-basis: 100%; margin: 0; }
 /* a product picture fills its tile (store logos stay small inside it) */
 .cl .thumb img.prod, .cl .dt-img img.prod, .cl .rel .ti img.prod { width: 100%; height: 100%; object-fit: contain; }
 .cl .rel .ti .initial { font-family: var(--f-display); font-weight: 800; font-size: 1.2rem; color: #141a2b; }
