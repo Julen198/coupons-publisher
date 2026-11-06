@@ -209,7 +209,60 @@ ALTER TABLE network_accounts ADD CONSTRAINT network_accounts_network_check
 -- Telegram: '' = not sent yet, review = in the admin's chat, published / discarded / expired in the public channel
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS telegram_status text NOT NULL DEFAULT '';
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS telegram_message_id bigint;
+-- readers (email sign-in, no password), their votes and comments on coupons, and coupons they share
+CREATE TABLE IF NOT EXISTS readers (
+  id serial PRIMARY KEY,
+  email text NOT NULL UNIQUE,
+  handle text UNIQUE,
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blocked')),
+  session_version int NOT NULL DEFAULT 1,
+  login_token_hash text UNIQUE,
+  login_expires_at timestamptz,
+  link_sent_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE readers ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS votes (
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  value smallint NOT NULL CHECK (value IN (-1, 1)),
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, coupon_id)
+);
+CREATE INDEX IF NOT EXISTS votes_coupon_idx ON votes(coupon_id);
+ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS comments (
+  id serial PRIMARY KEY,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  body text NOT NULL,
+  hidden smallint NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS comments_coupon_idx ON comments(coupon_id, created_at);
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+-- who shared a coupon, and its moderation state ('' = normal)
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS shared_by int REFERENCES readers(id) ON DELETE SET NULL;
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS review text NOT NULL DEFAULT '';
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_review_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_review_check CHECK (review IN ('', 'pending', 'rejected'));
+-- readers mark comments as useful; replies point at their top-level comment (one level deep)
+CREATE TABLE IF NOT EXISTS comment_votes (
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  comment_id int NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, comment_id)
+);
+CREATE INDEX IF NOT EXISTS comment_votes_comment_idx ON comment_votes(comment_id);
+ALTER TABLE comment_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id int REFERENCES comments(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS comments_parent_idx ON comments(parent_id) WHERE parent_id IS NOT NULL;
+-- "Sobre este chollo": original text per deal, drafted by AI and public only once an editor approves it
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS about text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS about_status text NOT NULL DEFAULT '';
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_about_status_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_about_status_check CHECK (about_status IN ('', 'draft', 'approved'));
 `;
 
-// "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay
-export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;
+// "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks go too); panel users, settings and our own network accounts stay
+export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comment_votes, comments, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;

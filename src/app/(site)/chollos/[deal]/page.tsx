@@ -3,11 +3,17 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, factsOf } from "@/lib/catalog";
-import { siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
-import { daysBetween, dealPath, longDate, madridToday, parseDealId, siteUrl } from "@/lib/site-text";
-import { CopyCode } from "../../copy-code";
+import { currentVotes, dealComments, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
+import { getReader } from "@/lib/reader";
+import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
+import { badgeInSentence, conditionsOf, lowerFirst, mentionsBadge } from "@/lib/deal-text";
+import { aboutParagraphs, aboutSnippet } from "@/lib/deal-about";
+import { daysBetween, dealPath, longDate, madridToday, parseDealId, shortDate, siteUrl } from "@/lib/site-text";
+import { CommentForm } from "./comment-form";
+import { CommentItem } from "./comment-item";
+import { CopyCode, CopyCodeButton } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
-import { Crumbs, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, conditionsOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
+import { Crumbs, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, crumbsLd, faqLd, isWordBadge, offerLd, priceClass, titleOf } from "../../site-ui";
 
 async function load(param: string) {
   const id = parseDealId(param);
@@ -21,21 +27,22 @@ export async function generateMetadata({ params }: PageProps<"/chollos/[deal]">)
   const badge = badgeOf(c);
   const what = c.kind === "code" ? `Código descuento ${c.store_name}` : `Oferta ${c.store_name}`;
   return {
-    title: `${what}: ${c.title}`,
+    title: `${what}: ${titleOf(c)}`,
     description: [
+      c.about_status === "approved" ? aboutSnippet(c.about) : "",
       `${badge} en ${c.store_name}${c.kind === "code" && c.code ? ` con el código ${c.code}` : ""}.`,
       c.expires_at ? `${live ? "Válido hasta" : "Caducó"} el ${longDate(c.expires_at)}.` : "",
-      c.description,
+      conditionsOf(c.description, c.title).join(". "),
     ]
       .filter(Boolean)
       .join(" ")
       .slice(0, 300),
     alternates: { canonical: dealPath(c) },
-    openGraph: { title: `${what}: ${c.title}`, url: dealPath(c) },
+    openGraph: { title: `${what}: ${titleOf(c)}`, url: dealPath(c) },
   };
 }
 
-export default async function DealPage({ params }: PageProps<"/chollos/[deal]">) {
+export default async function DealPage({ params, searchParams }: PageProps<"/chollos/[deal]">) {
   const param = (await params).deal;
   const found = await load(param);
   if (!found) notFound();
@@ -43,7 +50,17 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
   // old or mistyped words after the id: send readers and crawlers to the one canonical URL
   if (`/chollos/${param}` !== dealPath(c)) permanentRedirect(dealPath(c));
 
-  const [client, store, all] = await Promise.all([siteClient(), siteStoreById(c.store_id), siteCoupons()]);
+  const reader = await getReader();
+  const [client, store, all, mine, comments] = await Promise.all([
+    siteClient(),
+    siteStoreById(c.store_id),
+    siteCoupons(),
+    currentVotes(),
+    dealComments(c.id, reader?.id ?? null),
+  ]);
+  const replyingTo = couponIdOf(String((await searchParams).responder ?? ""));
+  const threads = threadComments(comments);
+  const now = new Date();
   const { iso: today } = madridToday();
   const base = siteUrl();
   const badge = badgeOf(c);
@@ -68,20 +85,22 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
     { name: "Inicio", href: "/" },
     { name: "Chollos", href: "/" },
     cat ? { name: cat.label, href: `/?cat=${cat.slug}` } : { name: c.store_name, href: `/tiendas/${c.store_slug}` },
-    { name: c.title },
+    { name: titleOf(c) },
   ];
-  const conds = conditionsOf(c.description);
+  const conds = conditionsOf(c.description, c.title);
+  const about = c.about_status === "approved" ? aboutParagraphs(c.about) : [];
+  const wordBadge = isWordBadge(c);
 
   const verdictTitle = live
     ? `¿Merece la pena? ${c.verified ? "Sí, está comprobado y activo." : "Sí, está activo."}`
     : "Este cupón ya no funciona";
   const verdict = live
-    ? `${hasCode ? `Con el código ${c.code}` : "Sin código"} tienes ${badge.toLowerCase() === "oferta" ? "esta oferta" : badge} en ${c.store_name}. ${
+    ? `${hasCode ? `Con el código ${c.code}` : "Sin código"} tienes ${wordBadge ? (hasCode ? "este descuento" : "esta oferta") : badgeInSentence(badge)} en ${c.store_name}. ${
         c.expires_at
-          ? `Es válido hasta el ${longDate(c.expires_at)}${left !== null && left <= 7 ? `: ${left <= 0 ? "caduca hoy" : left === 1 ? "caduca mañana" : `quedan ${left} días`}` : ""}.`
+          ? `Es válido hasta el ${longDate(c.expires_at)}${left !== null && left <= 7 ? `, ${left <= 0 ? "caduca hoy" : left === 1 ? "caduca mañana" : `quedan ${left} días`}` : ""}.`
           : "No tiene fecha de caducidad anunciada."
-      } ${c.verified ? "Lo ha comprobado una persona del equipo de CuponLab." : "Viene de la red de afiliación de la tienda con sus condiciones oficiales."}${
-        conds.length ? ` Ojo a las condiciones: ${conds.join(", ").toLowerCase()}.` : ""
+      } ${c.verified ? "Está marcado como comprobado porque viene de la red de afiliación de la tienda o lo ha revisado una persona del equipo." : "Todavía no lo ha comprobado nadie."}${
+        conds.length ? ` Antes de usarlo, revisa las condiciones (${conds.map(lowerFirst).join(", ")}).` : ""
       }`
     : `Este cupón de ${c.store_name} caducó el ${longDate(c.expires_at)}.${fromStore ? ` Abajo tienes cupones de ${c.store_name} que siguen activos.` : ""}`;
 
@@ -99,9 +118,10 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
       ];
 
   const conditions: [string, string][] = [
-    ["Descuento", `${badge}${hasCode ? ` con el código ${c.code}` : ", sin código"}`],
-    ["Válido hasta", c.expires_at ? `${longDate(c.expires_at)} o hasta agotar existencias` : "Sin fecha de caducidad anunciada"],
-    ["Estado", live ? (c.verified ? "Activo, comprobado por el equipo" : "Activo") : "Caducado"],
+    ["Descuento", wordBadge ? (hasCode ? `Con el código ${c.code}` : "Oferta sin código") : `${badge}${hasCode ? ` con el código ${c.code}` : ", sin código"}`],
+    // stock only limits deals; a code lasts until its date
+    ["Válido hasta", c.expires_at ? `${longDate(c.expires_at)}${hasCode ? "" : " o hasta agotar existencias"}` : "Sin fecha de caducidad anunciada"],
+    ["Estado", live ? (c.verified ? "Activo y comprobado" : "Activo") : "Caducado"],
     ["Condiciones", conds.length ? conds.join(" · ") : "Las generales de la tienda"],
     ["Tienda", c.store_website.replace(/^https?:\/\//, "").replace(/\/$/, "")],
     ["Publicado", longDate(published)],
@@ -131,21 +151,38 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
                 </Link>
                 <StatusBadges c={c} today={today} live={live} />
               </div>
-              <h1>{c.title}</h1>
+              <h1 data-seo="H1: producto + tienda">{titleOf(c)}</h1>
+              {/* as in the prototype: who and when, until when, how many comments */}
               <div className="dt-meta">
-                <span>{c.expires_at ? <>{live ? "Válido hasta el" : "Caducó el"} <b>{longDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</span>
-                <span>Publicado el <b>{longDate(published)}</b></span>
+                {c.shared_by_handle ? (
+                  <span>Compartido por <b>@{c.shared_by_handle}</b> {timeAgo(new Date(c.created_at), now)}</span>
+                ) : (
+                  <span>Publicado el <b>{shortDate(published)}</b></span>
+                )}
+                <span>{c.expires_at ? <>{live ? "Válido hasta el" : "Caducó el"} <b>{shortDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</span>
+                <span><b>{comments.length}</b> {comments.length === 1 ? "comentario" : "comentarios"}</span>
                 {hasCode && <span>Código <b>{c.code}</b></span>}
               </div>
             </div>
           </section>
 
-          <section className={`verdict${live ? "" : " meh"}`}>
+          <section className={`verdict${live ? "" : " meh"}`} data-seo="Respuesta citable (GEO)">
             <h2>{verdictTitle}</h2>
             <p>{verdict}</p>
           </section>
 
-          <section className="dt-sec">
+          {about.length > 0 && (
+            <section className="dt-sec" data-seo="Texto propio del chollo">
+              <h2>Sobre este chollo</h2>
+              <div className="prose">
+                {about.map((p, i) => (
+                  <p key={i}>{p}</p>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="dt-sec" data-seo="Condiciones claras">
             <h2>Condiciones del cupón</h2>
             <dl className="kv">
               {conditions.map(([k, v]) => (
@@ -158,7 +195,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
           </section>
 
           {live && (
-            <section className="dt-sec">
+            <section className="dt-sec" data-seo="HowTo: pasos">
               <h2>{hasCode ? `Cómo usar el código ${c.code}` : "Cómo conseguir este descuento"}</h2>
               <ol className="howto">
                 {steps.map((s, i) => (
@@ -171,7 +208,7 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
           )}
 
           {store?.intro && (
-            <section className="dt-sec">
+            <section className="dt-sec" data-seo="Texto único por tienda">
               <h2>Lo que conviene saber de {c.store_name}</h2>
               <p className="lead">{store.intro}</p>
             </section>
@@ -180,25 +217,58 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
           {storeFaqs.length > 0 && (
             <section className="dt-sec">
               <h2>Preguntas sobre los descuentos de {c.store_name}</h2>
-              <Faqs items={storeFaqs} />
+              <Faqs items={storeFaqs} seo="FAQPage de la tienda" />
             </section>
           )}
 
+          {(live || comments.length > 0) && (
+          <section className="dt-sec" id="comentarios" data-seo="Contenido de la comunidad">
+            <h2>{comments.length === 1 ? "1 comentario" : `${comments.length} comentarios`}</h2>
+            <div className="comments">
+              {threads.map(({ comment: m, replies }) => {
+                const item = (x: typeof m) => (
+                  <CommentItem key={x.id} m={x} now={now} path={dealPath(c)} couponId={c.id} live={live} viewer={reader} replying={replyingTo === x.id} />
+                );
+                return [item(m), ...replies.map(item)];
+              })}
+              {live &&
+                (!reader ? (
+                  <div className="cm-form">
+                    <Link href={`/entrar?next=${encodeURIComponent(`${dealPath(c)}#comentarios`)}`}>Entra para comentar</Link>
+                  </div>
+                ) : !reader.handle ? (
+                  <div className="cm-form">
+                    <Link href={`/entrar/nombre?next=${encodeURIComponent(dealPath(c))}`}>Elige un nombre de usuario para comentar</Link>
+                  </div>
+                ) : (
+                  <CommentForm couponId={c.id} />
+                ))}
+            </div>
+          </section>
+          )}
+
           {related.length > 0 && (
-            <section className="dt-sec">
+            <section className="dt-sec" data-seo="Enlazado interno">
               <h2>Chollos parecidos</h2>
               <div className="related">
-                {related.map((o) => (
-                  <Link key={o.id} className="rel" href={dealPath(o)}>
-                    <span className="ti">
-                      <StoreLogoImg slug={o.store_slug} name={o.store_name} hasLogo={o.store_has_logo} />
-                    </span>
-                    <span>
-                      <b>{o.title}</b>
-                      <span>{badgeOf(o)}</span>
-                    </span>
-                  </Link>
-                ))}
+                {related.map((o) => {
+                  const t = titleOf(o);
+                  const b = badgeOf(o);
+                  return (
+                    <Link key={o.id} className="rel" href={dealPath(o)}>
+                      <span className="ti">
+                        <StoreLogoImg slug={o.store_slug} name={o.store_name} hasLogo={o.store_has_logo} />
+                      </span>
+                      <span>
+                        <b>{t}</b>
+                        <span>
+                          {o.store_name}
+                          {!isWordBadge(o) && !mentionsBadge(t, b) && <> · <em>{b}</em></>}
+                        </span>
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
               {fromStore > 0 && <Link href={`/tiendas/${c.store_slug}`}>Ver todos los cupones de {c.store_name}</Link>}
             </section>
@@ -207,11 +277,11 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
 
         <aside className="buybox" aria-label="Usar el cupón">
           <div className="vote-row">
-            <VoteColumn />
+            <VoteColumn couponId={c.id} score={c.score} mine={mine.get(c.id) ?? 0} next={dealPath(c)} readOnly={!live} />
             <span className="small">votos de la comunidad</span>
           </div>
           <div className="prices">
-            <span className="price-now">{badge}</span>
+            <span className={priceClass(c)}>{badge}</span>
             <span className="price-kind">en {c.store_name}</span>
           </div>
           {live ? (
@@ -227,18 +297,19 @@ export default async function DealPage({ params }: PageProps<"/chollos/[deal]">)
           <ul className="facts">
             {fact("envío") && <li>Envío: <b>{fact("envío")}</b></li>}
             {fact("devoluciones") && <li>Devoluciones: <b>{fact("devoluciones")}</b></li>}
-            <li>{c.expires_at ? <>{live ? "Caduca" : "Caducó"} el <b>{longDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</li>
-            {c.verified ? <li><b>Comprobado</b> por el equipo de CuponLab</li> : null}
+            <li>{c.expires_at ? <>{live ? "Caduca" : "Caducó"} el <b>{shortDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</li>
+            {c.verified ? <li><b>Comprobado</b>, de la red de la tienda o revisado por el equipo</li> : null}
             {fact("códigos por pedido") ? <li>Códigos por pedido: <b>{fact("códigos por pedido")}</b></li> : <li>Un código por pedido salvo que la tienda diga otra cosa</li>}
           </ul>
-          <p className="small">Enlace de afiliado: si compras, la tienda nos paga una comisión y tu precio no cambia.</p>
+          <p className="small" data-seo="Aviso de afiliación">Enlace de afiliado: si compras, la tienda nos paga una comisión y tu precio no cambia.</p>
         </aside>
       </div>
 
       {live && (
         <div className="mbar">
-          {hasCode ? <CopyCode code={c.code} /> : <span className="price-now">{badge}</span>}
-          <GoButton client={client} c={c} label="Ir a la tienda" />
+          <span className={priceClass(c)}>{badge}</span>
+          {hasCode && <CopyCodeButton code={c.code} />}
+          <GoButton client={client} c={c} />
         </div>
       )}
     </main>

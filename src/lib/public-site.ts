@@ -3,7 +3,10 @@ import { sql, type Client, type Coupon, type Store } from "./db";
 import { isPublic, statusOf } from "./coupon-status.ts";
 import { publishUnverified } from "./settings.ts";
 import { couponAffiliateUrl } from "./render-page.ts";
+import { getReader } from "./reader";
 import { madridToday } from "./site-text.ts";
+import { dedupeDeals } from "./deal-text.ts";
+import { isSpanishMarket } from "./market.ts";
 import type { CategorySlug } from "./catalog.ts";
 
 // A coupon with what the public site needs from its store
@@ -18,17 +21,31 @@ export type SiteCoupon = Coupon & {
   store_merchant_id: string;
   store_tracking_url: string;
   store_publisher_id: string;
+  score: number;
+  comments: number;
+  shared_by_handle: string | null;
 };
 
 const COUPON_SELECT = `
   SELECT c.*, s.name AS store_name, s.slug AS store_slug, s.logo_data <> '' AS store_has_logo, s.category AS store_category, s.website AS store_website,
          s.network AS store_network, s.merchant_id AS store_merchant_id, s.tracking_url AS store_tracking_url,
-         coalesce(s.publisher_id, '') AS store_publisher_id
-  FROM coupons c JOIN stores s ON s.id = c.store_id`;
+         coalesce(s.publisher_id, '') AS store_publisher_id,
+         coalesce(v.score, 0)::int AS score, coalesce(cm.n, 0)::int AS comments,
+         CASE WHEN sb.status = 'active' THEN sb.handle END AS shared_by_handle
+  FROM coupons c JOIN stores s ON s.id = c.store_id
+  LEFT JOIN (SELECT vt.coupon_id, sum(vt.value) AS score FROM votes vt JOIN readers vr ON vr.id = vt.reader_id WHERE vr.status = 'active' GROUP BY vt.coupon_id) v ON v.coupon_id = c.id
+  LEFT JOIN (
+    SELECT k.coupon_id, count(*) AS n FROM comments k JOIN readers r ON r.id = k.reader_id
+    LEFT JOIN comments pk ON pk.id = k.parent_id LEFT JOIN readers pr ON pr.id = pk.reader_id
+    WHERE k.hidden = 0 AND r.status = 'active' AND (k.parent_id IS NULL OR (pk.hidden = 0 AND pr.status = 'active'))
+    GROUP BY k.coupon_id
+  ) cm ON cm.coupon_id = c.id
+  LEFT JOIN readers sb ON sb.id = c.shared_by`;
 
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
-// Every live coupon readers may see (same rule as clients' pages), newest first
+// Every live coupon readers may see (same rule as clients' pages), newest first. Stores of other European
+// markets stay out (the site is Spanish), and a deal listed twice by its store shows once.
 export async function siteCoupons(): Promise<SiteCoupon[]> {
   await io();
   const [rows, unverified] = await Promise.all([
@@ -36,7 +53,7 @@ export async function siteCoupons(): Promise<SiteCoupon[]> {
     publishUnverified(),
   ]);
   const t = madridToday().iso;
-  return plain(rows).filter((c) => isPublic(c, t, unverified));
+  return dedupeDeals(plain(rows).filter((c) => isPublic(c, t, unverified) && isSpanishMarket(c.store_website)));
 }
 
 // One coupon for its own page: live ones, and expired ones too (shown as expired so the URL keeps working)
@@ -46,7 +63,7 @@ export async function siteCoupon(id: number): Promise<{ coupon: SiteCoupon; live
     sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.id = ${id}`,
     publishUnverified(),
   ]);
-  if (!row) return undefined;
+  if (!row || !isSpanishMarket(row.store_website)) return undefined;
   const coupon = { ...row };
   const t = madridToday().iso;
   if (isPublic(coupon, t, unverified)) return { coupon, live: true };
@@ -55,12 +72,25 @@ export async function siteCoupon(id: number): Promise<{ coupon: SiteCoupon; live
   return wasPublic ? { coupon, live: false } : undefined;
 }
 
+// What a reader has voted, by coupon id
+export async function readerVotes(readerId: number): Promise<Map<number, -1 | 1>> {
+  await io();
+  const rows = await sql()<{ coupon_id: number; value: number }[]>`SELECT coupon_id, value FROM votes WHERE reader_id = ${readerId}`;
+  return new Map(rows.map((r) => [r.coupon_id, r.value === 1 ? 1 : -1]));
+}
+
+// The signed-in reader's votes, or none. One query per request.
+export async function currentVotes(): Promise<Map<number, -1 | 1>> {
+  const reader = await getReader();
+  return reader ? readerVotes(reader.id) : new Map();
+}
+
 export async function siteStore(slug: string): Promise<Store | undefined> {
   await io();
   const [row] = await sql()<Store[]>`
     SELECT id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo
     FROM stores WHERE slug = ${slug}`;
-  return row ? { ...row } : undefined;
+  return row && isSpanishMarket(row.website) ? { ...row } : undefined;
 }
 
 export async function siteStoreById(id: number): Promise<Pick<Store, "intro" | "faqs" | "category" | "facts"> | undefined> {
@@ -94,4 +124,34 @@ export function goHref(client: Client | undefined, c: SiteCoupon): string {
   const ours = { clickref_prefix: SITE_CLIENT_SLUG, awin_affiliate_id: "" } as Client;
   const store = { slug: c.store_slug, network: c.store_network, merchant_id: c.store_merchant_id, tracking_url: c.store_tracking_url, publisher_id: c.store_publisher_id };
   return couponAffiliateUrl(ours, store, c);
+}
+
+export type DealComment = {
+  id: number; parent_id: number | null; reader_id: number; handle: string; body: string; created_at: Date; by_sharer: boolean;
+  helpful: number; mine: boolean;
+};
+
+// Visible comments and replies by active readers (a reply goes when its parent is hidden), oldest first;
+// `mine` says whether the signed-in reader marked it as useful
+export async function dealComments(couponId: number, readerId: number | null): Promise<DealComment[]> {
+  await io();
+  const rows = await sql()<DealComment[]>`
+    SELECT k.id, k.parent_id, k.reader_id, r.handle, k.body, k.created_at, (c.shared_by IS NOT NULL AND c.shared_by = k.reader_id) AS by_sharer,
+           (SELECT count(*) FROM comment_votes cv JOIN readers vr ON vr.id = cv.reader_id AND vr.status = 'active' WHERE cv.comment_id = k.id)::int AS helpful,
+           EXISTS (SELECT 1 FROM comment_votes cv WHERE cv.comment_id = k.id AND cv.reader_id = ${readerId}) AS mine
+    FROM comments k
+    JOIN readers r ON r.id = k.reader_id AND r.status = 'active' AND r.handle IS NOT NULL
+    JOIN coupons c ON c.id = k.coupon_id
+    LEFT JOIN comments pk ON pk.id = k.parent_id
+    LEFT JOIN readers pr ON pr.id = pk.reader_id
+    WHERE k.coupon_id = ${couponId} AND k.hidden = 0 AND (k.parent_id IS NULL OR (pk.hidden = 0 AND pr.status = 'active'))
+    ORDER BY k.created_at, k.id LIMIT 200`;
+  return plain(rows);
+}
+
+// Every store of the Spanish market, for the "share a deal" picker
+export async function siteStoreOptions(): Promise<{ slug: string; name: string }[]> {
+  await io();
+  const rows = await sql()<{ slug: string; name: string; website: string }[]>`SELECT slug, name, website FROM stores ORDER BY lower(name)`;
+  return rows.filter((r) => isSpanishMarket(r.website)).map((r) => ({ slug: r.slug, name: r.name }));
 }

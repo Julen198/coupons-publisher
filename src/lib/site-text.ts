@@ -1,7 +1,7 @@
 // Pure helpers for the public deals site (no DB), so they can be unit-tested.
 import { discountBadge } from "./discount.ts";
 
-const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+export const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
 // Our public origin for canonical URLs, JSON-LD and the sitemap
 export function siteUrl(): string {
@@ -9,6 +9,12 @@ export function siteUrl(): string {
   if (own) return own;
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
   return vercel ? `https://${vercel}` : "http://localhost:3000";
+}
+
+// The public contact address (SITE_CONTACT_EMAIL); "" when unset or not an email, so nothing made up is ever shown
+export function contactEmail(raw = process.env.SITE_CONTACT_EMAIL): string {
+  const email = (raw ?? "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
 }
 
 // "Código 15% en 43einhalb" → "codigo-15-en-43einhalb"
@@ -42,6 +48,19 @@ export function longDate(iso: string): string {
   return `${d} de ${MONTHS[m - 1]} de ${y}`;
 }
 
+const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
+export const monthShort = (month: number) => MONTHS_SHORT[month - 1] ?? "";
+
+// "2026-11-09" → "9 nov", the short form cards and the deal page use
+export function shortDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return `${d} ${monthShort(m)}`;
+}
+
+// The toast after copying a code
+export const copiedMessage = (code: string) => `Código ${code} copiado. Pégalo en el carrito.`;
+
 // Today in Spain as "YYYY-MM-DD" and as words, whatever the server's timezone
 export function madridToday(now = new Date()): { iso: string; words: string } {
   const iso = now.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
@@ -52,6 +71,13 @@ export function madridToday(now = new Date()): { iso: string; words: string } {
 export function percentOf(discount: string): number {
   const m = discountBadge(discount).match(/(\d+(?:[.,]\d+)?)\s?%/);
   return m ? Number(m[1].replace(",", ".")) : 0;
+}
+
+// "Mayor ahorro" ranking: "Hasta 90 %" is an upper bound, so it counts for less than a flat figure
+const UP_TO_WEIGHT = 0.6;
+export function savingOf(discount: string): number {
+  const p = percentOf(discount);
+  return /^hasta\b/i.test(discountBadge(discount)) ? p * UP_TO_WEIGHT : p;
 }
 
 // Shopping dates readers plan around. Black Friday = the day after the fourth Thursday of November.

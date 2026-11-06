@@ -1,23 +1,21 @@
 import Link from "next/link";
 import type { Client } from "@/lib/db";
 import { factsOf } from "@/lib/catalog";
-import { discountBadge } from "@/lib/discount";
+import { badgeLabel } from "@/lib/discount";
+import { conditionsOf, displayTitle } from "@/lib/deal-text";
 import { goHref, type SiteCoupon } from "@/lib/public-site";
-import { daysBetween, dealPath, longDate } from "@/lib/site-text";
+import { timeAgo } from "@/lib/community";
+import { daysBetween, dealPath, shortDate } from "@/lib/site-text";
+import { vote } from "./actions-reader";
 import { CopyCode } from "./copy-code";
 import { StoreLogoImg } from "./store-logo-img";
 
-export const badgeOf = (c: Pick<SiteCoupon, "discount" | "kind">) => discountBadge(c.discount) || (c.kind === "code" ? "Código" : "Oferta");
-
-// "No válido en lanzamientos. Pedido mínimo 50 €." → ["No válido en lanzamientos", "Pedido mínimo 50 €"]
-export const conditionsOf = (description: string) =>
-  description
-    .split(/(?<=[.;])\s+|\n+/)
-    .map((s) => s.trim().replace(/[.;]$/, ""))
-    .filter(Boolean);
-
-const madridDate = (d: Date) => new Date(d).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
-const shortDate = (iso: string) => longDate(iso).replace(/ de \d{4}$/, "");
+export const badgeOf = (c: Pick<SiteCoupon, "discount" | "kind">) => badgeLabel(c.discount) || (c.kind === "code" ? "Código" : "Oferta");
+// No figure to show: the badge is just the word "Oferta" or "Código", set as small text instead of a big price
+export const isWordBadge = (c: Pick<SiteCoupon, "discount">) => !badgeLabel(c.discount);
+export const priceClass = (c: Pick<SiteCoupon, "discount">) => (isWordBadge(c) ? "price-now is-word" : "price-now");
+// The title readers see, next to its store
+export const titleOf = (c: Pick<SiteCoupon, "title" | "store_name">) => displayTitle(c.title, c.store_name);
 
 // Structured data for search engines and AI answers
 export function JsonLd({ data }: { data: unknown }) {
@@ -25,9 +23,9 @@ export function JsonLd({ data }: { data: unknown }) {
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }} />;
 }
 
-export function Crumbs({ items }: { items: { name: string; href?: string }[] }) {
+export function Crumbs({ items, seo = "BreadcrumbList" }: { items: { name: string; href?: string }[]; seo?: string }) {
   return (
-    <nav className="crumbs" aria-label="Migas de pan">
+    <nav className="crumbs" aria-label="Migas de pan" data-seo={seo}>
       {items.map((it, i) => (
         <span key={i} style={{ display: "contents" }}>
           {i > 0 && <span aria-hidden="true">/</span>}
@@ -71,28 +69,33 @@ export function StoreThumb({ c, className = "thumb", href }: { c: SiteCoupon; cl
   );
 }
 
-// Vote column from the prototype. ponytail: no reader accounts yet, so it shows the real score (0) and the
-// buttons stay disabled; wire them to votes once readers can sign in (plan 3 in docs/superpowers/plans)
-export function VoteColumn() {
-  const soon = "Muy pronto podrás votar";
+const EXPIRED_VOTE_TITLE = "Este chollo ha caducado";
+
+// Vote column from the prototype. A real form, so it works without client JS; signed-out readers are sent to sign in.
+export function VoteColumn({ couponId, score, mine, next, readOnly = false }: { couponId: number; score: number; mine: -1 | 0 | 1; next: string; readOnly?: boolean }) {
+  const arrow = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
   return (
-    <div className="vote" aria-label="Votos">
-      <button className="up" type="button" disabled title={soon} aria-label={`Buen chollo. ${soon}`}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
+    <form className="vote" action={vote} role="group" aria-label="Votos">
+      <input type="hidden" name="coupon_id" value={couponId} />
+      <input type="hidden" name="next" value={next} />
+      <button className="up" type="submit" name="value" value="1" aria-pressed={mine === 1} aria-label="Buen chollo" disabled={readOnly} title={readOnly ? EXPIRED_VOTE_TITLE : undefined}>
+        <svg {...arrow}><path d="m6 15 6-6 6 6" /></svg>
       </button>
-      <span className="score">0</span>
-      <button className="down" type="button" disabled title={soon} aria-label={`No es chollo. ${soon}`}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      <span className="score">{score > 0 ? `+${score}` : score}</span>
+      <button className="down" type="submit" name="value" value="-1" aria-pressed={mine === -1} aria-label="No es chollo" disabled={readOnly} title={readOnly ? EXPIRED_VOTE_TITLE : undefined}>
+        <svg {...arrow}><path d="m6 9 6 6 6-6" /></svg>
       </button>
-    </div>
+    </form>
   );
 }
 
-export function DealCard({ c, client, today }: { c: SiteCoupon; client: Client | undefined; today: string }) {
-  const conds = conditionsOf(c.description).slice(0, 3);
+type CardProps = { c: SiteCoupon; client: Client | undefined; today: string; now: Date; mine: Map<number, -1 | 1>; next: string };
+
+export function DealCard({ c, client, today, now, mine, next }: CardProps) {
+  const conds = conditionsOf(c.description, c.title).slice(0, 3);
   return (
     <article className="deal">
-      <VoteColumn />
+      <VoteColumn couponId={c.id} score={c.score} mine={mine.get(c.id) ?? 0} next={next} />
       <StoreThumb c={c} href={dealPath(c)} />
       <div className="deal-main">
         <div className="deal-head">
@@ -103,12 +106,12 @@ export function DealCard({ c, client, today }: { c: SiteCoupon; client: Client |
           <StatusBadges c={c} today={today} />
         </div>
         <h3>
-          <Link href={dealPath(c)}>{c.title}</Link>
+          <Link href={dealPath(c)}>{titleOf(c)}</Link>
         </h3>
         <div className="deal-body">
           <div>
             <div className="prices">
-              <span className="price-now">{badgeOf(c)}</span>
+              <span className={priceClass(c)}>{badgeOf(c)}</span>
               <span className="price-kind">{c.kind === "code" ? "con código" : "sin código"}</span>
             </div>
             {conds.length > 0 && (
@@ -125,10 +128,13 @@ export function DealCard({ c, client, today }: { c: SiteCoupon; client: Client |
           </div>
         </div>
       </div>
+      {/* as in the prototype: who and when, comments, then until when */}
       <div className="deal-foot">
-        <span>Publicado el {shortDate(madridDate(c.created_at))}</span>
+        <span>
+          {c.shared_by_handle ? <>Compartido por @{c.shared_by_handle} · </> : "Publicado "}{timeAgo(new Date(c.created_at), now)}
+        </span>
+        <Link href={`${dealPath(c)}#comentarios`}>{c.comments === 1 ? "1 comentario" : `${c.comments} comentarios`}</Link>
         <span>{c.expires_at ? <>Válido hasta el <time dateTime={c.expires_at}>{shortDate(c.expires_at)}</time></> : "Sin fecha de caducidad"}</span>
-        <Link href={dealPath(c)}>Ver condiciones</Link>
       </div>
     </article>
   );
@@ -150,9 +156,9 @@ export function StoreFacts({ text }: { text: string }) {
   );
 }
 
-export function Faqs({ items }: { items: { q: string; a: string }[] }) {
+export function Faqs({ items, seo = "FAQPage" }: { items: { q: string; a: string }[]; seo?: string }) {
   return (
-    <div className="faq">
+    <div className="faq" data-seo={seo}>
       {items.map((f, i) => (
         <details key={i} open={i === 0}>
           <summary>{f.q}</summary>
@@ -179,8 +185,8 @@ export const crumbsLd = (base: string, items: { name: string; href?: string }[])
 export const offerLd = (base: string, c: SiteCoupon, live = true) => ({
   "@context": "https://schema.org",
   "@type": "Offer",
-  name: c.title,
-  description: [badgeOf(c), c.description].filter(Boolean).join(". "),
+  name: titleOf(c),
+  description: [badgeOf(c), ...conditionsOf(c.description, c.title)].join(". "),
   url: base + dealPath(c),
   ...(c.expires_at ? { validThrough: `${c.expires_at}T23:59:59+01:00` } : {}),
   availability: live ? "https://schema.org/InStock" : "https://schema.org/Discontinued",

@@ -37,5 +37,10 @@ export function matchesFilter(c: StatusFields, filter: StatusFilter, todayStr: s
 // What readers see on clients' pages: never archived or expired coupons, nor codes found on the web
 // that nobody has checked yet (they may be fake)
 // (unless the admin turned on "publish unverified" while demoing the product)
-export const isPublic = (c: StatusFields & { source?: string }, todayStr: string, publishUnverified = false) =>
-  ["ok", "pending"].includes(statusOf(c, todayStr)) && (publishUnverified || !(c.source === "web" && !c.verified));
+export const isPublic = (c: StatusFields & { source?: string; review?: string }, todayStr: string, publishUnverified = false) =>
+  ["ok", "pending"].includes(statusOf(c, todayStr)) && (c.review ?? "") === "" && (publishUnverified || !(c.source === "web" && !c.verified));
+
+// Whether /go may redirect to and count a click on this coupon: any existing one (clients' exported pages may still link
+// archived or expired ones), never one under review, never an unchecked web find
+export const canRedirect = (c: StatusFields & { source?: string; review?: string }, todayStr: string, publishUnverified = false) =>
+  (c.review ?? "") === "" && (publishUnverified || !(c.source === "web" && !c.verified));

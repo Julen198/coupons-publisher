@@ -60,3 +60,16 @@ export function resetFiltersHref(f: HomeFilters): string {
   const otherFilters = f.q !== "" || f.tipo !== "todos" || f.comprobados;
   return f.cat && otherFilters ? homeHref({ cat: f.cat, tipo: "todos", orden: "destacados", comprobados: false, q: "", pagina: 1 }, {}) : "/";
 }
+
+export type EmptyFeedText = { title: string; hint: string; link: { href: string; label: string } | null };
+
+// What the home feed says when nothing matches: what emptied it, what to try, and the way back to a full list
+export function emptyFeedText(f: HomeFilters, catLabel: string): EmptyFeedText {
+  const href = resetFiltersHref(f);
+  const link = { href, label: href === "/" ? "Ver todos los chollos" : `Ver todos los chollos de ${catLabel}` };
+  if (f.q) return { title: `No hay chollos para «${f.q}»`, hint: "Prueba con otra búsqueda.", link };
+  if (f.comprobados || f.tipo !== "todos")
+    return { title: "No hay chollos con estos filtros", hint: f.comprobados ? "Prueba con otra categoría o quita «Solo comprobados»." : "Prueba con otra categoría.", link };
+  if (f.cat) return { title: `No hay chollos de ${catLabel} ahora mismo`, hint: "Prueba con otra categoría.", link };
+  return { title: "No hay chollos ahora mismo", hint: "Publicamos cupones nuevos cada día.", link: null };
+}

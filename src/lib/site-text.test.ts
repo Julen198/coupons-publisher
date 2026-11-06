@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blackFriday, mothersDay, dealPath, longDate, parseDealId, percentOf, slugify, upcomingEvents } from "./site-text.ts";
+import { blackFriday, contactEmail, copiedMessage, mothersDay, dealPath, longDate, parseDealId, percentOf, savingOf, shortDate, slugify, upcomingEvents } from "./site-text.ts";
 
 test("slugify drops accents and symbols", () => {
   assert.equal(slugify("El Corte Inglés: 15% en Moda"), "el-corte-ingles-15-en-moda");
@@ -41,4 +41,34 @@ test("longDate writes Spanish dates", () => {
 test("Día de la Madre is the first Sunday of May", () => {
   assert.equal(mothersDay(2026), "2026-05-03");
   assert.equal(mothersDay(2027), "2027-05-02");
+});
+
+test("contactEmail is the trimmed env address, or empty when unset or not an email", () => {
+  assert.equal(contactEmail(" hola@cuponlab.es "), "hola@cuponlab.es");
+  assert.equal(contactEmail(""), "");
+  assert.equal(contactEmail(undefined), "");
+  assert.equal(contactEmail("no es un email"), "");
+});
+
+test("percentOf reads normalised badges and minus signs too", () => {
+  assert.equal(percentOf("60 %"), 60);
+  assert.equal(percentOf("-17%"), 17);
+  assert.equal(percentOf("Hasta 83 %"), 83);
+});
+
+test("savingOf ranks an upper bound below the same flat figure", () => {
+  assert.ok(savingOf("90%") > savingOf("Hasta 90%"));
+  assert.ok(savingOf("75 %") > savingOf("Hasta 90 %"));
+  assert.ok(savingOf("Hasta 90 %") > savingOf("40 %"));
+  assert.equal(savingOf("10€"), 0);
+});
+
+test("shortDate writes the day and the short month, as the cards show it", () => {
+  assert.equal(shortDate("2026-11-09"), "9 nov");
+  assert.equal(shortDate("2027-01-31"), "31 ene");
+  assert.equal(shortDate(""), "");
+});
+
+test("copiedMessage tells the reader where to paste the code", () => {
+  assert.equal(copiedMessage("CLAB15"), "Código CLAB15 copiado. Pégalo en el carrito.");
 });

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { sql, type Coupon, type Store } from "./db";
 import { getUser } from "./auth";
 import { usageOf, type AiFeature } from "./ai-costs";
+import { assertWithinBudget } from "./ai-budget";
+import { dealAboutInput, tidyDraft } from "./deal-about";
 
 // Cheap, fast model through Vercel AI Gateway (auth via OIDC on Vercel / `vercel env pull` locally)
 const MODEL = "anthropic/claude-haiku-5.5";
@@ -58,6 +60,35 @@ export async function generateStoreContent(store: Store, coupons: Coupon[]): Pro
     prompt: `Tienda: ${store.name} (${store.website})\nCupones y ofertas actuales:\n${live || "(ninguno)"}\n\nEscribe la intro de la página y las FAQs.`,
   }));
   return output;
+}
+
+const AboutSchema = z.object({
+  paragraphs: z.array(z.string()).min(2).max(2).describe("Exactamente 2 párrafos cortos; entre los dos, de 60 a 110 palabras"),
+});
+
+const ABOUT_SYSTEM = [
+  "Escribes en español de España el texto «Sobre este chollo» de una web de cupones de descuento.",
+  "Reglas:",
+  "- Entre 60 y 110 palabras, en 2 párrafos cortos.",
+  "- Usa solo los datos que te doy: título, descuento, si hace falta código, condiciones, fecha de caducidad, nombre de la tienda, datos de la tienda y su presentación.",
+  "- Nunca inventes precios, stock, fechas, características de productos ni opiniones de usuarios. Si un dato no está, no lo menciones.",
+  "- Di claramente a quién le sirve y cómo se usa (con código o sin código, y las condiciones que haya).",
+  "- Sin frases de marketing, sin exclamaciones, sin superlativos vacíos.",
+  "- No uses rayas (—) ni dos puntos en mitad de una frase.",
+  "- Mayúscula solo al principio de la frase y en nombres propios.",
+  "- No escribas el código descuento ni enlaces.",
+].join("\n");
+
+// Draft of "Sobre este chollo" for one deal; an editor reviews it before it is public
+export async function generateDealAbout(coupon: Coupon, store: Store): Promise<string> {
+  await assertWithinBudget();
+  const { output } = await track("content", `chollo ${coupon.id}`, () => generateText({
+    model: MODEL,
+    output: Output.object({ schema: AboutSchema }),
+    system: ABOUT_SYSTEM,
+    prompt: `Datos del chollo:\n${dealAboutInput(coupon, store)}\n\nEscribe el texto.`,
+  }));
+  return tidyDraft(output.paragraphs);
 }
 
 // Store FAQs are kept as "Pregunta | Respuesta" lines; strip the separator from model text

@@ -50,7 +50,7 @@ export default async function StoresPage() {
         <div className="meta-line">
           <span className="live">Actualizado el {todayWords}</span>
         </div>
-        <p className="answer">
+        <p className="answer" data-seo="Respuesta citable (GEO)">
           Hoy hay <strong>{stores.length} tiendas</strong> con cupones activos en CuponLab. Cada una tiene su página con los códigos que funcionan, sus condiciones y lo que conviene saber antes de comprar.
         </p>
         {groups.size > 1 && (

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATEGORIES, categoryOf, factsOf, hasStoreGuide, homeHref, resetFiltersHref, storeCategory, type HomeFilters } from "./catalog.ts";
+import { CATEGORIES, categoryOf, emptyFeedText, factsOf, hasStoreGuide, homeHref, resetFiltersHref, storeCategory, type HomeFilters } from "./catalog.ts";
 
 test("categoryOf knows the six categories and nothing else", () => {
   assert.deepEqual(CATEGORIES.map((c) => c.slug), ["tecnologia", "zapatillas", "moda", "hogar", "deporte", "viajes"]);
@@ -50,4 +50,23 @@ test("resetFiltersHref keeps the category when other filters emptied the feed", 
   assert.equal(resetFiltersHref({ ...base, cat: "moda", q: "nike", orden: "nuevos" }), "/?cat=moda");
   assert.equal(resetFiltersHref({ ...base, cat: "moda" }), "/");
   assert.equal(resetFiltersHref({ ...base, comprobados: true }), "/");
+});
+
+test("emptyFeedText names what emptied the feed and links back to the full list", () => {
+  assert.deepEqual(emptyFeedText({ ...base, q: "nike" }, "Moda"), {
+    title: "No hay chollos para «nike»",
+    hint: "Prueba con otra búsqueda.",
+    link: { href: "/", label: "Ver todos los chollos" },
+  });
+  assert.deepEqual(emptyFeedText({ ...base, cat: "moda", comprobados: true }, "Moda"), {
+    title: "No hay chollos con estos filtros",
+    hint: "Prueba con otra categoría o quita «Solo comprobados».",
+    link: { href: "/?cat=moda", label: "Ver todos los chollos de Moda" },
+  });
+  assert.deepEqual(emptyFeedText({ ...base, cat: "viajes" }, "Viajes"), {
+    title: "No hay chollos de Viajes ahora mismo",
+    hint: "Prueba con otra categoría.",
+    link: { href: "/", label: "Ver todos los chollos" },
+  });
+  assert.deepEqual(emptyFeedText(base, ""), { title: "No hay chollos ahora mismo", hint: "Publicamos cupones nuevos cada día.", link: null });
 });

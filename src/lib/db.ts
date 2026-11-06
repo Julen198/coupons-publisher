@@ -50,6 +50,10 @@ export type Coupon = {
   source_url: string; // where a web find was seen, for whoever verifies it
   external_id: string | null;
   publisher_id: string; // Awin: publisher id of our account that imported it ("" = manual or a client's own account)
+  shared_by: number | null; // reader who shared it
+  review: "" | "pending" | "rejected"; // moderation of shared coupons
+  about: string; // "Sobre este chollo" text
+  about_status: "" | "draft" | "approved"; // public only when approved
 };
 
 export type CouponWithStore = Coupon & { store_name: string; store_slug: string; store_has_logo: boolean };
@@ -109,7 +113,7 @@ export const getStore = (slug: string) =>
   q(async (s) => plain(await s<Store[]>`SELECT ${s.unsafe(STORE_COLS)} FROM stores WHERE slug = ${slug}`)[0] as Store | undefined);
 
 export const listCoupons = (storeId: number) =>
-  q(async (s) => plain(await s<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${storeId} ORDER BY verified DESC, id`));
+  q(async (s) => plain(await s<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${storeId} AND review = '' ORDER BY verified DESC, id`));
 
 export const listAllCoupons = () =>
   q(async (s) =>
@@ -117,6 +121,7 @@ export const listAllCoupons = () =>
       await s<CouponWithStore[]>`
         SELECT coupons.*, stores.name AS store_name, stores.slug AS store_slug, stores.logo_data <> '' AS store_has_logo
         FROM coupons JOIN stores ON stores.id = coupons.store_id
+        WHERE coupons.review = ''
         ORDER BY lower(stores.name), coupons.verified DESC, coupons.id`,
     ),
   );
