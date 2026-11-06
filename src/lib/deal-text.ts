@@ -35,16 +35,11 @@ const isShouting = (s: string) => {
   return letters.length >= 5 && upper.length / letters.length > 0.7;
 };
 
-// Short all-caps words that are plain words in a shouting title (es, pt, de, it, fr, en), not acronyms
-const SHORT_WORDS = new Set(
-  "a al ate com da das de del dos do el em en es et la las le les los mas mit nel nur o per por que sin sur su sul un una und von zu auf bis aus fur du des dans avec pour alle the and for off all new con del tout solo todo sale pack moda ropa casa fino desde hasta di il in ab y e day days black friday cyber extra".split(" "),
+// Acronyms and brands that keep their capitals inside a shouting title
+const ACRONYMS = new Set(
+  "tv lg oled qled led ssd hdd usb hd uhd 4k 8k pc ps5 ps4 gps bmw hp amd msi ram cpu gpu iva nba nfl ue eu xl xxl xs".split(" "),
 );
-
-// An all-caps 2-4 letter word that reads as an acronym or brand (TV, LG, OLED), not a short Spanish word
-const isAcronym = (w: string) => {
-  const bare = w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
-  return /^\p{Lu}{2,4}$/u.test(bare) && !SHORT_WORDS.has(fold(bare));
-};
+const isAcronym = (w: string) => ACRONYMS.has(w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "").toLowerCase());
 
 // Lowercase every word except those with digits (codes, figures) and acronyms, then give the store back its own spelling
 function sentenceCase(s: string, storeName: string): string {

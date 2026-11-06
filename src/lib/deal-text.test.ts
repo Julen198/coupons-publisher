@@ -126,3 +126,10 @@ test("dedupeDeals keeps coupons with the same title but different codes", () => 
   ];
   assert.deepEqual(dedupeDeals(deals).map((d) => d.id), [2, 3]);
 });
+
+test("displayTitle lowercases every shouting word except known acronyms", () => {
+  assert.equal(displayTitle("ZAPATILLAS NIKE PARA HOMBRE", "Worten"), "Zapatillas nike para hombre");
+  assert.equal(displayTitle("PRECIOS MUY BAJOS HOY", "Worten"), "Precios muy bajos hoy");
+  assert.equal(displayTitle("COMPRA TUS GAFAS AHORA", "Worten"), "Compra tus gafas ahora");
+  assert.equal(displayTitle("TUTTO A META PREZZO", "Worten"), "Tutto a meta prezzo");
+});
