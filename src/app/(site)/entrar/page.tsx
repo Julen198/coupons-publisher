@@ -7,10 +7,10 @@ export const metadata: Metadata = { title: "Entrar", robots: { index: false } };
 export default async function EntrarPage({ searchParams }: PageProps<"/entrar">) {
   const { next } = await searchParams;
   return (
-    <main className="wrap">
-      <div className="panel auth-card">
+    <main className="wrap entry-page">
+      <section className="entry-card" aria-labelledby="entrar-h">
         <EntrarCard next={typeof next === "string" ? next : "/"} />
-      </div>
+      </section>
     </main>
   );
 }
