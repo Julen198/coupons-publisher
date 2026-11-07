@@ -10,6 +10,7 @@ import { madridToday } from "./site-text.ts";
 import { BRAND_ALLOWLIST, dedupeDeals, displayTitle } from "./deal-text.ts";
 import { isSpanishMarket } from "./market.ts";
 import type { CategorySlug } from "./catalog.ts";
+import { hasWordmarkSql, withWordmarkColumn } from "./wordmark-column.ts";
 
 // Readers wrapped in React cache() run once per render: generateMetadata, the page and its related deals share one
 // query. The memo lasts one request only (no cross-request caching), and callers copy before sorting.
@@ -20,6 +21,7 @@ export type SiteCoupon = Coupon & {
   store_name: string;
   store_slug: string;
   store_has_logo: boolean;
+  store_has_wordmark: boolean; // a wordmark (logo with the name) for the landscape boxes, see /store-logo/<slug>?v=wordmark
   store_category: CategorySlug | "";
   store_website: string;
   store_network: string;
@@ -34,8 +36,10 @@ export type SiteCoupon = Coupon & {
   display_title: string; // the title as the site shows it (displayTitle with the known brands)
 };
 
-const COUPON_SELECT = `
-  SELECT c.*, s.name AS store_name, s.slug AS store_slug, s.logo_data <> '' AS store_has_logo, s.category AS store_category, s.website AS store_website,
+// wordmark: whether stores.wordmark_data exists yet (see withWordmarkColumn)
+const couponSelect = (wordmark: boolean) => `
+  SELECT c.*, s.name AS store_name, s.slug AS store_slug, s.logo_data <> '' AS store_has_logo,
+         ${hasWordmarkSql(wordmark, "s")} AS store_has_wordmark, s.category AS store_category, s.website AS store_website,
          s.network AS store_network, s.merchant_id AS store_merchant_id, s.tracking_url AS store_tracking_url,
          coalesce(s.publisher_id, '') AS store_publisher_id,
          coalesce(v.score, 0)::int AS score, coalesce(cm.n, 0)::int AS comments,
@@ -69,7 +73,7 @@ function titled<T extends { title: string; store_name: string }>(rows: readonly 
 export const siteCoupons = cache(async (): Promise<SiteCoupon[]> => {
   await io();
   const [rows, unverified, brands] = await Promise.all([
-    sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.archived = 0 ORDER BY c.verified DESC, c.id DESC`,
+    withWordmarkColumn((w) => sql()<SiteCoupon[]>`${sql().unsafe(couponSelect(w))} WHERE c.archived = 0 ORDER BY c.verified DESC, c.id DESC`),
     publishUnverified(),
     knownBrands(),
   ]);
@@ -81,7 +85,7 @@ export const siteCoupons = cache(async (): Promise<SiteCoupon[]> => {
 export const siteCoupon = cache(async (id: number): Promise<{ coupon: SiteCoupon; live: boolean } | undefined> => {
   await io();
   const [[row], unverified, brands] = await Promise.all([
-    sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.id = ${id}`,
+    withWordmarkColumn((w) => sql()<SiteCoupon[]>`${sql().unsafe(couponSelect(w))} WHERE c.id = ${id}`),
     publishUnverified(),
     knownBrands(),
   ]);
@@ -114,11 +118,15 @@ export async function readerDealMarks(readerId: number | null, couponId: number)
   return { saved: !!row?.saved, reported: !!row?.reported };
 }
 
-export const siteStore = cache(async (slug: string): Promise<Store | undefined> => {
+// A store for its public page, with whether it has a wordmark (the landscape logo with its name)
+export type SiteStore = Store & { has_wordmark: boolean };
+
+export const siteStore = cache(async (slug: string): Promise<SiteStore | undefined> => {
   await io();
-  const [row] = await sql()<Store[]>`
-    SELECT id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo
-    FROM stores WHERE slug = ${slug}`;
+  const [row] = await withWordmarkColumn((w) => sql()<SiteStore[]>`
+    SELECT id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo,
+           ${sql().unsafe(hasWordmarkSql(w, "stores"))} AS has_wordmark
+    FROM stores WHERE slug = ${slug}`);
   return row && isSpanishMarket(row.website) ? { ...row } : undefined;
 });
 
@@ -214,15 +222,15 @@ async function withVisibility(rows: readonly SiteCoupon[]): Promise<AccountCoupo
 
 export async function readerSharedDeals(readerId: number): Promise<AccountCoupon[]> {
   await io();
-  return withVisibility(await sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.shared_by = ${readerId} ORDER BY c.id DESC LIMIT 100`);
+  return withVisibility(await withWordmarkColumn((w) => sql()<SiteCoupon[]>`${sql().unsafe(couponSelect(w))} WHERE c.shared_by = ${readerId} ORDER BY c.id DESC LIMIT 100`));
 }
 
 // Newest saved first (the page then lifts live ones to the top)
 export async function readerSavedDeals(readerId: number): Promise<AccountCoupon[]> {
   await io();
-  return withVisibility(await sql()<SiteCoupon[]>`
-    ${sql().unsafe(COUPON_SELECT)} JOIN saved_deals sd ON sd.coupon_id = c.id AND sd.reader_id = ${readerId}
-    ORDER BY sd.at DESC, c.id DESC LIMIT 200`);
+  return withVisibility(await withWordmarkColumn((w) => sql()<SiteCoupon[]>`
+    ${sql().unsafe(couponSelect(w))} JOIN saved_deals sd ON sd.coupon_id = c.id AND sd.reader_id = ${readerId}
+    ORDER BY sd.at DESC, c.id DESC LIMIT 200`));
 }
 
 export type AccountComment = { id: number; body: string; created_at: Date; coupon_id: number; title: string; store_name: string };
