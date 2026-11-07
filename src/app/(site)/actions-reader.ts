@@ -16,6 +16,7 @@ import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
 import { siteCoupon } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
+import { encodeFlash, FLASH_COOKIE, FLASH_MAX_AGE, type Flash } from "@/lib/reader-entry";
 import { READER_COOKIE, SESSION_MAX_AGE, safeNext, signReader } from "@/lib/session";
 
 // Links sent across all readers in the window before we stop sending (a bot could otherwise use us as an email cannon)
@@ -55,6 +56,23 @@ export async function requestReaderLink(_prev: FormState, f: FormData): Promise<
   return { sent: true };
 }
 
+// "Ya has entrado como @x" on the page the reader lands on: a one-read httpOnly cookie, not a query param that
+// would stay in the address bar, the history and shared links
+async function setFlash(flash: Flash): Promise<void> {
+  (await cookies()).set(FLASH_COOKIE, encodeFlash(flash), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: FLASH_MAX_AGE,
+  });
+}
+
+// Called by the toast once it has shown the flash
+export async function clearFlash(): Promise<void> {
+  (await cookies()).delete(FLASH_COOKIE);
+}
+
 // POST (button on /entrar/confirmar), not GET: mail scanners that prefetch links would burn the token
 export async function confirmReaderLink(f: FormData): Promise<void> {
   const token = str(f, "token");
@@ -76,7 +94,9 @@ export async function confirmReaderLink(f: FormData): Promise<void> {
     maxAge: SESSION_MAX_AGE,
   });
   const target = safeNext(next, "/");
-  redirect(reader.handle ? target : `/entrar/nombre?next=${encodeURIComponent(target)}`);
+  if (!reader.handle) redirect(`/entrar/nombre?next=${encodeURIComponent(target)}`);
+  await setFlash({ kind: "in", handle: reader.handle });
+  redirect(target);
 }
 
 export async function chooseHandle(_prev: FormState, f: FormData): Promise<FormState> {
@@ -91,6 +111,7 @@ export async function chooseHandle(_prev: FormState, f: FormData): Promise<FormS
     if ((e as { code?: string }).code === "23505") return { error: "Ese nombre ya está cogido" };
     throw e;
   }
+  await setFlash({ kind: "new", handle });
   redirect(safeNext(str(f, "next"), "/"));
 }
 

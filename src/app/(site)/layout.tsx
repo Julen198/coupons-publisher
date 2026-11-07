@@ -6,6 +6,7 @@ import { contactEmail, siteUrl } from "@/lib/site-text";
 import { LiveHeader } from "./live-header";
 import { SeoDrawer } from "./seo-panel";
 import { HeaderCategoryProvider, SiteHeader } from "./site-header";
+import { Flash } from "./flash";
 import { Toaster } from "./toast";
 import "./site.css";
 
@@ -56,6 +57,10 @@ export default function SiteLayout({ children, modal }: LayoutProps<"/">) {
       {/* the sign-in modal when /entrar is opened from inside the site */}
       <Suspense fallback={null}>{modal}</Suspense>
       <Toaster />
+      {/* after the Toaster, so its listener is up when the sign-in flash fires */}
+      <Suspense fallback={null}>
+        <Flash />
+      </Suspense>
       </HeaderCategoryProvider>
     </div>
   );
