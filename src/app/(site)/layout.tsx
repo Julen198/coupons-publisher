@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: { siteName: "CuponLab", locale: "es_ES", type: "website" },
 };
 
-export default function SiteLayout({ children }: LayoutProps<"/">) {
+export default function SiteLayout({ children, modal }: LayoutProps<"/">) {
   return (
     <div className={`cl ${archivo.variable} ${jetbrains.variable}`}>
       <HeaderCategoryProvider>
@@ -53,6 +53,8 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
           </span>
         </div>
       </footer>
+      {/* the sign-in modal when /entrar is opened from inside the site */}
+      <Suspense fallback={null}>{modal}</Suspense>
       <Toaster />
       </HeaderCategoryProvider>
     </div>
