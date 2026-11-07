@@ -1,4 +1,5 @@
-import { percentOf } from "./site-text.ts";
+import type { Orden } from "./catalog.ts";
+import { percentOf, savingOf } from "./site-text.ts";
 
 // Input rules for the reader community: handles, comments, votes. Pure, so they test without a database.
 
@@ -55,6 +56,18 @@ export function byVotes(a: Rankable, b: Rankable): number {
 // "Comentados": most visible comments first, ties ranked as in Más votados
 export function byComments(a: Rankable & { comments: number }, b: Rankable & { comments: number }): number {
   return b.comments - a.comments || byVotes(a, b);
+}
+
+type Sortable = Rankable & { comments: number; expires_at: string | null };
+
+// A feed in the order of the chosen tab (home page and store pages); returns a new list
+export function sortDeals<T extends Sortable>(list: readonly T[], orden: Orden): T[] {
+  const byId = (a: T, b: T) => b.id - a.id;
+  if (orden === "nuevos") return [...list].sort(byId);
+  if (orden === "ahorro") return [...list].sort((a, b) => savingOf(b.discount) - savingOf(a.discount) || byId(a, b));
+  if (orden === "comentados") return [...list].sort(byComments);
+  if (orden === "caducan") return [...list].sort((a, b) => (a.expires_at || "9999").localeCompare(b.expires_at || "9999") || byId(a, b));
+  return [...list].sort(byVotes);
 }
 
 export function timeAgo(from: Date, now: Date): string {

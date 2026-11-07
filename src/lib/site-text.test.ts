@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blackFriday, contactEmail, copiedMessage, mothersDay, dealPath, longDate, parseDealId, percentOf, savingOf, shortDate, slugify, upcomingEvents } from "./site-text.ts";
+import { blackFriday, calendarGroups, contactEmail, untilLabel, copiedMessage, mothersDay, dealPath, longDate, parseDealId, percentOf, savingOf, shortDate, slugify, upcomingEvents } from "./site-text.ts";
 
 test("slugify drops accents and symbols", () => {
   assert.equal(slugify("El Corte Inglés: 15% en Moda"), "el-corte-ingles-15-en-moda");
@@ -71,4 +71,17 @@ test("shortDate writes the day and the short month, as the cards show it", () =>
 
 test("copiedMessage tells the reader where to paste the code", () => {
   assert.equal(copiedMessage("CLAB15"), "Código CLAB15 copiado. Pégalo en el carrito.");
+});
+
+test("calendarGroups gives this year's dates a group per month and later years one group each", () => {
+  const ev = (date: string) => ({ date, name: date, note: "" });
+  const groups = calendarGroups([ev("2026-11-11"), ev("2026-11-27"), ev("2026-12-25"), ev("2027-01-06"), ev("2027-07-01")], "2026-11-07");
+  assert.deepEqual(groups.map((g) => [g.label, g.events.length]), [["Noviembre", 2], ["Diciembre", 1], ["2027", 2]]);
+  assert.deepEqual(calendarGroups([], "2026-11-07"), []);
+});
+
+test("untilLabel says how far a date is", () => {
+  assert.equal(untilLabel(0), "hoy");
+  assert.equal(untilLabel(1), "mañana");
+  assert.equal(untilLabel(22), "en 22 días");
 });

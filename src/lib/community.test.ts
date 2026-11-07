@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { byComments, byVotes, cleanComment, EXPIRY_REPORT_LIMIT_PER_DAY, mayHaveExpired, reportLimitReached, cleanHandle, couponIdOf, flagOf, MAX_EMAIL_LENGTH, nextVote, parseSharedDeal, replyParent, usefulLabel, threadComments, timeAgo, validEmail } from "./community.ts";
+import { byComments, byVotes, sortDeals, cleanComment, EXPIRY_REPORT_LIMIT_PER_DAY, mayHaveExpired, reportLimitReached, cleanHandle, couponIdOf, flagOf, MAX_EMAIL_LENGTH, nextVote, parseSharedDeal, replyParent, usefulLabel, threadComments, timeAgo, validEmail } from "./community.ts";
 
 test("cleanHandle", () => {
   assert.equal(cleanHandle("  Runner_Bilbo "), "runner_bilbo");
@@ -128,4 +128,15 @@ test("reportLimitReached at ten expiry reports a day", () => {
   assert.equal(EXPIRY_REPORT_LIMIT_PER_DAY, 10);
   assert.equal(reportLimitReached(9), false);
   assert.equal(reportLimitReached(10), true);
+});
+
+test("sortDeals orders a feed by the chosen tab without touching the list it gets", () => {
+  const d = (id: number, score: number, discount: string, comments: number, expires_at: string) => ({ id, score, verified: 0, discount, comments, expires_at });
+  const list = [d(1, 5, "10%", 0, "2026-12-01"), d(2, 9, "30%", 4, ""), d(3, 1, "Hasta 40%", 9, "2026-11-10")];
+  assert.deepEqual(sortDeals(list, "destacados").map((x) => x.id), [2, 1, 3]);
+  assert.deepEqual(sortDeals(list, "nuevos").map((x) => x.id), [3, 2, 1]);
+  assert.deepEqual(sortDeals(list, "ahorro").map((x) => x.id), [2, 3, 1]);
+  assert.deepEqual(sortDeals(list, "comentados").map((x) => x.id), [3, 2, 1]);
+  assert.deepEqual(sortDeals(list, "caducan").map((x) => x.id), [3, 1, 2]);
+  assert.deepEqual(list.map((x) => x.id), [1, 2, 3]);
 });

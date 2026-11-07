@@ -122,3 +122,21 @@ export function upcomingEvents(todayIso: string, count = 3): ShopEvent[] {
 }
 
 export const daysBetween = (fromIso: string, toIso: string) => Math.round((Date.parse(toIso) - Date.parse(fromIso)) / 86_400_000);
+
+const MONTH_LABELS = MONTHS.map((m) => m[0].toUpperCase() + m.slice(1));
+
+// The calendar page: this year's dates month by month, then one group per later year ("2027")
+export function calendarGroups<T extends { date: string }>(events: readonly T[], todayIso: string): { label: string; events: T[] }[] {
+  const year = todayIso.slice(0, 4);
+  const groups: { label: string; events: T[] }[] = [];
+  for (const e of events) {
+    const label = e.date.slice(0, 4) === year ? MONTH_LABELS[Number(e.date.slice(5, 7)) - 1] : e.date.slice(0, 4);
+    const last = groups[groups.length - 1];
+    if (last?.label === label) last.events.push(e);
+    else groups.push({ label, events: [e] });
+  }
+  return groups;
+}
+
+// "hoy", "mañana", "en 22 días"
+export const untilLabel = (days: number) => (days <= 0 ? "hoy" : days === 1 ? "mañana" : `en ${days} días`);
