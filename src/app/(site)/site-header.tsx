@@ -88,7 +88,9 @@ function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: stri
             </form>
           )}
           {/* phones: the share icon alone, and the account behind a round button (SiteHeaderMobile board) */}
-          <Link className="btn btn-primary share" href="/compartir" aria-label="Compartir chollo">
+          {/* signed out: straight to the sign-in modal over this page (going through /compartir would redirect, leaving the
+              modal over an empty page); after signing in the reader lands on /compartir */}
+          <Link className="btn btn-primary share" href={reader === null ? "/entrar?next=/compartir" : "/compartir"} aria-label="Compartir chollo">
             {SHARE_ICON}
             <span className="share-label">Compartir chollo</span>
           </Link>
