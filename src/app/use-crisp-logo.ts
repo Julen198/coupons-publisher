@@ -5,6 +5,7 @@ import { useRef, useState, type CSSProperties } from "react";
 // Below this a logo is unreadable: show the store's initials instead
 const MIN_CSS_PX = 14;
 const MIN_SLOT_SHARE = 0.4;
+const MAX_ASPECT = 1.6;
 
 // Never upscale a raster logo (some stores only have a 16-48px favicon): it is shown at most at
 // 1 image pixel = 1 screen pixel, so logos come out at different sizes but never pixelated.
@@ -14,9 +15,16 @@ const MIN_SLOT_SHARE = 0.4;
 export function useCrispLogo({ minNaturalPx }: { minNaturalPx?: number } = {}): { style?: CSSProperties; tooSmall: boolean; measure: (el: HTMLImageElement | null) => void } {
   const [size, setSize] = useState<{ w: number; h: number; slot: number; natural: number }>();
   const checked = useRef(false);
+  const [wide, setWide] = useState(false);
   const measure = (el: HTMLImageElement | null) => {
     if (!el?.complete || !el.naturalWidth || checked.current) return;
     checked.current = true;
+    // a wide wordmark (Nespresso 800x169) is unreadable in a square tile: initials instead
+    if (Math.max(el.naturalWidth, el.naturalHeight) > MAX_ASPECT * Math.min(el.naturalWidth, el.naturalHeight)) {
+      setSize({ w: 0, h: 0, slot: 1, natural: 0 });
+      setWide(true);
+      return;
+    }
     const dpr = window.devicePixelRatio || 1;
     const w = el.naturalWidth / dpr;
     const h = el.naturalHeight / dpr;
@@ -31,7 +39,7 @@ export function useCrispLogo({ minNaturalPx }: { minNaturalPx?: number } = {}): 
   return {
     style: size ? { maxWidth: size.w, maxHeight: size.h } : undefined,
     // lost in its box (a 16px icon on a 112px card): the initials read better there
-    tooSmall: !!size && (minNaturalPx ? size.natural < minNaturalPx : Math.max(size.w, size.h) < Math.max(MIN_CSS_PX, size.slot * MIN_SLOT_SHARE)),
+    tooSmall: wide || (!!size && (minNaturalPx ? size.natural < minNaturalPx : Math.max(size.w, size.h) < Math.max(MIN_CSS_PX, size.slot * MIN_SLOT_SHARE))),
     measure,
   };
 }

@@ -36,7 +36,7 @@ export function StoreLogoImg({ slug, name, hasLogo, className }: { slug: string;
     );
   }
   return className === "slogo" ? null : (
-    <span className="initial" aria-hidden="true">
+    <span className="initial" data-n={initialsOf(name).length} aria-hidden="true">
       {initialsOf(name)}
     </span>
   );

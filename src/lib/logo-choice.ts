@@ -35,12 +35,12 @@ function usable(c: LogoCandidate, placeholders: ReadonlySet<string>): boolean {
 
 // The best logo among downloaded candidates, or null:
 // 1. a square-ish SVG or ≥128px raster, from the first source (SOURCE_ORDER) that has one, the largest there;
-// 2. else the remaining usable ones (≥64px), square-ish first, then the largest.
+// 2. else the largest remaining square-ish one (≥64px). Wide wordmarks never: a square tile squeezes them unreadable.
 export function chooseLogo<T extends LogoCandidate>(candidates: readonly T[], placeholders: ReadonlySet<string> = new Set()): T | null {
   const ok = candidates.filter((c) => usable(c, placeholders));
   const good = ok.filter((c) => squareish(c) && minSide(c) >= GOOD_SIDE);
   if (good.length) return [...good].sort((a, b) => rank(a) - rank(b) || minSide(b) - minSide(a))[0];
-  return [...ok].sort((a, b) => Number(squareish(b)) - Number(squareish(a)) || maxSide(b) - maxSide(a) || rank(a) - rank(b))[0] ?? null;
+  return ok.filter(squareish).sort((a, b) => maxSide(b) - maxSide(a) || rank(a) - rank(b))[0] ?? null;
 }
 
 // Does the proposed logo have more pixels than the current one? (SVG beats any raster; SVG is never replaced)

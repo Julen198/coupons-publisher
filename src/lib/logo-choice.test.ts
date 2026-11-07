@@ -26,10 +26,11 @@ test("chooseLogo: an SVG counts as big, at any declared size", () => {
   assert.equal(chooseLogo([svg, c("og:logo", 512)]), svg);
 });
 
-test("chooseLogo skips non-square logos while a square one is big enough, and falls back to them", () => {
+test("chooseLogo never takes a wide wordmark: square tiles squeeze it unreadable", () => {
   const wordmark = c("schema", 172, 45);
   assert.equal(chooseLogo([wordmark, c("google", 256)])?.source, "google");
-  assert.equal(chooseLogo([wordmark, c("icon", 16)]), wordmark); // Atmosfera: favicon + wordmark only
+  assert.equal(chooseLogo([wordmark, c("icon", 16)]), null); // Atmosfera: favicon + wordmark only, initials read better
+  assert.equal(chooseLogo([c("schema", 500, 167)]), null);
   // without a big square one: a mid-size square icon beats a wordmark
   assert.equal(chooseLogo([wordmark, c("apple-touch-icon", 96)])?.source, "apple-touch-icon");
 });
