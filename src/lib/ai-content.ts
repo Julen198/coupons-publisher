@@ -5,9 +5,7 @@ import { getUser } from "./auth";
 import { usageOf, type AiFeature } from "./ai-costs";
 import { assertWithinBudget } from "./ai-budget";
 import { dealAboutInput, tidyDraft } from "./deal-about";
-
-// Cheap, fast model through Vercel AI Gateway (auth via OIDC on Vercel / `vercel env pull` locally)
-const MODEL = "anthropic/claude-haiku-5.5";
+import { MODEL } from "./ai-model.ts";
 
 // Every AI call goes through here so "Costes de IA" sees it: tokens, web searches and cost from the Gateway.
 // ponytail: a failed call is logged at 0 although the model may have billed tokens (e.g. output that didn't fit the schema)
