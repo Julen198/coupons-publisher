@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CATEGORIES } from "@/lib/catalog";
 import { signOutReader } from "./actions-reader";
@@ -22,10 +23,31 @@ const LOGO = (
 // "Todos" plus one tab per category; the current one is the home page with that ?cat= ("" = Todos)
 const SECTIONS = [{ slug: "", label: "Todos" }, ...CATEGORIES].map((c) => ({ ...c, href: c.slug ? `/?cat=${c.slug}` : "/" }));
 
+// The category of the page being shown (a store's), so the header can mark it; set by <MarkHeaderCategory> on that page
+const PageCategory = createContext<{ cat: string; setCat: (slug: string) => void }>({ cat: "", setCat: () => {} });
+
+export function HeaderCategoryProvider({ children }: { children: ReactNode }) {
+  const [cat, setCat] = useState("");
+  const value = useMemo(() => ({ cat, setCat }), [cat]);
+  return <PageCategory.Provider value={value}>{children}</PageCategory.Provider>;
+}
+
+// Rendered by a store page: its category is the current one in the header until the reader leaves the page
+export function MarkHeaderCategory({ slug }: { slug: string }) {
+  const { setCat } = useContext(PageCategory);
+  useEffect(() => {
+    setCat(slug);
+    return () => setCat("");
+  }, [slug, setCat]);
+  return null;
+}
+
 // Pages with a feed of deals (home, categories, search, a store) skip straight to it; the rest to their content
 const hasFeed = (path: string) => path === "/" || path.startsWith("/tiendas/");
 
-function Shell({ path, cat, q, reader }: { path: string; cat: string; q: string; reader?: HeaderReader }) {
+function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: string; q: string; reader?: HeaderReader; pageCat?: string }) {
+  // the home page marks its ?cat=; a store page marks the store's category
+  const current = (slug: string) => (path === "/" ? cat === slug : !!pageCat && path.startsWith("/tiendas/") && pageCat === slug);
   return (
     <header className="top">
       <a className="skip" href={hasFeed(path) ? "#chollos" : "#contenido"}>
@@ -44,11 +66,10 @@ function Shell({ path, cat, q, reader }: { path: string; cat: string; q: string;
             <path d="m20 20-3.5-3.5" />
           </svg>
           <label htmlFor="q" className="sr-only">Buscar</label>
-          <input id="q" name="q" type="search" placeholder="Busca un producto, tienda o código" defaultValue={q} key={q} autoComplete="off" />
+          <input id="q" name="q" type="search" placeholder="Busca una tienda, un producto o un código" defaultValue={q} key={q} autoComplete="off" />
         </form>
         <div className="top-actions">
           <SeoToggle />
-          <Link className="btn btn-primary" href="/compartir">Compartir chollo</Link>
           {reader === null && <Link className="btn" href="/entrar">Entrar</Link>}
           {reader && (
             <form className="who" action={signOutReader}>
@@ -56,12 +77,13 @@ function Shell({ path, cat, q, reader }: { path: string; cat: string; q: string;
               <button className="btn" type="submit">Salir</button>
             </form>
           )}
+          <Link className="btn btn-primary" href="/compartir">Compartir chollo</Link>
         </div>
       </div>
       <nav className="cats" aria-label="Categorías">
         <div className="wrap">
           {SECTIONS.map((s) => (
-            <Link key={s.href} href={s.href} aria-current={path === "/" && cat === s.slug ? "page" : undefined}>
+            <Link key={s.href} href={s.href} aria-current={current(s.slug) ? "page" : undefined}>
               {s.label}
             </Link>
           ))}
@@ -75,8 +97,9 @@ function Live({ reader }: { reader: HeaderReader }) {
   const path = usePathname();
   const sp = useSearchParams();
   const cat = sp.get("cat") ?? "";
+  const { cat: pageCat } = useContext(PageCategory);
   // an unknown ?cat= shows everything, so "Todos" is the current tab
-  return <Shell path={path} cat={CATEGORIES.some((c) => c.slug === cat) ? cat : ""} q={sp.get("q") ?? ""} reader={reader} />;
+  return <Shell path={path} cat={CATEGORIES.some((c) => c.slug === cat) ? cat : ""} q={sp.get("q") ?? ""} reader={reader} pageCat={pageCat} />;
 }
 
 export function SiteHeader({ live = false, reader }: { live?: boolean; reader?: HeaderReader }) {

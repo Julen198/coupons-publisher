@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { byComments, byVotes } from "@/lib/community";
+import { sortDeals } from "@/lib/community";
 import { categoryOf, emptyFeedText, hasStoreGuide, homeHref, ordenOf, type HomeFilters } from "@/lib/catalog";
-import { currentVotes, siteClient, siteCoupons, storeGuides, type SiteCoupon } from "@/lib/public-site";
+import { currentVotes, siteClient, siteCoupons, storeGuides } from "@/lib/public-site";
+import { getReader } from "@/lib/reader";
+import { guideLabels } from "@/lib/store-list";
 import { badgeInSentence } from "@/lib/deal-text";
-import { blackFriday, daysBetween, longDate, madridToday, monthShort, percentOf, savingOf, siteUrl, upcomingEvents } from "@/lib/site-text";
+import { blackFriday, daysBetween, longDate, madridToday, monthShort, percentOf, siteUrl, upcomingEvents } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, faqLd, offerLd } from "./site-ui";
 
 // A category page has its own title and canonical; a search page stays out of the index
@@ -42,16 +44,6 @@ const hrefWith = homeHref;
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-function sortDeals(list: SiteCoupon[], orden: Filters["orden"]) {
-  const byId = (a: SiteCoupon, b: SiteCoupon) => b.id - a.id;
-  if (orden === "nuevos") return [...list].sort(byId);
-  if (orden === "ahorro") return [...list].sort((a, b) => savingOf(b.discount) - savingOf(a.discount) || byId(a, b));
-  if (orden === "comentados") return [...list].sort(byComments);
-  if (orden === "caducan") return [...list].sort((a, b) => (a.expires_at || "9999").localeCompare(b.expires_at || "9999") || byId(a, b));
-  // destacados ("Más votados"): community score first, then checked, then discount, then newest
-  return [...list].sort(byVotes);
-}
-
 // The page reads the database, so it streams behind its own boundary: the layout's Suspense does not
 // cover a navigation between two filters of this same route (/?cat=moda -> /?cat=hogar)
 export default function HomePage(props: PageProps<"/">) {
@@ -64,7 +56,7 @@ export default function HomePage(props: PageProps<"/">) {
 
 async function HomeContent({ searchParams }: PageProps<"/">) {
   const f = readFilters(await searchParams);
-  const [all, client, mine] = await Promise.all([siteCoupons(), siteClient(), currentVotes()]);
+  const [all, client, mine, reader] = await Promise.all([siteCoupons(), siteClient(), currentVotes(), getReader()]);
   const now = new Date();
   const { iso: today, words: todayWords } = madridToday(now);
   const time = now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
@@ -73,10 +65,11 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
   const needle = fold(f.q);
   // a category or a search scopes the intro, the rail and the feed; "tipo" and "comprobados" only narrow the feed
   const scope = all.filter((c) => (!f.cat || c.store_category === f.cat) && (!needle || fold(`${c.store_name} ${c.title} ${c.code} ${c.description}`).includes(needle)));
-  const byStore = new Map<number, { name: string; slug: string; count: number }>();
+  const byStore = new Map<number, { name: string; slug: string; count: number; codes: number }>();
   for (const c of scope) {
-    const s = byStore.get(c.store_id) ?? { name: c.store_name, slug: c.store_slug, count: 0 };
+    const s = byStore.get(c.store_id) ?? { name: c.store_name, slug: c.store_slug, count: 0, codes: 0 };
     s.count++;
+    if (c.kind === "code") s.codes++;
     byStore.set(c.store_id, s);
   }
   const topStores = [...byStore.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, RAIL_STORES);
@@ -202,7 +195,7 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
             {shown.length ? (
               <div className="feed">
                 {shown.map((c) => (
-                  <DealCard key={c.id} c={c} client={client} today={today} now={now} mine={mine} next={hrefWith(f, { pagina: f.pagina })} />
+                  <DealCard key={c.id} c={c} client={client} today={today} now={now} mine={mine} next={hrefWith(f, { pagina: f.pagina })} viewerHandle={reader?.handle} />
                 ))}
               </div>
             ) : (
@@ -263,6 +256,7 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
                   </li>
                 ))}
               </ul>
+              <Link href="/calendario" className="small">Ver el calendario completo</Link>
             </section>
             <p className="small" data-seo="Aviso de afiliación">Algunos enlaces son de afiliado. Si compras, la tienda nos paga una comisión y tu precio no cambia. Las comisiones no influyen en el orden de los chollos.</p>
           </aside>
@@ -306,16 +300,17 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
                 <h2>Lo que conviene saber antes de usar un código</h2>
               </div>
               <div className="store-guides">
-                {guides.map((g) => (
-                  <article key={g.id} className="guide">
-                    <h3>Códigos descuento {g.name}</h3>
-                    <StoreFacts text={g.facts} />
-                    {g.intro && <p>{g.intro}</p>}
-                    <Link href={`/tiendas/${g.slug}`}>
-                      Ver los {byStore.get(g.id)?.count} cupones de {g.name}
-                    </Link>
-                  </article>
-                ))}
+                {guides.map((g) => {
+                  const labels = guideLabels(g.name, byStore.get(g.id)?.count ?? 0, byStore.get(g.id)?.codes ?? 0);
+                  return (
+                    <article key={g.id} className="guide">
+                      <h3>{labels.heading}</h3>
+                      <StoreFacts text={g.facts} />
+                      {g.intro && <p>{g.intro}</p>}
+                      <Link href={`/tiendas/${g.slug}`}>{labels.link}</Link>
+                    </article>
+                  );
+                })}
               </div>
             </section>
           )}
@@ -323,7 +318,7 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
           <section className="two">
             <div className="section-head">
               <h2>Dudas sobre chollos y códigos</h2>
-              <p>Si tu duda es sobre una tienda concreta, la respuesta suele estar en su página.</p>
+              <p>Si tu pregunta no está aquí, déjala en los comentarios de cualquier oferta y la respondemos.</p>
             </div>
             <Faqs items={faqs} />
           </section>

@@ -99,9 +99,15 @@ export function VoteColumn({ couponId, score, mine, next, readOnly = false }: { 
   );
 }
 
-type CardProps = { c: SiteCoupon; client: Client | undefined; today: string; now: Date; mine: Map<number, -1 | 1>; next: string };
+// hideStore: on the store's own page the card leaves out its logo and name; viewerHandle: the signed-in reader's @handle
+type CardProps = { c: SiteCoupon; client: Client | undefined; today: string; now: Date; mine: Map<number, -1 | 1>; next: string; hideStore?: boolean; viewerHandle?: string | null };
 
-export function DealCard({ c, client, today, now, mine, next }: CardProps) {
+// "@handle" in a card's foot: a link to the reader's own account when it is theirs (there are no public profiles)
+function SharedBy({ handle, viewerHandle }: { handle: string; viewerHandle?: string | null }) {
+  return handle === viewerHandle ? <Link href="/cuenta">@{handle}</Link> : <>@{handle}</>;
+}
+
+export function DealCard({ c, client, today, now, mine, next, hideStore = false, viewerHandle }: CardProps) {
   const conds = conditionsOf(c.description, c.title).slice(0, 3);
   return (
     <article className="deal">
@@ -109,10 +115,12 @@ export function DealCard({ c, client, today, now, mine, next }: CardProps) {
       <StoreThumb c={c} href={dealPath(c)} />
       <div className="deal-main">
         <div className="deal-head">
-          <Link className="store" href={`/tiendas/${c.store_slug}`}>
-            <StoreLogoImg slug={c.store_slug} name={c.store_name} hasLogo={c.store_has_logo} className="slogo" />
-            {c.store_name}
-          </Link>
+          {!hideStore && (
+            <Link className="store" href={`/tiendas/${c.store_slug}`}>
+              <StoreLogoImg slug={c.store_slug} name={c.store_name} hasLogo={c.store_has_logo} className="slogo" />
+              {c.store_name}
+            </Link>
+          )}
           <StatusBadges c={c} today={today} />
         </div>
         <h3>
@@ -141,7 +149,7 @@ export function DealCard({ c, client, today, now, mine, next }: CardProps) {
       {/* as in the prototype: who and when, comments, then until when */}
       <div className="deal-foot">
         <span>
-          {c.shared_by_handle ? <>Compartido por @{c.shared_by_handle} · </> : "Publicado "}{timeAgo(new Date(c.created_at), now)}
+          {c.shared_by_handle ? <>Compartido por <SharedBy handle={c.shared_by_handle} viewerHandle={viewerHandle} /> · </> : "Publicado "}{timeAgo(new Date(c.created_at), now)}
         </span>
         <Link href={`${dealPath(c)}#comentarios`}>{c.comments === 1 ? "1 comentario" : `${c.comments} comentarios`}</Link>
         <span>{c.expires_at ? <>Válido hasta el <time dateTime={c.expires_at}>{shortDate(c.expires_at)}</time></> : "Sin fecha de caducidad"}</span>

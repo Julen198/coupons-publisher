@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
-import { cacheLife } from "next/cache";
 import { Suspense } from "react";
-import { contactEmail, madridToday, siteUrl } from "@/lib/site-text";
+import { contactEmail, siteUrl } from "@/lib/site-text";
 import { LiveHeader } from "./live-header";
 import { SeoDrawer } from "./seo-panel";
-import { SiteHeader } from "./site-header";
+import { HeaderCategoryProvider, SiteHeader } from "./site-header";
 import { Toaster } from "./toast";
 import "./site.css";
 
@@ -22,16 +21,10 @@ export const metadata: Metadata = {
   openGraph: { siteName: "CuponLab", locale: "es_ES", type: "website" },
 };
 
-// The year in the footer, worked out once a day so the shell stays prerendered
-async function FooterYear() {
-  "use cache";
-  cacheLife("days");
-  return madridToday().iso.slice(0, 4);
-}
-
 export default function SiteLayout({ children }: LayoutProps<"/">) {
   return (
     <div className={`cl ${archivo.variable} ${jetbrains.variable}`}>
+      <HeaderCategoryProvider>
       {/* the header reads the search box and the active section from the URL */}
       <Suspense fallback={<SiteHeader />}>
         <LiveHeader />
@@ -48,7 +41,7 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
       </div>
       <footer className="foot">
         <div className="wrap">
-          <span>© <FooterYear /> CuponLab · Chollos y códigos descuento verificados</span>
+          <span>© CuponLab · Chollos y códigos descuento verificados</span>
           <span>
             <Link href="/tiendas">Tiendas</Link> · <Link href="/calendario">Calendario de ofertas</Link> · <Link href="/metodologia">Metodología</Link> ·{" "}
             <Link href="/aviso-de-afiliacion">Aviso de afiliación</Link>
@@ -61,6 +54,7 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
         </div>
       </footer>
       <Toaster />
+      </HeaderCategoryProvider>
     </div>
   );
 }
