@@ -4,7 +4,7 @@ import { siteStoreOptions } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
 import { ShareForm } from "./share-form";
 
-export const metadata: Metadata = { title: "Compartir un chollo", robots: { index: false } };
+export const metadata: Metadata = { title: "Comparte un chollo", robots: { index: false } };
 
 export default async function CompartirPage() {
   const reader = await getReader();
@@ -14,8 +14,8 @@ export default async function CompartirPage() {
   return (
     <main className="wrap">
       <div className="panel share-card">
-        <h1>Compartir un chollo</h1>
-        <p className="small">Lo revisamos antes de publicarlo. Solo enlaces https a la tienda.</p>
+        <h1>Comparte un chollo</h1>
+        <p className="lead">Lo revisamos y, si cumple las normas, lo publicamos en unas horas con tu nombre.</p>
         <ShareForm stores={stores} />
       </div>
     </main>

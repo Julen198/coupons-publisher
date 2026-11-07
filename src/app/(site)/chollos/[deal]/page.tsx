@@ -8,6 +8,7 @@ import { getReader } from "@/lib/reader";
 import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
 import { badgeInSentence, conditionsOf, lowerFirst, mentionsBadge } from "@/lib/deal-text";
 import { aboutParagraphs, aboutSnippet } from "@/lib/deal-about";
+import { dealFaqs, offerConditions } from "@/lib/deal-page";
 import { daysBetween, dealPath, longDate, madridToday, parseDealId, shortDate, siteUrl } from "@/lib/site-text";
 import { CommentForm } from "./comment-form";
 import { CommentItem } from "./comment-item";
@@ -111,7 +112,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
         <><b>Copia el código {c.code}</b> con el botón «Copiar».</>,
         <><b>Entra en {c.store_name}</b> desde «Ir a {c.store_name}» y añade lo que quieras comprar al carrito.</>,
         <><b>Pega el código</b> en el campo de código descuento o cupón antes de pagar.</>,
-        <><b>Comprueba el total:</b> el descuento aparece antes de confirmar el pedido.</>,
+        <><b>Comprueba el total.</b> El descuento aparece antes de confirmar el pedido.</>,
       ]
     : [
         <><b>Entra en {c.store_name}</b> desde «Ir a {c.store_name}». El descuento ya está aplicado, no hace falta código.</>,
@@ -119,22 +120,16 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
         <><b>Comprueba el total</b> antes de pagar.</>,
       ];
 
-  const conditions: [string, string][] = [
-    ["Descuento", wordBadge ? (hasCode ? `Con el código ${c.code}` : "Oferta sin código") : `${badge}${hasCode ? ` con el código ${c.code}` : ", sin código"}`],
-    // stock only limits deals; a code lasts until its date
-    ["Válido hasta", c.expires_at ? `${longDate(c.expires_at)}${hasCode ? "" : " o hasta agotar existencias"}` : "Sin fecha de caducidad anunciada"],
-    ["Estado", live ? (c.verified ? "Activo y comprobado" : "Activo") : "Caducado"],
-    ["Condiciones", conds.length ? conds.join(" · ") : "Las generales de la tienda"],
-    ["Tienda", c.store_website.replace(/^https?:\/\//, "").replace(/\/$/, "")],
-    ["Publicado", longDate(published)],
-    ...facts.map((x): [string, string] => [x.label, x.value]),
-  ];
+  const code = hasCode ? c.code : "";
+  const conditions = offerConditions({ badge, wordBadge, code, expiresAt: c.expires_at || null, conds, facts });
+  // generic answers about using this coupon, then the store's own questions
+  const faqs = [...dealFaqs({ store: c.store_name, code, expiresAt: c.expires_at || null, live, codesPerOrder: fact("códigos por pedido") ?? "" }), ...storeFaqs];
 
   return (
     <main className="wrap">
       <JsonLd data={offerLd(base, c, live)} />
       <JsonLd data={crumbsLd(base, crumbs)} />
-      {storeFaqs.length > 0 && <JsonLd data={faqLd(storeFaqs)} />}
+      <JsonLd data={faqLd(faqs)} />
 
       <Crumbs items={crumbs} />
 
@@ -163,7 +158,6 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
                 )}
                 <span>{c.expires_at ? <>{live ? "Válido hasta el" : "Caducó el"} <b>{shortDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</span>
                 <span><b>{comments.length}</b> {comments.length === 1 ? "comentario" : "comentarios"}</span>
-                {hasCode && <span>Código <b>{c.code}</b></span>}
               </div>
             </div>
           </section>
@@ -185,7 +179,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
           )}
 
           <section className="dt-sec" data-seo="Condiciones claras">
-            <h2>Condiciones del cupón</h2>
+            <h2>Condiciones de la oferta</h2>
             <dl className="kv">
               {conditions.map(([k, v]) => (
                 <div key={k} style={{ display: "contents" }}>
@@ -209,19 +203,10 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             </section>
           )}
 
-          {store?.intro && (
-            <section className="dt-sec" data-seo="Texto único por tienda">
-              <h2>Lo que conviene saber de {c.store_name}</h2>
-              <p className="lead">{store.intro}</p>
-            </section>
-          )}
-
-          {storeFaqs.length > 0 && (
-            <section className="dt-sec">
-              <h2>Preguntas sobre los descuentos de {c.store_name}</h2>
-              <Faqs items={storeFaqs} seo="FAQPage de la tienda" />
-            </section>
-          )}
+          <section className="dt-sec">
+            <h2>Preguntas sobre este chollo</h2>
+            <Faqs items={faqs} />
+          </section>
 
           {(live || comments.length > 0) && (
           <section className="dt-sec" id="comentarios" data-seo="Contenido de la comunidad">
@@ -263,10 +248,8 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
                       </span>
                       <span>
                         <b>{t}</b>
-                        <span>
-                          {o.store_name}
-                          {!isWordBadge(o) && !mentionsBadge(t, b) && <> · <em>{b}</em></>}
-                        </span>
+                        <small>{o.store_name}</small>
+                        {!isWordBadge(o) && !mentionsBadge(t, b) && <span className="rel-badge">{b}</span>}
                       </span>
                     </Link>
                   );
@@ -301,8 +284,6 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             {fact("envío") && <li>Envío: <b>{fact("envío")}</b></li>}
             {fact("devoluciones") && <li>Devoluciones: <b>{fact("devoluciones")}</b></li>}
             <li>{c.expires_at ? <>{live ? "Caduca" : "Caducó"} el <b>{shortDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</li>
-            {c.verified ? <li><b>Comprobado</b>, de la red de la tienda o revisado por el equipo</li> : null}
-            {fact("códigos por pedido") ? <li>Códigos por pedido: <b>{fact("códigos por pedido")}</b></li> : <li>Un código por pedido salvo que la tienda diga otra cosa</li>}
           </ul>
           <p className="small" data-seo="Aviso de afiliación">Enlace de afiliado: si compras, la tienda nos paga una comisión y tu precio no cambia.</p>
         </aside>

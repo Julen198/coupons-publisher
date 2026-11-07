@@ -112,6 +112,8 @@ export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">)
           ))}
         </nav>
         {tab === "compartidos" && <SharedList rows={shared} now={now} />}
+        {/* rejected shares still count toward the daily limit (actions-reader shareDeal), so the note only says what is true */}
+        {tab === "compartidos" && shared.length > 0 && <p className="small">Un chollo rechazado no se publica.</p>}
         {tab === "guardados" && <SavedList rows={saved} />}
         {tab === "comentarios" && <CommentList readerId={reader.id} now={now} />}
       </section>
