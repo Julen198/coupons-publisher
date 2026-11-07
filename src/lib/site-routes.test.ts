@@ -50,6 +50,12 @@ test("dealRouteVerdict: no id, no row, or a hidden deal is missing", () => {
   assert.deepEqual(dealRouteVerdict("42-x", row({ store_website: "https://bergfreunde.de" }), T, false), { kind: "missing" });
 });
 
+test("a deal whose link can't be tracked has no page, live or expired, whatever publish-unverified says", () => {
+  assert.equal(dealVisibility(row(), T, true, false), "gone");
+  assert.equal(dealVisibility(row({ expires_at: "2026-10-01" }), T, true, false), "gone");
+  assert.deepEqual(dealRouteVerdict("42-43einhalb-15-extra-con-clab15", row(), T, true, false), { kind: "missing" });
+});
+
 test("dealRouteVerdict: an id from another row never matches", () => {
   assert.deepEqual(dealRouteVerdict("7-x", row(), T, false), { kind: "missing" });
 });

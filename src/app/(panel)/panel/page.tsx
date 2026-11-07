@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { storeTracked } from "@/lib/affiliate";
+import { storeLinkProblem } from "@/lib/tracked-link";
 import { canEdit, onlyVisible, requireUser, visibleClientIds } from "@/lib/auth";
 import { clickStats } from "@/lib/clicks";
 import { listActivity, listAllCoupons, listClients, listPages, listStores } from "@/lib/db";
@@ -37,7 +37,7 @@ export default async function DashboardPage() {
   const stale = pages.filter((p) => coverageOf(p, now) === "stale");
   const noAwinClients = clients.filter((c) => !c.awin_affiliate_id);
   const ourAwin = stores.some((s) => s.publisher_id); // a connected Awin account of ours covers them
-  const noMerchant = stores.filter((s) => !storeTracked(s));
+  const noMerchant = stores.filter((s) => storeLinkProblem(s) !== null); // the public gate's own check, see trackedLinkOf
 
   const alerts = [
     stale.length && { tag: "Mes", href: "/panel/pages?coverage=stale", title: `${stale.length} página(s) HTML con el mes pasado`, detail: shortList(stale.map((p) => `${p.client_name} · ${p.store_name}`)) },
@@ -45,7 +45,7 @@ export default async function DashboardPage() {
     pending.length && { tag: "Verificar", href: "/panel/coupons?status=pending", title: `${pending.length} cupón(es) sin verificar`, detail: shortList(pending.map((c) => c.store_name)) },
     expiredVisible.length && { tag: "Caducados", href: "/panel/coupons?status=expired", title: `${expiredVisible.length} cupón(es) caducados`, detail: "Ya no salen en las páginas; retíralos o actualiza la fecha" },
     noAwinClients.length && { tag: "Awin", href: "/panel/clients", title: `${noAwinClients.length} cliente(s) sin affiliate ID`, detail: `${shortList(noAwinClients.map((c) => c.name))}: ${ourAwin ? "sus enlaces de Awin llevan nuestro publisher ID" : "sus enlaces van sin tracking"}` },
-    noMerchant.length && { tag: "Tracking", href: "/panel/stores", title: `${noMerchant.length} tienda(s) sin merchant ID o enlace`, detail: shortList(noMerchant.map((s) => s.name)) },
+    noMerchant.length && { tag: "Tracking", href: "/panel/stores", title: `${noMerchant.length} tienda(s) sin tracking, sus cupones no se publican`, detail: shortList(noMerchant.map((s) => s.name)) },
   ].filter(Boolean) as { tag: string; href: string; title: string; detail: string }[];
 
 

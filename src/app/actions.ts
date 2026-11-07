@@ -200,8 +200,7 @@ export async function updateClient(f: FormData) {
   const [target] = await sql()<{ id: number }[]>`SELECT id FROM clients WHERE slug = ${s}`;
   if (!target || !canSeeClient(user, target.id)) throw new Error("No tienes acceso a este cliente");
   await sql()`
-    UPDATE clients SET domain = ${bareDomain(str(f, "domain"))},
-      clickref_prefix = ${str(f, "clickref_prefix")}
+    UPDATE clients SET domain = ${bareDomain(str(f, "domain"))}
     WHERE slug = ${s}`;
   revalidatePath(`/panel/clients/${s}`);
 }

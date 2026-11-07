@@ -1,5 +1,6 @@
 import { poolerUrl } from "./pooler.ts";
 import { countrySql, withCountryColumn } from "./country-column.ts";
+import { altDomainsColumn, altDomainsSql } from "./tracking-columns.ts";
 import type { CategorySlug } from "./catalog.ts";
 import postgres from "postgres";
 import { io } from "next/cache";
@@ -35,6 +36,7 @@ export type Store = {
   facts: string; // one "Etiqueta | Valor" per line
   country: string; // ISO 3166-1 alpha-2 it sells in, "" = unknown (see onSpanishSite); "" too until npm run db:setup adds the column
   country_source: "" | "network" | "inferred" | "manual";
+  alt_domains?: string; // other domains the store sells on, comma-separated (see storeDomains); "" or missing until npm run db:setup adds it
 };
 
 export type Coupon = {
@@ -114,15 +116,15 @@ export const listClients = () => q(async (s) => plain(await s<Client[]>`SELECT *
 export const getClient = (slug: string) =>
   q(async (s) => plain(await s<Client[]>`SELECT * FROM clients WHERE slug = ${slug}`)[0] as Client | undefined);
 
-// country: whether stores.country exists yet (see withCountryColumn)
-const storeCols = (country: boolean) =>
-  `id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo, ${countrySql(country, "stores", "")}`;
+// country / alt: whether stores.country and stores.alt_domains exist yet (see withCountryColumn, altDomainsColumn)
+const storeCols = (country: boolean, alt: boolean) =>
+  `id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo, ${countrySql(country, "stores", "")}, ${altDomainsSql(alt, "stores", "alt_domains")}`;
 
 export const listStores = () =>
-  q(async (s) => plain(await withCountryColumn((c) => s<Store[]>`SELECT ${s.unsafe(storeCols(c))} FROM stores ORDER BY lower(name)`)));
+  q(async (s) => plain(await withCountryColumn((c) => altDomainsColumn.run((a) => s<Store[]>`SELECT ${s.unsafe(storeCols(c, a))} FROM stores ORDER BY lower(name)`))));
 
 export const getStore = (slug: string) =>
-  q(async (s) => plain(await withCountryColumn((c) => s<Store[]>`SELECT ${s.unsafe(storeCols(c))} FROM stores WHERE slug = ${slug}`))[0] as Store | undefined);
+  q(async (s) => plain(await withCountryColumn((c) => altDomainsColumn.run((a) => s<Store[]>`SELECT ${s.unsafe(storeCols(c, a))} FROM stores WHERE slug = ${slug}`)))[0] as Store | undefined);
 
 export const listCoupons = (storeId: number) =>
   q(async (s) => plain(await s<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${storeId} AND review = '' ORDER BY verified DESC, id`));

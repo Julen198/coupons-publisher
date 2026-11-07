@@ -13,9 +13,9 @@ test("with trackBase, buttons go through /go for click counting", () => {
   assert.doesNotMatch(html, /awin1\.com/);
 });
 
-test("without trackBase, buttons link straight to Awin with the client's clickref", () => {
+test("without trackBase, buttons link straight to Awin with the client's clickref (its slug, store, coupon)", () => {
   const html = renderPage(client, store, [coupon], NOW);
-  assert.match(html, /awin1\.com\/cread\.php\?awinmid=77008&amp;awinaffid=123&amp;clickref=demo-adidas-9/);
+  assert.match(html, /awin1\.com\/cread\.php\?awinmid=77008&amp;awinaffid=123&amp;clickref=diario-demo-adidas-9/);
 });
 
 test("client name is escaped in the disclosure", () => {
@@ -37,7 +37,7 @@ test("cards show the store's icon when it has one and we know our origin", () =>
 
 test("client without an Awin id: the link carries the publisher id of the account that imported the coupon", () => {
   const html = renderPage({ ...client, awin_affiliate_id: "" }, { ...store, publisher_id: "555" }, [{ ...coupon, publisher_id: "888" }], NOW);
-  assert.match(html, /awinmid=77008&amp;awinaffid=888&amp;clickref=demo-adidas-9/);
+  assert.match(html, /awinmid=77008&amp;awinaffid=888&amp;clickref=diario-demo-adidas-9/);
 });
 
 test("client without an Awin id, manual coupon: falls back to the publisher id that joined the store", () => {
@@ -58,8 +58,15 @@ test("no Awin id anywhere: straight to the store", () => {
 
 test("other networks: the client's own account link wins over ours", async () => {
   const { couponAffiliateUrl } = await import("./render-page.ts");
-  const td = { ...store, network: "tradedoubler", tracking_url: "https://ours/?epi={ref}&url={url}" };
-  assert.match(couponAffiliateUrl(client, td, coupon), /^https:\/\/ours\//);
-  assert.equal(couponAffiliateUrl(client, td, coupon, "https://theirs/?epi={ref}&url={url}"),
-    "https://theirs/?epi=demo-adidas-9&url=https%3A%2F%2Fwww.adidas.es%2Fx");
+  const td = { ...store, network: "tradedoubler", tracking_url: "https://clk.tradedoubler.com/click?p=1&a=111&epi={ref}&url={url}" };
+  assert.match(couponAffiliateUrl(client, td, coupon), /a=111&/);
+  assert.equal(couponAffiliateUrl(client, td, coupon, "https://clk.tradedoubler.com/click?p=1&a=222&epi={ref}&url={url}"),
+    "https://clk.tradedoubler.com/click?p=1&a=222&epi=diario-demo-adidas-9&url=https%3A%2F%2Fwww.adidas.es%2Fx");
+});
+
+test("a link that isn't tracked goes to the store's own page, never to another shop", async () => {
+  const { couponAffiliateUrl } = await import("./render-page.ts");
+  const td = { ...store, network: "tradedoubler", tracking_url: "https://not-tradedoubler.example/?url={url}" };
+  assert.equal(couponAffiliateUrl(client, td, coupon), "https://www.adidas.es/x");
+  assert.equal(couponAffiliateUrl(client, td, { ...coupon, target_url: "https://www.otra-tienda.es/x" }), "https://www.adidas.es/");
 });

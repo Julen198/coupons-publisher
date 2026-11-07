@@ -75,7 +75,7 @@ function Template({ text }: { text: string }) {
 
 export function LinkFormats({ clients, examples, ourIds }: { clients: Client[]; examples: LinkExample[]; ourIds: Record<string, string> }) {
   const sample = clients.find((c) => c.awin_affiliate_id) ?? clients[0];
-  const ref = (c: Client) => [c.clickref_prefix || "<prefijo>", "<tienda>", "<cupón>"].join("-");
+  const ref = (c: Client) => [c.slug || "<medio>", "<tienda>", "<cupón>"].join("-");
   return (
     // reference material, folded away so the accounts stay the focus of the page
     <details className="group rounded-lg border border-neutral-200 dark:border-neutral-800">
@@ -87,8 +87,9 @@ export function LinkFormats({ clients, examples, ourIds }: { clients: Client[]; 
       <section aria-label="Cómo se construyen los enlaces" className="flex flex-col gap-4 border-t border-neutral-200 p-5 dark:border-neutral-800">
         <div>
           <p className="max-w-3xl text-sm text-neutral-600 dark:text-neutral-400">
-            El panel monta cada enlace con el formato de su red. Todos llevan un <strong>ref</strong> = prefijo del medio · tienda · cupón,
-            para ver en los informes de la red qué medio, tienda y cupón generó cada venta. Antes de ir a la red, el clic pasa por nuestro
+            El panel monta cada enlace con el formato de su red. Todos llevan un <strong>ref</strong> = slug del medio · tienda · cupón,
+            para ver en los informes de la red qué medio, tienda y cupón generó cada venta. Una tienda sin enlace con tracking
+            no publica sus cupones. Antes de ir a la red, el clic pasa por nuestro
             servidor para contarlo en Clics.
           </p>
         </div>

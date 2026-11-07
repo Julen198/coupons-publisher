@@ -103,7 +103,9 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/p
               <form action={updateClient} className="flex flex-col gap-3">
                 <input type="hidden" name="slug" value={client.slug} />
                 <Field label="Dominio" name="domain" defaultValue={client.domain} />
-                <Field label="Prefijo clickref" name="clickref_prefix" defaultValue={client.clickref_prefix} />
+                <p className="text-sm text-neutral-500">
+                  El ref de sus enlaces empieza por su slug, <span className="font-mono">{client.slug}</span>, y sigue con la tienda y el cupón.
+                </p>
                 <button className={`${btnSecondaryCls} min-h-10 self-start`}>Guardar</button>
               </form>
               <div className="mt-5 border-t border-neutral-200 pt-4 text-sm dark:border-neutral-800">
