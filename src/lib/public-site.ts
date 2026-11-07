@@ -12,6 +12,8 @@ import { onSpanishSite } from "./market.ts";
 import type { CategorySlug } from "./catalog.ts";
 import { hasWordmarkSql, withWordmarkColumn } from "./wordmark-column.ts";
 import { countrySql, withCountryColumn } from "./country-column.ts";
+import { publicText } from "./translation.ts";
+import { translationSql, withTranslationColumns } from "./translation-column.ts";
 
 // Readers wrapped in React cache() run once per render: generateMetadata, the page and its related deals share one
 // query. The memo lasts one request only (no cross-request caching), and callers copy before sorting.
@@ -71,9 +73,13 @@ const knownBrands = cache(async (): Promise<string[]> => {
   return [...BRAND_ALLOWLIST, ...rows.map((r) => r.name)];
 });
 
-// Plain copies with display_title filled in
-function titled<T extends { title: string; store_name: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string })[] {
-  return rows.map((r) => ({ ...r, display_title: displayTitle(r.title, r.store_name, brands) }));
+// Plain copies with display_title filled in. A coupon that came in another language reads in Spanish: title and
+// description become its translation (publicText), so every card, page, meta tag and slug uses it.
+function titled<T extends { title: string; description: string; store_name: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string })[] {
+  return rows.map((r) => {
+    const text = publicText(r);
+    return { ...r, ...text, display_title: displayTitle(text.title, r.store_name, brands) };
+  });
 }
 
 // Every live coupon readers may see (same rule as clients' pages), newest first. Stores of other European
@@ -246,9 +252,11 @@ export type AccountComment = { id: number; body: string; created_at: Date; coupo
 
 export async function readerComments(readerId: number): Promise<AccountComment[]> {
   await io();
-  return plain(await sql()<AccountComment[]>`
-    SELECT k.id, k.body, k.created_at, c.id AS coupon_id, c.title, s.name AS store_name
+  const rows = await withTranslationColumns((t) => sql()<(AccountComment & { description: string })[]>`
+    SELECT k.id, k.body, k.created_at, c.id AS coupon_id, c.title, c.description, ${sql().unsafe(translationSql(t, "c"))}, s.name AS store_name
     FROM comments k JOIN coupons c ON c.id = k.coupon_id JOIN stores s ON s.id = c.store_id
     WHERE k.reader_id = ${readerId} AND k.hidden = 0
     ORDER BY k.created_at DESC, k.id DESC LIMIT 50`);
+  // the deal's title as the site shows it (and links to it)
+  return rows.map((r) => ({ id: r.id, body: r.body, created_at: r.created_at, coupon_id: r.coupon_id, title: publicText(r).title, store_name: r.store_name }));
 }
