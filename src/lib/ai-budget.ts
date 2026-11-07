@@ -2,8 +2,6 @@ import { io } from "next/cache";
 import { sql } from "./db";
 import { limitsFrom, type AiLimits, type UsageRow } from "./ai-costs";
 
-export { DEFAULT_LIMITS, type AiLimits } from "./ai-costs";
-
 export async function aiLimits(): Promise<AiLimits> {
   await io();
   const rows = await sql()<{ key: string; value: string }[]>`SELECT key, value FROM settings WHERE key IN ('ai_budget', 'ai_alert', 'ai_pause_search')`;

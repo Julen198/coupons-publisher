@@ -13,7 +13,7 @@ export const FEATURE_INFO: Record<AiFeature, { label: string; what: string }> = 
   translate: { label: "Traducciones", what: "Claude Haiku: títulos y condiciones de cupones en otros idiomas" },
 };
 
-// The monthly limits set in Costes de IA (settings ai_budget, ai_alert, ai_pause_search), with their defaults
+// The monthly limits set in Costes de IA (settings ai_budget, ai_alert and ai_pause_search), with their defaults
 export interface AiLimits { budget: number; alert: number; pauseSearch: boolean }
 export const DEFAULT_LIMITS: AiLimits = { budget: 25, alert: 80, pauseSearch: true };
 
