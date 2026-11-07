@@ -308,6 +308,20 @@ CREATE INDEX IF NOT EXISTS coupons_translation_auto_idx ON coupons(id) WHERE tra
 -- their cost has its own line in Costes de IA
 ALTER TABLE ai_usage DROP CONSTRAINT IF EXISTS ai_usage_feature_check;
 ALTER TABLE ai_usage ADD CONSTRAINT ai_usage_feature_check CHECK (feature IN ('search', 'content', 'style', 'stores', 'translate'));
+-- tracking launch gate: other domains a store sells on (comma-separated registrable domains, see storeDomains), so a deep
+-- link there keeps its page instead of falling back to the store's home
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS alt_domains text NOT NULL DEFAULT '';
+-- what a click was: 'go' (Ir a la tienda, redirected through a tracked link), 'copy' (Copiar código) or 'untracked' (sent
+-- straight to the store because its link had stopped being tracked); the page path it came from (no query string), and
+-- sha256(user agent + day) truncated to dedupe repeats without storing the raw user agent or the IP
+ALTER TABLE clicks ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'go';
+ALTER TABLE clicks DROP CONSTRAINT IF EXISTS clicks_kind_check;
+ALTER TABLE clicks ADD CONSTRAINT clicks_kind_check CHECK (kind IN ('go', 'copy', 'untracked'));
+ALTER TABLE clicks ADD COLUMN IF NOT EXISTS ref text NOT NULL DEFAULT '';
+ALTER TABLE clicks ADD COLUMN IF NOT EXISTS ua_hash text NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS clicks_dedupe_idx ON clicks(coupon_id, ua_hash, at);
+-- the network sync cron: when each account last synced without error (last_sync_at / last_error say when it last tried)
+ALTER TABLE network_accounts ADD COLUMN IF NOT EXISTS last_success_at timestamptz;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
