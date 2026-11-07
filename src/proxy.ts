@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 import { dealRoute, storeRoute } from "@/lib/route-lookup";
-import type { RouteVerdict } from "@/lib/site-routes";
+import { isDocumentRequest, type RouteVerdict } from "@/lib/site-routes";
 
 // The public deals site: indexable, open to everyone
 const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado)$/, /^\/sitemap\.xml$/];
@@ -16,11 +16,11 @@ const STORE_PAGE = /^\/tiendas\/([^/]+)$/;
 const NOT_FOUND_PAGE = "/no-encontrado";
 
 // Deal and store pages stream behind the site layout's Suspense, which fixes a 200 before the page can call notFound()
-// or permanentRedirect(). Deciding here keeps the HTTP status honest. Prefetches skip it (their links come from the
-// database), and a failed lookup lets the request through to the page, which runs the same checks.
+// or permanentRedirect(). Deciding here keeps the HTTP status honest. Only HTML document requests need it: RSC
+// navigations and prefetches pass through (their links come from the database), and a failed lookup lets the request
+// through to the page, which runs the same checks.
 async function sitePageVerdict(req: NextRequest): Promise<RouteVerdict | null> {
-  if (req.method !== "GET" && req.method !== "HEAD") return null;
-  if (req.headers.get("next-router-prefetch")) return null;
+  if (!isDocumentRequest(req.method, req.headers.get("accept"), req.nextUrl)) return null;
   const { pathname } = req.nextUrl;
   const deal = DEAL_PAGE.exec(pathname);
   const store = deal ? null : STORE_PAGE.exec(pathname);

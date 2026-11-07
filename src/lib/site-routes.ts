@@ -39,3 +39,12 @@ export function dealRouteVerdict(param: string, row: DealRouteRow | undefined, t
 export function storeRouteVerdict(row: { website: string } | undefined): RouteVerdict {
   return row && isSpanishMarket(row.website) ? { kind: "ok" } : { kind: "missing" };
 }
+
+// A browser loading the page itself, the only request whose status a crawler sees. Next 16 strips the router's Flight
+// headers (rsc, next-router-prefetch) before Proxy, so RSC navigations and prefetches are told apart by their Accept:
+// the router's fetch() sends */*, a document navigation asks for text/html. _rsc is checked too in case it survives.
+export function isDocumentRequest(method: string, accept: string | null, url: URL): boolean {
+  if (method !== "GET" && method !== "HEAD") return false;
+  if (url.searchParams.has("_rsc")) return false;
+  return (accept ?? "").toLowerCase().includes("text/html");
+}
