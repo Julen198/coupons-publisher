@@ -83,9 +83,6 @@ export function NewClientForm() {
           <fieldset className={`${cardCls} flex flex-col gap-3`}>
             <legend className="px-1 text-sm font-semibold text-neutral-600">1 · Datos del medio</legend>
             <Field label="Dominio" name="domain" required placeholder="www.diariox.es" value={form.domain} onChange={set("domain")} />
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Prefijo clickref" name="clickref_prefix" placeholder="dx" value={form.ref} onChange={set("ref")} />
-            </div>
             <button type="button" onClick={generate} disabled={!form.domain.trim() || phase === "loading"} className="min-h-11 rounded-md border border-blue-700 bg-blue-50 text-sm font-semibold text-blue-900 disabled:cursor-not-allowed disabled:border-neutral-200 disabled:bg-neutral-100 disabled:text-neutral-500 dark:border-blue-400 dark:bg-blue-950 dark:text-blue-100 dark:disabled:border-neutral-700 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400">
               {phase === "loading" ? "Leyendo portada…" : ready ? "Volver a generar" : "Generar desde su web"}
             </button>

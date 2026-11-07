@@ -8,7 +8,15 @@ const API = "https://api.effinity.fr/apiv3";
 const PAGE = 1000;
 const MAX_PAGES = 50;
 
-export interface Program { programId: string | number; merchantName?: string; programName?: string; merchantUrl?: string; defaultTrackedLink?: string }
+export interface Program {
+  programId: string | number;
+  merchantName?: string;
+  programName?: string;
+  merchantUrl?: string;
+  defaultTrackedLink?: string;
+  status?: string; // our partnership: "active" pays, "inactive" (joined, then paused or not accepted) does not
+  coverageCountries?: string; // a JSON list of English country names: '["Spain"]'
+}
 export interface Promo { code?: string; voucher?: string; description?: string; value?: number | string; valueType?: string; validityEndDate?: string }
 export interface Link {
   linkId: string | number;
@@ -20,15 +28,43 @@ export interface Link {
   promo?: Promo;
 }
 
-// defaultTrackedLink is "https://track.effiliation.com/servlet/effi.redir?id_compteur=<counter>"; effi_id carries our ref
-// and url the page, the deeplink form of their TrackedLink example
+// defaultTrackedLink is "https://track.effiliation.com/servlet/effi.redir?id_compteur=<counter>&url=<merchant home>" (the
+// real answer carries url=): the counter is kept and effi_id (our ref) and url (the coupon's page) are added, the
+// deeplink form of their TrackedLink example. An inactive partnership gets no link: its clicks would not pay.
+export function trackingTemplate(p: Pick<Program, "defaultTrackedLink" | "status">): string {
+  if (p.status && p.status !== "active") return "";
+  const raw = (p.defaultTrackedLink ?? "").trim();
+  if (!URL.canParse(raw)) return "";
+  const u = new URL(raw);
+  const counter = u.searchParams.get("id_compteur") ?? "";
+  if (u.protocol !== "https:" || u.hostname !== "track.effiliation.com" || !/^\d+$/.test(counter)) return "";
+  return `https://track.effiliation.com${u.pathname}?id_compteur=${counter}&effi_id={ref}&url={url}`;
+}
+
+const COUNTRY_NAMES: Record<string, string> = {
+  spain: "ES", france: "FR", portugal: "PT", italy: "IT", germany: "DE", belgium: "BE", netherlands: "NL", switzerland: "CH",
+  "united kingdom": "GB", austria: "AT", poland: "PL",
+};
+
+// '["Spain"]' → "ES"; "" for several countries, an unknown name or anything that isn't that JSON list
+export function coverageCountry(raw = ""): string {
+  try {
+    const list: unknown = JSON.parse(raw);
+    if (!Array.isArray(list) || list.length !== 1) return "";
+    return COUNTRY_NAMES[String(list[0]).trim().toLowerCase()] ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function mapProgram(p: Program): NetAdvertiser {
-  const link = (p.defaultTrackedLink ?? "").trim();
+  const country = coverageCountry(p.coverageCountries);
   return {
     id: String(p.programId),
     name: (p.merchantName || p.programName || String(p.programId)).trim(),
     website: siteOf(p.merchantUrl),
-    trackingTemplate: /^https:\/\//.test(link) && !/[?&]url=/.test(link) ? `${link}${link.includes("?") ? "&" : "?"}effi_id={ref}&url={url}` : "",
+    trackingTemplate: trackingTemplate(p),
+    ...(country ? { country } : {}),
   };
 }
 

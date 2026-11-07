@@ -47,10 +47,6 @@ export const NETWORKS = [
   { id: "other", label: "Otra red" },
 ] as const;
 
-// Can this store's coupons carry affiliate tracking at all?
-export const storeTracked = (s: { network: string; merchant_id: string; tracking_url: string }) =>
-  s.network === "awin" ? Boolean(s.merchant_id) : Boolean(s.tracking_url);
-
 export type Network = (typeof NETWORKS)[number]["id"];
 export const networkLabel = (id: string) => NETWORKS.find((n) => n.id === id)?.label ?? id;
 export const asNetwork = (v: string): Network => (NETWORKS.some((n) => n.id === v) ? (v as Network) : "awin");

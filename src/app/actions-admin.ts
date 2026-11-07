@@ -148,7 +148,7 @@ export async function acceptInvite(_prev: FormState, f: FormData): Promise<FormS
 export async function setRetention(f: FormData) {
   await requireAdmin();
   const v = str(f, "retention");
-  if (!["90", "365", "all"].includes(v)) throw new Error("Valor no válido");
+  if (!["400", "all"].includes(v)) throw new Error("Valor no válido"); // see retentionDays: never under 400 days
   await sql()`INSERT INTO settings (key, value) VALUES ('click_retention_days', ${v}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
   revalidatePath("/panel/settings");
 }

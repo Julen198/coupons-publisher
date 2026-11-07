@@ -153,7 +153,7 @@ export function inferStoreCountry({ name, slug, website, trackingUrl = "" }: Sto
   );
 }
 
-export type CountryStore = { name: string; slug: string; website: string; country?: string; tracking_url?: string };
+export type CountryStore = { name: string; slug: string; website: string; country?: string; country_source?: string; tracking_url?: string };
 
 // The stored country, else the inferred one (inferred: true), else ""
 export function effectiveCountry(s: CountryStore): { country: string; inferred: boolean; reason: string } {
@@ -164,10 +164,17 @@ export function effectiveCountry(s: CountryStore): { country: string; inferred: 
 }
 
 // The public site is Spanish: a store set to ES is on it; one set to, or read as, another country is not;
-// with no country at all, the website's ending decides (isSpanishMarket)
+// with no country at all, the website's ending decides (isSpanishMarket). A network's region is weaker than what the
+// store itself says: a programme we joined in Spain may be filed under another primary region (Awin's primaryRegion),
+// so a store whose name, domain or path reads ES stays on the site whatever the network says.
 export function onSpanishSite(s: CountryStore): boolean {
   const stored = (s.country ?? "").trim().toUpperCase();
-  if (stored) return stored === "ES";
+  if (stored === "ES") return true;
+  if (stored && s.country_source === "network") {
+    const guess = inferStoreCountry({ name: s.name, slug: s.slug, website: s.website, trackingUrl: s.tracking_url });
+    return guess?.country === "ES" && isSpanishMarket(s.website);
+  }
+  if (stored) return false;
   const { country } = effectiveCountry(s);
   return (country === "" || country === "ES") && isSpanishMarket(s.website);
 }

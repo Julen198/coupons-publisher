@@ -2,25 +2,27 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { filterStores, paginate } from "./store-filter.ts";
 
-const s = (id: number, name: string, website: string, network = "awin", merchant_id = "", tracking_url = "") =>
-  ({ id, name, website, network, merchant_id, tracking_url });
+const s = (id: number, name: string, website: string, network = "awin", merchant_id = "", tracking_url = "", publisher_id = "") =>
+  ({ id, name, slug: name.toLowerCase(), website, network, merchant_id, tracking_url, publisher_id });
 const stores = [
-  s(1, "MediaMarkt", "https://www.mediamarkt.es", "awin", "123"),
+  s(1, "MediaMarkt", "https://www.mediamarkt.es", "awin", "123", "", "222222"),
   s(2, "Temu", "https://www.temu.com/es"),
-  s(3, "Booking", "https://www.booking.com", "tradedoubler", "", "https://clk.td.com/?url={url}"),
+  s(3, "Booking", "https://www.booking.com", "tradedoubler", "", "https://clk.tradedoubler.com/click?p=1&a=2&epi={ref}&url={url}"),
   s(4, "Barceló", "https://www.barcelo.com", "tradedoubler"),
+  // merchant but no publisher id: its links would go untracked, so it counts as missing
+  s(5, "Fnac", "https://www.fnac.es", "awin", "77630"),
 ];
 const live = new Map([[1, 4], [3, 1]]); // visible coupons per store id
 
 test("filters by text (accent-insensitive, name or web), network, tracking and coupons", () => {
   const ids = (f: Parameters<typeof filterStores>[1]) => filterStores(stores, f, live).map((x) => x.id);
-  assert.deepEqual(ids({}), [1, 2, 3, 4]);
+  assert.deepEqual(ids({}), [1, 2, 3, 4, 5]);
   assert.deepEqual(ids({ q: "barcelo" }), [4]);
   assert.deepEqual(ids({ q: "temu.com" }), [2]);
   assert.deepEqual(ids({ network: "tradedoubler" }), [3, 4]);
-  assert.deepEqual(ids({ tracking: "missing" }), [2, 4]);
+  assert.deepEqual(ids({ tracking: "missing" }), [2, 4, 5]);
   assert.deepEqual(ids({ tracking: "ok" }), [1, 3]);
-  assert.deepEqual(ids({ coupons: "none" }), [2, 4]);
+  assert.deepEqual(ids({ coupons: "none" }), [2, 4, 5]);
   assert.deepEqual(ids({ coupons: "some", network: "awin" }), [1]);
 });
 

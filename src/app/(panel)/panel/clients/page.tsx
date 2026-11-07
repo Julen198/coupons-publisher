@@ -83,7 +83,7 @@ export default async function ClientsPage({ searchParams }: PageProps<"/panel/cl
                   </Link>
                 </th>
                 <td className="px-2 py-3 font-mono text-xs">{c.awin_affiliate_id || "—"}</td>
-                <td className="px-2 py-3 font-mono text-xs">{c.clickref_prefix || "—"}</td>
+                <td className="px-2 py-3 font-mono text-xs">{c.slug}-…</td>
                 <td className="px-2 py-3">{pages.filter((p) => p.client_id === c.id && p.status === "published").length} publicadas</td>
                 <td className="px-2 py-3">
                   {dressed(c) ? (

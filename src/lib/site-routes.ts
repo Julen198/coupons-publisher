@@ -15,17 +15,19 @@ export type VisibilityFields = {
   store_name?: string;
   store_slug?: string;
   store_country?: string; // "" or missing = unknown, see onSpanishSite
+  store_country_source?: string;
   store_tracking_url?: string;
 };
 
 const storeOf = (c: VisibilityFields): CountryStore => ({
-  name: c.store_name ?? "", slug: c.store_slug ?? "", website: c.store_website, country: c.store_country, tracking_url: c.store_tracking_url,
+  name: c.store_name ?? "", slug: c.store_slug ?? "", website: c.store_website, country: c.store_country, country_source: c.store_country_source, tracking_url: c.store_tracking_url,
 });
 
 // live: shown everywhere. expired: once public, its page stays up marked as expired.
-// gone: archived, pending, never-checked web finds and other markets have no page.
-export function dealVisibility(c: VisibilityFields, today: string, unverified: boolean): DealVisibility {
-  if (!onSpanishSite(storeOf(c))) return "gone";
+// gone: archived, pending, never-checked web finds, other markets and links we can't track (tracked = false, see
+// trackedLinkOf) have no page.
+export function dealVisibility(c: VisibilityFields, today: string, unverified: boolean, tracked = true): DealVisibility {
+  if (!tracked || !onSpanishSite(storeOf(c))) return "gone";
   if (isPublic(c, today, unverified)) return "live";
   const wasPublic = statusOf(c, today) === "expired" && (unverified || c.source !== "web" || c.verified);
   return wasPublic ? "expired" : "gone";
@@ -36,9 +38,9 @@ export type RouteVerdict = { kind: "ok" } | { kind: "missing" } | { kind: "moved
 export type DealRouteRow = VisibilityFields & { id: number; title: string; store_name: string };
 
 // /chollos/<param>: missing when there is no page for it, moved when the words after the id are not the canonical ones
-export function dealRouteVerdict(param: string, row: DealRouteRow | undefined, today: string, unverified: boolean): RouteVerdict {
+export function dealRouteVerdict(param: string, row: DealRouteRow | undefined, today: string, unverified: boolean, tracked = true): RouteVerdict {
   const id = parseDealId(param);
-  if (!id || !row || row.id !== id || dealVisibility(row, today, unverified) === "gone") return { kind: "missing" };
+  if (!id || !row || row.id !== id || dealVisibility(row, today, unverified, tracked) === "gone") return { kind: "missing" };
   const canonical = dealPath(row);
   return `/chollos/${param}` === canonical ? { kind: "ok" } : { kind: "moved", to: canonical };
 }

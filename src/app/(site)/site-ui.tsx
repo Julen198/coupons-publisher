@@ -3,7 +3,7 @@ import type { Client } from "@/lib/db";
 import { factsOf } from "@/lib/catalog";
 import { badgeLabel } from "@/lib/discount";
 import { conditionsOf, displayTitle } from "@/lib/deal-text";
-import { goHref, type SiteCoupon } from "@/lib/public-site";
+import { copyBeaconHref, goHref, type SiteCoupon } from "@/lib/public-site";
 import { mayHaveExpired, timeAgo } from "@/lib/community";
 import { httpsImage } from "@/lib/networks/types";
 import { daysBetween, dealPath, shortDate } from "@/lib/site-text";
@@ -141,7 +141,7 @@ export function DealCard({ c, client, today, now, mine, next, hideStore = false,
             )}
           </div>
           <div className="cta">
-            {c.kind === "code" && c.code && <CopyCode code={c.code} />}
+            {c.kind === "code" && c.code && <CopyCode code={c.code} beacon={copyBeaconHref(client, c)} />}
             <GoButton client={client} c={c} />
           </div>
         </div>

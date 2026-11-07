@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { StoreMark } from "@/app/store-mark";
 import { FindCouponsButton } from "../../coupons/find-coupons-button";
-import { networkLabel, storeTracked } from "@/lib/affiliate";
+import { networkLabel } from "@/lib/affiliate";
+import { problemLabel, storeLinkProblem } from "@/lib/tracked-link";
 import { notFound } from "next/navigation";
 import { verifyCoupons } from "@/app/actions";
 import { canEdit, onlyVisible, requireUser } from "@/lib/auth";
@@ -39,6 +40,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
   const t = today();
   const now = new Date();
   const back = `/panel/stores/${store.slug}?tab=cupones`;
+  const problem = storeLinkProblem(store); // why its coupons stay off the public site, as its gate decides
 
   const editing = sp.edit ? coupons.find((c) => c.id === Number(sp.edit)) : undefined;
   const draft: CouponDraft | undefined = editing
@@ -65,7 +67,8 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
               <a href={store.website} target="_blank" className="text-blue-700 hover:underline dark:text-blue-300">{store.website.replace(/^https?:\/\//, "")}</a>
               <span>
                 {networkLabel(store.network)}
-                {store.network === "awin" ? <> merchant <span className="font-mono">{store.merchant_id || "—"}</span></> : storeTracked(store) ? " · con enlace" : " · sin enlace de seguimiento"}
+                {store.network === "awin" && <> merchant <span className="font-mono">{store.merchant_id || "—"}</span></>}
+                {problem ? <span className="text-amber-700 dark:text-amber-400"> · {problemLabel(problem, store.network)}</span> : " · con tracking"}
               </span>
               <span>Publicada en {pages.filter((p) => p.status === "published").length} medios</span>
             </span>

@@ -134,6 +134,23 @@ test("onSpanishSite: stored ES wins, another stored or inferred country is out, 
   assert.equal(onSpanishSite(s("X", "x", "", "es")), true, "stored code in lower case");
 });
 
+test("onSpanishSite: a network's region other than ES does not hide a store whose name, domain or path says ES", () => {
+  const net = (name: string, slug: string, website: string, country: string) => ({ name, slug, website, country, country_source: "network" });
+  // Awin primaryRegion GB on a programme we joined in Spain
+  assert.equal(onSpanishSite(net("Nike", "nike", "https://www.nike.com/es", "GB")), true, "path /es");
+  assert.equal(onSpanishSite(net("Fnac", "fnac", "https://www.fnac.es", "FR")), true, "domain .es");
+  assert.equal(onSpanishSite(net("Adidas ES", "adidas-es", "https://www.adidas.com", "DE")), true, "name tag");
+  // no ES signal: the network's region decides
+  assert.equal(onSpanishSite(net("Zalando", "zalando", "https://www.zalando.com", "DE")), false);
+  assert.equal(onSpanishSite(net("Alpinstore", "alpinstore", "https://www.alpinstore.com", "FR")), false);
+  // the TLD rule still applies to an ES read from the name
+  assert.equal(onSpanishSite(net("Adidas ES", "adidas-es", "https://www.adidas.de", "DE")), false);
+  // an editor's choice is never overridden, nor an inferred one
+  assert.equal(onSpanishSite({ ...net("Fnac", "fnac", "https://www.fnac.es", "FR"), country_source: "manual" }), false);
+  assert.equal(onSpanishSite({ ...net("Fnac", "fnac", "https://www.fnac.es", "FR"), country_source: "inferred" }), false);
+  assert.equal(onSpanishSite(net("Fnac", "fnac", "https://www.fnac.es", "ES")), true);
+});
+
 test("effectiveCountry: stored first, then inferred, else none", () => {
   assert.deepEqual(effectiveCountry({ name: "X", slug: "x", website: "https://x.de", country: "ES" }), { country: "ES", inferred: false, reason: "" });
   assert.deepEqual(effectiveCountry({ name: "X", slug: "x", website: "https://x.de", country: "" }), { country: "DE", inferred: true, reason: "dominio .de" });
