@@ -429,7 +429,8 @@ export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormSta
     };
     const id = Number(str(f, "id"));
     // reader-shared deals waiting for review (or rejected) are only handled on /panel/moderacion: never published from here
-    if (id) await sql()`UPDATE coupons SET ${sql()(c)} WHERE id = ${id} AND review = ''`;
+    // an edit locks the text against the network sync (text_locked), so the correction survives the next sync
+    if (id) await sql()`UPDATE coupons SET ${sql()({ ...c, text_locked: true })} WHERE id = ${id} AND review = ''`;
     else {
       await sql()`INSERT INTO coupons ${sql()(c)}`;
       await logActivity(`Nuevo cupón: ${c.title}`);

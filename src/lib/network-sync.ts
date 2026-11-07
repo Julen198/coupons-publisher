@@ -1,3 +1,4 @@
+import { codeFromText } from "./coupon-code";
 import { sql } from "./db";
 import { logActivity } from "./activity";
 import { slugify } from "./form.ts";
@@ -145,7 +146,7 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
     const store_id = storeOf.get(o.advertiserId);
     if (!store_id || !o.title) return [];
     return [{
-      store_id, kind: o.kind, title: o.title.slice(0, 300), code: o.code, discount: o.discount,
+      store_id, kind: o.kind, title: o.title.slice(0, 300), code: codeFromText(o.code, o.description), discount: o.discount,
       description: o.description.slice(0, 2000), target_url: o.url, expires_at: o.expires,
       verified: 1, source: net, external_id: `${net}:${o.id}`, publisher_id: publisherId,
       image_url: httpsImage(o.image),
@@ -157,8 +158,13 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
     const res = await sql()<{ inserted: boolean }[]>`
       INSERT INTO coupons ${sql()(rows.slice(i, i + CHUNK))}
       ON CONFLICT (external_id) DO UPDATE SET
-        kind = excluded.kind, title = excluded.title, code = excluded.code, discount = excluded.discount,
-        description = excluded.description, target_url = excluded.target_url, expires_at = excluded.expires_at,
+        -- text an editor corrected in the panel (text_locked) stays theirs
+        kind = excluded.kind,
+        title = CASE WHEN coupons.text_locked THEN coupons.title ELSE excluded.title END,
+        code = CASE WHEN coupons.text_locked THEN coupons.code ELSE excluded.code END,
+        discount = CASE WHEN coupons.text_locked THEN coupons.discount ELSE excluded.discount END,
+        description = CASE WHEN coupons.text_locked THEN coupons.description ELSE excluded.description END,
+        target_url = excluded.target_url, expires_at = excluded.expires_at,
         -- a feed without a photo keeps the one read from the landing page (fill-product-images), unless the landing changed
         image_url = CASE WHEN excluded.image_url <> '' THEN excluded.image_url
           WHEN excluded.target_url <> coupons.target_url THEN '' ELSE coupons.image_url END,

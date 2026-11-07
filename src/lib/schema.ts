@@ -322,6 +322,9 @@ ALTER TABLE clicks ADD COLUMN IF NOT EXISTS ua_hash text NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS clicks_dedupe_idx ON clicks(coupon_id, ua_hash, at);
 -- the network sync cron: when each account last synced without error (last_sync_at / last_error say when it last tried)
 ALTER TABLE network_accounts ADD COLUMN IF NOT EXISTS last_success_at timestamptz;
+-- an editor corrected a synced coupon's text (title, code, discount, description) in the panel: the network sync keeps
+-- their version instead of overwriting it with the feed's
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS text_locked boolean NOT NULL DEFAULT false;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
