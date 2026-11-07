@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { dismissExpiryReports, publishShared, rejectShared, retireReported, setCommentHidden, setReaderBlocked } from "@/app/actions-community";
 import { btnCls, btnSecondaryCls, cardCls, fmtDateTime, inputCls, PageHeader } from "@/app/ui";
 import { REJECT_REASONS } from "@/lib/community-rules";
@@ -6,6 +7,9 @@ import { io } from "next/cache";
 import { sql } from "@/lib/db";
 import { dealPath } from "@/lib/site-text";
 import { AboutDraftForm, DraftAboutsButton } from "./about-drafts";
+import { approveTranslation } from "@/app/actions-translations";
+import { publicText } from "@/lib/translation";
+import { withTranslationColumns } from "@/lib/translation-column";
 
 // "Generar 10 borradores" (draftDealAbouts) calls the AI once per deal: give the page's server actions up to
 // 5 minutes; the action itself stops starting new drafts at 4 (ABOUT_TIME_BUDGET_MS)
@@ -51,6 +55,22 @@ async function loadAboutDrafts() {
     ORDER BY c.id DESC`).map((r) => ({ ...r }));
 }
 
+type AutoTranslation = {
+  id: number; title: string; description: string; title_es: string; description_es: string; translation_status: string;
+  translated_from: string; store_name: string;
+};
+
+// The latest automatic translations still shown on the site (they translate the current original); none before
+// npm run db:setup adds the columns
+async function loadAutoTranslations(): Promise<AutoTranslation[]> {
+  const rows = await withTranslationColumns(async (present) => (present ? sql()<AutoTranslation[]>`
+    SELECT c.id, c.title, c.description, c.title_es, c.description_es, c.translation_status, c.translated_from, s.name AS store_name
+    FROM coupons c JOIN stores s ON s.id = c.store_id
+    WHERE c.translation_status = 'auto' AND c.archived = 0
+    ORDER BY c.id DESC LIMIT 40` : []));
+  return rows.filter((r) => publicText(r).title === r.title_es).slice(0, 20).map((r) => ({ ...r }));
+}
+
 async function loadComments() {
   return (await sql()<CommentRow[]>`
     SELECT k.id, k.parent_id, k.body, k.hidden, k.created_at, r.id AS reader_id, r.handle, r.status, c.title
@@ -61,7 +81,7 @@ async function loadComments() {
 export default async function ModerationPage() {
   await requireEditor();
   await io();
-  const [shared, comments, drafts, reported] = await Promise.all([loadShared(), loadComments(), loadAboutDrafts(), loadReported()]);
+  const [shared, comments, drafts, reported, translations] = await Promise.all([loadShared(), loadComments(), loadAboutDrafts(), loadReported(), loadAutoTranslations()]);
 
   return (
     <div className="space-y-8">
@@ -146,6 +166,37 @@ export default async function ModerationPage() {
               <a href={dealPath(d)} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-700 underline dark:text-blue-400">{d.title}</a>
             </p>
             <AboutDraftForm id={d.id} about={d.about} />
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Traducciones automáticas</h2>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          Cupones que llegaron en otro idioma. La IA los traduce y la traducción sale en la web enseguida. Revisa las últimas.
+        </p>
+        {translations.length === 0 && <p className="text-sm text-neutral-500">No hay traducciones automáticas por revisar.</p>}
+        {translations.map((d) => (
+          <div key={d.id} className={`${cardCls} space-y-3`}>
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <div lang="">
+                <p className="text-xs text-neutral-500">{d.store_name} · original</p>
+                <p className="font-medium">{d.title}</p>
+                {d.description && <p className="text-neutral-600 dark:text-neutral-400">{d.description}</p>}
+              </div>
+              <div>
+                <p className="text-xs text-neutral-500">Traducción</p>
+                <p className="font-medium">{d.title_es}</p>
+                {d.description_es && <p className="text-neutral-600 dark:text-neutral-400">{d.description_es}</p>}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <form action={approveTranslation}>
+                <input type="hidden" name="id" value={d.id} />
+                <button className={btnCls}>Aprobar</button>
+              </form>
+              <Link href={`/panel/coupons?edit=${d.id}`} className={btnSecondaryCls}>Editar</Link>
+            </div>
           </div>
         ))}
       </section>

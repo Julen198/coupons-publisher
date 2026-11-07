@@ -295,6 +295,33 @@ ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_country_check;
 ALTER TABLE stores ADD CONSTRAINT stores_country_check CHECK (country ~ '^([A-Z]{2})?$');
 ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_country_source_check;
 ALTER TABLE stores ADD CONSTRAINT stores_country_source_check CHECK (country_source IN ('', 'network', 'inferred', 'manual'));
+-- coupons in another language shown in Spanish: the AI's translation (or an editor's), its state and what it was made from
+-- ('' = not translated, 'auto' = AI, public right away, 'approved' = checked by an editor, 'skip' = "No traducir");
+-- translated_from = md5(title || E'\\n' || description) of the source it translates, so a changed source is translated again
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS title_es text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS description_es text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS translation_status text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS translated_from text NOT NULL DEFAULT '';
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_translation_status_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_translation_status_check CHECK (translation_status IN ('', 'auto', 'approved', 'skip'));
+CREATE INDEX IF NOT EXISTS coupons_translation_auto_idx ON coupons(id) WHERE translation_status = 'auto';
+-- their cost has its own line in Costes de IA
+ALTER TABLE ai_usage DROP CONSTRAINT IF EXISTS ai_usage_feature_check;
+ALTER TABLE ai_usage ADD CONSTRAINT ai_usage_feature_check CHECK (feature IN ('search', 'content', 'style', 'stores', 'translate'));
+-- tracking launch gate: other domains a store sells on (comma-separated registrable domains, see storeDomains), so a deep
+-- link there keeps its page instead of falling back to the store's home
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS alt_domains text NOT NULL DEFAULT '';
+-- what a click was: 'go' (Ir a la tienda, redirected through a tracked link), 'copy' (Copiar código) or 'untracked' (sent
+-- straight to the store because its link had stopped being tracked); the page path it came from (no query string), and
+-- sha256(user agent + day) truncated to dedupe repeats without storing the raw user agent or the IP
+ALTER TABLE clicks ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'go';
+ALTER TABLE clicks DROP CONSTRAINT IF EXISTS clicks_kind_check;
+ALTER TABLE clicks ADD CONSTRAINT clicks_kind_check CHECK (kind IN ('go', 'copy', 'untracked'));
+ALTER TABLE clicks ADD COLUMN IF NOT EXISTS ref text NOT NULL DEFAULT '';
+ALTER TABLE clicks ADD COLUMN IF NOT EXISTS ua_hash text NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS clicks_dedupe_idx ON clicks(coupon_id, ua_hash, at);
+-- the network sync cron: when each account last synced without error (last_sync_at / last_error say when it last tried)
+ALTER TABLE network_accounts ADD COLUMN IF NOT EXISTS last_success_at timestamptz;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay

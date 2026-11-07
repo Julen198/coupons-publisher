@@ -5,6 +5,9 @@ import { isPublic } from "./coupon-status.ts";
 import { dealVisibility } from "./site-routes.ts";
 import { publishUnverified } from "./settings.ts";
 import { couponAffiliateUrl } from "./render-page.ts";
+import { isTracked, trackedLinkOf } from "./tracked-link.ts";
+import { accountsFor, siteLinks, SITE_CLIENT_SLUG, type ClientLinks } from "./link-accounts";
+import { altDomainsColumn, altDomainsSql } from "./tracking-columns.ts";
 import { getReader } from "./reader";
 import { madridToday } from "./site-text.ts";
 import { BRAND_ALLOWLIST, dedupeDeals, displayTitle } from "./deal-text.ts";
@@ -12,6 +15,8 @@ import { onSpanishSite } from "./market.ts";
 import type { CategorySlug } from "./catalog.ts";
 import { hasWordmarkSql, withWordmarkColumn } from "./wordmark-column.ts";
 import { countrySql, withCountryColumn } from "./country-column.ts";
+import { publicText } from "./translation.ts";
+import { translationSql, withTranslationColumns } from "./translation-column.ts";
 
 // Readers wrapped in React cache() run once per render: generateMetadata, the page and its related deals share one
 // query. The memo lasts one request only (no cross-request caching), and callers copy before sorting.
@@ -31,6 +36,7 @@ export type SiteCoupon = Coupon & {
   store_publisher_id: string;
   store_country: string; // "" = unknown (also while the column is missing), see onSpanishSite
   store_country_source: string;
+  store_alt_domains: string; // the store's other domains (see storeDomains), "" also while the column is missing
   score: number;
   comments: number;
   shared_by_handle: string | null;
@@ -39,12 +45,13 @@ export type SiteCoupon = Coupon & {
   display_title: string; // the title as the site shows it (displayTitle with the known brands)
 };
 
-// wordmark / country: whether stores.wordmark_data and stores.country exist yet (see withWordmarkColumn, withCountryColumn)
-const couponSelect = (wordmark: boolean, country: boolean) => `
+// wordmark / country / alt: whether stores.wordmark_data, stores.country and stores.alt_domains exist yet (see
+// withWordmarkColumn, withCountryColumn, altDomainsColumn)
+const couponSelect = (wordmark: boolean, country: boolean, alt: boolean) => `
   SELECT c.*, s.name AS store_name, s.slug AS store_slug, s.logo_data <> '' AS store_has_logo,
          ${hasWordmarkSql(wordmark, "s")} AS store_has_wordmark, s.category AS store_category, s.website AS store_website,
          s.network AS store_network, s.merchant_id AS store_merchant_id, s.tracking_url AS store_tracking_url,
-         coalesce(s.publisher_id, '') AS store_publisher_id, ${countrySql(country, "s")},
+         coalesce(s.publisher_id, '') AS store_publisher_id, ${countrySql(country, "s")}, ${altDomainsSql(alt, "s")},
          coalesce(v.score, 0)::int AS score, coalesce(cm.n, 0)::int AS comments,
          CASE WHEN sb.status = 'active' THEN sb.handle END AS shared_by_handle, coalesce(er.n, 0)::int AS expiry_reports
   FROM coupons c JOIN stores s ON s.id = c.store_id
@@ -60,9 +67,28 @@ const couponSelect = (wordmark: boolean, country: boolean) => `
 
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
+// couponSelect with whichever of its optional columns exist
+const withCouponSelect = <T>(query: (select: string) => Promise<T>): Promise<T> =>
+  withWordmarkColumn((w) => withCountryColumn((c) => altDomainsColumn.run((a) => query(couponSelect(w, c, a)))));
+
+// Whose links the public site builds (the cuponlab client, its own accounts' links, our Awin publisher ids): once per request
+const publicLinks = cache(async (): Promise<ClientLinks> => {
+  await io();
+  return siteLinks();
+});
+
+// The launch gate: a coupon only shows when its "Ir a" button carries a valid tracked link of its store's network
+// (see trackedLinkOf), whatever the "publish unverified" setting says
+const linkOf = (c: SiteCoupon, links: ClientLinks) =>
+  trackedLinkOf(c, {
+    slug: c.store_slug, network: c.store_network, merchant_id: c.store_merchant_id, tracking_url: c.store_tracking_url,
+    publisher_id: c.store_publisher_id, website: c.store_website, alt_domains: c.store_alt_domains,
+  }, accountsFor(links, { id: c.store_id, network: c.store_network }));
+const tracked = (c: SiteCoupon, links: ClientLinks) => isTracked(linkOf(c, links));
+
 // The store fields onSpanishSite reads, from a coupon row
-export const couponStore = (c: Pick<SiteCoupon, "store_name" | "store_slug" | "store_website" | "store_country" | "store_tracking_url">) => ({
-  name: c.store_name, slug: c.store_slug, website: c.store_website, country: c.store_country, tracking_url: c.store_tracking_url,
+export const couponStore = (c: Pick<SiteCoupon, "store_name" | "store_slug" | "store_website" | "store_country" | "store_country_source" | "store_tracking_url">) => ({
+  name: c.store_name, slug: c.store_slug, website: c.store_website, country: c.store_country, country_source: c.store_country_source, tracking_url: c.store_tracking_url,
 });
 
 // Store names plus BRAND_ALLOWLIST: words a shouting feed title gives back their own case ("NIKE" → "Nike")
@@ -71,35 +97,41 @@ const knownBrands = cache(async (): Promise<string[]> => {
   return [...BRAND_ALLOWLIST, ...rows.map((r) => r.name)];
 });
 
-// Plain copies with display_title filled in
-function titled<T extends { title: string; store_name: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string })[] {
-  return rows.map((r) => ({ ...r, display_title: displayTitle(r.title, r.store_name, brands) }));
+// Plain copies with display_title filled in. A coupon that came in another language reads in Spanish: title and
+// description become its translation (publicText), so every card, page, meta tag and slug uses it.
+function titled<T extends { title: string; description: string; store_name: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string })[] {
+  return rows.map((r) => {
+    const text = publicText(r);
+    return { ...r, ...text, display_title: displayTitle(text.title, r.store_name, brands) };
+  });
 }
 
 // Every live coupon readers may see (same rule as clients' pages), newest first. Stores of other European
 // markets stay out (the site is Spanish), and a deal listed twice by its store shows once.
 export const siteCoupons = cache(async (): Promise<SiteCoupon[]> => {
   await io();
-  const [rows, unverified, brands] = await Promise.all([
-    withWordmarkColumn((w) => withCountryColumn((c) => sql()<SiteCoupon[]>`${sql().unsafe(couponSelect(w, c))} WHERE c.archived = 0 ORDER BY c.verified DESC, c.id DESC`)),
+  const [rows, unverified, brands, links] = await Promise.all([
+    withCouponSelect((select) => sql()<SiteCoupon[]>`${sql().unsafe(select)} WHERE c.archived = 0 ORDER BY c.verified DESC, c.id DESC`),
     publishUnverified(),
     knownBrands(),
+    publicLinks(),
   ]);
   const t = madridToday().iso;
-  return dedupeDeals(titled(rows, brands).filter((c) => isPublic(c, t, unverified) && onSpanishSite(couponStore(c))));
+  return dedupeDeals(titled(rows, brands).filter((c) => isPublic(c, t, unverified) && onSpanishSite(couponStore(c)) && tracked(c, links)));
 });
 
 // One coupon for its own page: live ones, and expired ones too (shown as expired so the URL keeps working)
 export const siteCoupon = cache(async (id: number): Promise<{ coupon: SiteCoupon; live: boolean } | undefined> => {
   await io();
-  const [[row], unverified, brands] = await Promise.all([
-    withWordmarkColumn((w) => withCountryColumn((c) => sql()<SiteCoupon[]>`${sql().unsafe(couponSelect(w, c))} WHERE c.id = ${id}`)),
+  const [[row], unverified, brands, links] = await Promise.all([
+    withCouponSelect((select) => sql()<SiteCoupon[]>`${sql().unsafe(select)} WHERE c.id = ${id}`),
     publishUnverified(),
     knownBrands(),
+    publicLinks(),
   ]);
   if (!row) return undefined;
   const [coupon] = titled([row], brands);
-  const seen = dealVisibility(coupon, madridToday().iso, unverified);
+  const seen = dealVisibility(coupon, madridToday().iso, unverified, tracked(coupon, links));
   return seen === "gone" ? undefined : { coupon, live: seen === "live" };
 });
 
@@ -131,10 +163,11 @@ export type SiteStore = Store & { has_wordmark: boolean };
 
 export const siteStore = cache(async (slug: string): Promise<SiteStore | undefined> => {
   await io();
-  const [row] = await withWordmarkColumn((w) => withCountryColumn((c) => sql()<SiteStore[]>`
+  const [row] = await withWordmarkColumn((w) => withCountryColumn((c) => altDomainsColumn.run((a) => sql()<SiteStore[]>`
     SELECT id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo,
-           ${sql().unsafe(hasWordmarkSql(w, "stores"))} AS has_wordmark, ${sql().unsafe(countrySql(c, "stores", ""))}
-    FROM stores WHERE slug = ${slug}`));
+           ${sql().unsafe(hasWordmarkSql(w, "stores"))} AS has_wordmark, ${sql().unsafe(countrySql(c, "stores", ""))},
+           ${sql().unsafe(altDomainsSql(a, "stores", "alt_domains"))}
+    FROM stores WHERE slug = ${slug}`)));
   return row && onSpanishSite(row) ? { ...row } : undefined;
 });
 
@@ -153,8 +186,7 @@ export async function storeGuides(storeIds: number[]): Promise<Pick<Store, "id" 
   return plain(rows);
 }
 
-// The client whose clicks the public site counts as (create it in Clientes with this slug)
-export const SITE_CLIENT_SLUG = process.env.SITE_CLIENT_SLUG || "cuponlab";
+export { SITE_CLIENT_SLUG };
 
 export const siteClient = cache(async (): Promise<Client | undefined> => {
   await io();
@@ -166,10 +198,17 @@ export const siteClient = cache(async (): Promise<Client | undefined> => {
 // affiliate link with our own publisher ids
 export function goHref(client: Client | undefined, c: SiteCoupon): string {
   if (client) return `/go/${encodeURIComponent(client.slug)}/${c.id}`;
-  const ours = { clickref_prefix: SITE_CLIENT_SLUG, awin_affiliate_id: "" } as Client;
-  const store = { slug: c.store_slug, network: c.store_network, merchant_id: c.store_merchant_id, tracking_url: c.store_tracking_url, publisher_id: c.store_publisher_id };
+  const ours = { slug: SITE_CLIENT_SLUG, awin_affiliate_id: "" };
+  const store = {
+    slug: c.store_slug, network: c.store_network, merchant_id: c.store_merchant_id, tracking_url: c.store_tracking_url,
+    publisher_id: c.store_publisher_id, website: c.store_website, alt_domains: c.store_alt_domains,
+  };
   return couponAffiliateUrl(ours, store, c);
 }
+
+// Where "Copiar código" counts a copy (POST to the same /go address); none without the site client to count it for
+export const copyBeaconHref = (client: Client | undefined, c: Pick<SiteCoupon, "id">): string | undefined =>
+  client ? `/go/${encodeURIComponent(client.slug)}/${c.id}` : undefined;
 
 export type DealComment = {
   id: number; parent_id: number | null; reader_id: number; handle: string; body: string; created_at: Date; by_sharer: boolean;
@@ -197,7 +236,7 @@ export async function dealComments(couponId: number, readerId: number | null): P
 // Every store of the Spanish market, for the "share a deal" picker
 export async function siteStoreOptions(): Promise<{ slug: string; name: string }[]> {
   await io();
-  const rows = await withCountryColumn((c) => sql()<{ slug: string; name: string; website: string; tracking_url: string; country: string }[]>`
+  const rows = await withCountryColumn((c) => sql()<{ slug: string; name: string; website: string; tracking_url: string; country: string; country_source: string }[]>`
     SELECT slug, name, website, tracking_url, ${sql().unsafe(countrySql(c, "stores", ""))} FROM stores ORDER BY lower(name)`);
   return rows.filter((r) => onSpanishSite(r)).map((r) => ({ slug: r.slug, name: r.name }));
 }
@@ -221,34 +260,36 @@ export async function readerStats(readerId: number): Promise<AccountStats> {
 export type AccountCoupon = SiteCoupon & { live: boolean; page: boolean };
 
 async function withVisibility(rows: readonly SiteCoupon[]): Promise<AccountCoupon[]> {
-  const [unverified, brands] = await Promise.all([publishUnverified(), knownBrands()]);
+  const [unverified, brands, links] = await Promise.all([publishUnverified(), knownBrands(), publicLinks()]);
   const t = madridToday().iso;
   return titled(rows, brands).map((c) => {
-    const seen = dealVisibility(c, t, unverified);
+    const seen = dealVisibility(c, t, unverified, tracked(c, links));
     return { ...c, live: seen === "live", page: seen !== "gone" };
   });
 }
 
 export async function readerSharedDeals(readerId: number): Promise<AccountCoupon[]> {
   await io();
-  return withVisibility(await withWordmarkColumn((w) => withCountryColumn((c) => sql()<SiteCoupon[]>`${sql().unsafe(couponSelect(w, c))} WHERE c.shared_by = ${readerId} ORDER BY c.id DESC LIMIT 100`)));
+  return withVisibility(await withCouponSelect((select) => sql()<SiteCoupon[]>`${sql().unsafe(select)} WHERE c.shared_by = ${readerId} ORDER BY c.id DESC LIMIT 100`));
 }
 
 // Newest saved first (the page then lifts live ones to the top)
 export async function readerSavedDeals(readerId: number): Promise<AccountCoupon[]> {
   await io();
-  return withVisibility(await withWordmarkColumn((w) => withCountryColumn((c) => sql()<SiteCoupon[]>`
-    ${sql().unsafe(couponSelect(w, c))} JOIN saved_deals sd ON sd.coupon_id = c.id AND sd.reader_id = ${readerId}
-    ORDER BY sd.at DESC, c.id DESC LIMIT 200`)));
+  return withVisibility(await withCouponSelect((select) => sql()<SiteCoupon[]>`
+    ${sql().unsafe(select)} JOIN saved_deals sd ON sd.coupon_id = c.id AND sd.reader_id = ${readerId}
+    ORDER BY sd.at DESC, c.id DESC LIMIT 200`));
 }
 
 export type AccountComment = { id: number; body: string; created_at: Date; coupon_id: number; title: string; store_name: string };
 
 export async function readerComments(readerId: number): Promise<AccountComment[]> {
   await io();
-  return plain(await sql()<AccountComment[]>`
-    SELECT k.id, k.body, k.created_at, c.id AS coupon_id, c.title, s.name AS store_name
+  const rows = await withTranslationColumns((t) => sql()<(AccountComment & { description: string })[]>`
+    SELECT k.id, k.body, k.created_at, c.id AS coupon_id, c.title, c.description, ${sql().unsafe(translationSql(t, "c"))}, s.name AS store_name
     FROM comments k JOIN coupons c ON c.id = k.coupon_id JOIN stores s ON s.id = c.store_id
     WHERE k.reader_id = ${readerId} AND k.hidden = 0
     ORDER BY k.created_at DESC, k.id DESC LIMIT 50`);
+  // the deal's title as the site shows it (and links to it)
+  return rows.map((r) => ({ id: r.id, body: r.body, created_at: r.created_at, coupon_id: r.coupon_id, title: publicText(r).title, store_name: r.store_name }));
 }

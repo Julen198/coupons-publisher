@@ -1,5 +1,6 @@
 import type { Client, Coupon, Store } from "./db";
-import { affiliateUrl, pageTitle, parseFaqs, trackingUrl } from "./affiliate.ts";
+import { pageTitle, parseFaqs } from "./affiliate.ts";
+import { destinationOf, isTracked, trackedLinkOf, type LinkCoupon, type LinkStore } from "./tracked-link.ts";
 import { discountBadge } from "./discount.ts";
 
 const badge = (c: Pick<Coupon, "discount">) => discountBadge(c.discount) || "Oferta";
@@ -19,22 +20,22 @@ export function clientFont(client: Pick<Client, "font_family" | "font_style">): 
   return { stack: `'${f}',${generic}`, link: `<link rel="stylesheet" href="${esc(href)}">` };
 }
 
-// The Awin link for one coupon on one client's page; clickref = client-store-coupon for attribution
+// The tracked link for one coupon on one client's page (see trackedLinkOf; clickref = client-store-coupon for
+// attribution). When it can't be tracked, the store's own page: the reader still gets there, without commission.
 export function couponAffiliateUrl(
-  client: Client,
-  store: Pick<Store, "slug" | "network" | "merchant_id" | "tracking_url"> & { publisher_id?: string },
-  c: Pick<Coupon, "id" | "target_url"> & { publisher_id?: string },
+  client: Pick<Client, "slug" | "awin_affiliate_id">,
+  store: LinkStore,
+  c: LinkCoupon,
   clientTemplate = "", // the client's own account's link for this store (client_tracking), wins over ours
+  awinPublishers?: ReadonlySet<string>,
 ) {
-  const clickref = [client.clickref_prefix, store.slug, c.id].filter(Boolean).join("-");
-  if (store.network !== "awin") return trackingUrl(clientTemplate || store.tracking_url, c.target_url, clickref);
-  return affiliateUrl(c.target_url, { affiliateId: awinAffiliateId(client, store, c), merchantId: store.merchant_id, clickref });
+  const link = trackedLinkOf(c, store, { client, clientTemplate, awinPublishers });
+  return isTracked(link) ? link.url : untrackedUrl(c, store);
 }
 
-// Whose Awin id goes in awinaffid: the client's own (its site earns the commission), otherwise the publisher id
-// of our connected account that imported the coupon, otherwise the one that joined the store. "" = no tracking.
-export const awinAffiliateId = (client: Pick<Client, "awin_affiliate_id">, store: { publisher_id?: string }, c: { publisher_id?: string }) =>
-  client.awin_affiliate_id || c.publisher_id || store.publisher_id || "";
+// Straight to the store, for a link we can't track: the coupon's page when it is on the store's domain, else its home
+export const untrackedUrl = (c: Pick<LinkCoupon, "target_url">, store: Pick<LinkStore, "website" | "alt_domains">): string =>
+  destinationOf(c, store)?.url ?? (c.target_url || store.website);
 
 // Standalone HTML the client pastes into their CMS or serves as-is.
 // With trackBase (absolute origin), buttons go through /go so the click is counted before redirecting to Awin.

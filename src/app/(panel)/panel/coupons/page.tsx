@@ -12,6 +12,7 @@ import { daysUntil, expiresSoon, matchesFilter, statusOf, today, type StatusFilt
 import { btnCls, btnSecondaryCls, ClearFilters, inputCls, Pager } from "@/app/ui";
 import { SearchInput } from "@/app/search-input";
 import { paginate } from "@/lib/store-filter";
+import { translationDraft } from "@/lib/translation";
 import { CouponForm, type CouponDraft } from "./coupon-form";
 
 const TILES: { id: StatusFilter; label: string; dot: string }[] = [
@@ -234,6 +235,7 @@ export default async function CouponsPage({ searchParams }: PageProps<"/panel/co
             initial={draft}
             stores={stores.map(({ id, name, website }) => ({ id, name, website }))}
             back={back}
+            translation={editing ? translationDraft(editing, editing.store_name) : undefined}
           />
         )}
       </div>

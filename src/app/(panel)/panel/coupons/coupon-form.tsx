@@ -5,6 +5,8 @@ import { useActionState, useState } from "react";
 import { saveCoupon, type FormState } from "@/app/actions";
 import { btnCls, Field, inputCls } from "@/app/ui";
 import { Combobox } from "@/app/combobox";
+import type { TranslationDraft } from "@/lib/translation";
+import { TranslationEditor } from "./translation-editor";
 
 export interface CouponDraft {
   id?: number;
@@ -23,16 +25,17 @@ interface CouponFormProps {
   initial: CouponDraft;
   stores: { id: number; name: string; website: string }[];
   back: string; // /coupons URL with the current filters, to return to after saving or closing
+  translation?: TranslationDraft; // a coupon that came in another language: its Spanish version, editable
 }
 
-export function CouponForm({ initial, stores, back }: CouponFormProps) {
+export function CouponForm({ initial, stores, back, translation }: CouponFormProps) {
   const [c, setC] = useState(initial);
   const [state, formAction, saving] = useActionState<FormState, FormData>(saveCoupon, {});
   const set = (key: keyof CouponDraft) => (e: { target: { value: string } }) => setC({ ...c, [key]: e.target.value });
   const isNew = !initial.id;
 
   return (
-    <aside aria-labelledby="coupon-form-title" className="flex max-w-md min-w-0 flex-1 basis-80 flex-col gap-4 rounded-lg border border-neutral-200 p-5 shadow-lg dark:border-neutral-800">
+    <aside aria-labelledby="coupon-form-title" className={`flex ${translation ? "max-w-2xl" : "max-w-md"} min-w-0 flex-1 basis-80 flex-col gap-4 rounded-lg border border-neutral-200 p-5 shadow-lg dark:border-neutral-800`}>
       <div className="flex items-center justify-between">
         <h2 id="coupon-form-title" className="text-lg font-semibold">{isNew ? "Nuevo cupón" : "Editar cupón"}</h2>
         <Link href={back} aria-label="Cerrar" className="flex size-10 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800">✕</Link>
@@ -113,6 +116,7 @@ export function CouponForm({ initial, stores, back }: CouponFormProps) {
           <Link href={back} className="flex min-h-12 items-center rounded-md border border-neutral-300 px-4 text-sm dark:border-neutral-700">Cancelar</Link>
         </div>
       </form>
+      {translation && <TranslationEditor key={translation.id} draft={translation} />}
     </aside>
   );
 }

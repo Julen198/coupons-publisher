@@ -2,7 +2,7 @@
 // cost = what the Gateway bills (web searches; tokens go to our own Anthropic key, BYOK)
 // marketCost = full list price of the call (tokens + searches) → what we report as "gasto"
 
-export const AI_FEATURES = ["search", "content", "style", "stores"] as const;
+export const AI_FEATURES = ["search", "content", "style", "stores", "translate"] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
 export const FEATURE_INFO: Record<AiFeature, { label: string; what: string }> = {
@@ -10,7 +10,20 @@ export const FEATURE_INFO: Record<AiFeature, { label: string; what: string }> = 
   content: { label: "Contenido y FAQs", what: "Claude Haiku: intro y preguntas de cada tienda" },
   style: { label: "Estilo de la demo", what: "Claude Haiku: lee la web del cliente" },
   stores: { label: "Lista de tiendas", what: "Claude Haiku: convierte lo que pegas en tiendas" },
+  translate: { label: "Traducciones", what: "Claude Haiku: títulos y condiciones de cupones en otros idiomas" },
 };
+
+// The monthly limits set in Costes de IA (settings ai_budget, ai_alert and ai_pause_search), with their defaults
+export interface AiLimits { budget: number; alert: number; pauseSearch: boolean }
+export const DEFAULT_LIMITS: AiLimits = { budget: 25, alert: 80, pauseSearch: true };
+
+export function limitsFrom(v: Record<string, string | undefined>): AiLimits {
+  return {
+    budget: Number(v.ai_budget) > 0 ? Number(v.ai_budget) : DEFAULT_LIMITS.budget,
+    alert: [50, 80, 100].includes(Number(v.ai_alert)) ? Number(v.ai_alert) : DEFAULT_LIMITS.alert,
+    pauseSearch: v.ai_pause_search ? v.ai_pause_search === "1" : DEFAULT_LIMITS.pauseSearch,
+  };
+}
 
 export interface UsageRow {
   at: Date; feature: AiFeature; about: string; user_name: string;
@@ -58,7 +71,7 @@ export function byFeature(rows: UsageRow[]) {
 }
 
 export function dailyByFeature(rows: UsageRow[], days: string[]) {
-  const map = new Map(days.map((day) => [day, { day, search: 0, content: 0, style: 0, stores: 0 }]));
+  const map = new Map(days.map((day) => [day, { day, search: 0, content: 0, style: 0, stores: 0, translate: 0 }]));
   for (const r of rows) {
     const d = map.get(madridDay(r.at));
     if (d) d[r.feature] += r.cost_total;

@@ -67,6 +67,16 @@ export function discountOf(d: Deal): string {
   return discountBadge(d.Name) || discountBadge(d.Description ?? "");
 }
 
+// The deal's own landing page (Uri) when it is a usable http(s) address, else the campaign's site
+const dealUrl = (d: Deal, website: string) => {
+  const uri = (d.Uri ?? "").trim();
+  return URL.canParse(uri) && /^https?:$/.test(new URL(uri).protocol) ? uri : website;
+};
+
+// A campaign we can promote: contract exactly "Active" ("Inactive" and "Deactivated" contain the word too). The API
+// leaves the field out on some accounts; the campaign is listed because we have a contract, so that counts as active.
+export const activeContract = (c: Pick<Campaign, "ContractStatus">) => !c.ContractStatus || /^active$/i.test(c.ContractStatus.trim());
+
 export function mapDeal(d: Deal, website = ""): NetOffer | null {
   if (d.State && !/^(ACTIVE|PENDING)$/i.test(d.State)) return null; // expired / paused deals
   const code = (d.DefaultPromoCode ?? "").trim();
@@ -79,7 +89,7 @@ export function mapDeal(d: Deal, website = ""): NetOffer | null {
     code,
     discount: discountOf(d),
     description: (d.Description ?? "").trim(),
-    url: website,
+    url: dealUrl(d, website),
     expires: isoDay(d.EndDate),
     ...(image ? { image } : {}),
   };
@@ -111,7 +121,7 @@ export const impact: NetworkAdapter = {
     if (!/^[A-Za-z0-9]+$/.test(c.accountSid)) throw new Error("El Account SID de Impact solo lleva letras y números");
     const headers = { Authorization: `Basic ${Buffer.from(`${c.accountSid}:${c.authToken}`).toString("base64")}`, Accept: "application/json" };
     const base = `${API}/${c.accountSid}`;
-    const campaigns = (await pages<Campaign>(`${base}/Campaigns`, "Campaigns", headers)).filter((cp) => !cp.ContractStatus || /active/i.test(cp.ContractStatus));
+    const campaigns = (await pages<Campaign>(`${base}/Campaigns`, "Campaigns", headers)).filter(activeContract);
     // ponytail: one request per active campaign, one after another; parallelise if a big account hits the sync timeout
     const deals: Deal[] = [];
     for (const cp of campaigns) deals.push(...(await pages<Deal>(`${base}/Campaigns/${encodeURIComponent(String(cp.CampaignId))}/Deals`, "Deals", headers)));

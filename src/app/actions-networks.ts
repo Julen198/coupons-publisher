@@ -7,6 +7,7 @@ import { logActivity } from "@/lib/activity";
 import { requireAdmin, requireEditor } from "@/lib/auth";
 import { fillStoreIcons } from "@/lib/fill-store-icons";
 import { fillProductImages } from "@/lib/fill-product-images";
+import { translatePending } from "@/lib/translate-pending";
 import { errorMessage, required, str, type FormState } from "@/lib/form";
 import { adapterFor } from "@/lib/networks/index";
 import { awinPublisherId } from "@/lib/networks/awin";
@@ -41,7 +42,7 @@ export async function saveNetworkAccount(_prev: FormState, f: FormData): Promise
         credentials = excluded.credentials, last_sync_at = excluded.last_sync_at, last_result = excluded.last_result, last_error = ''`;
     await syncClientAwinIds();
     await logActivity(`Cuenta de ${adapter.label} ${existing ? "actualizada" : "conectada"}: ${describeSync(summary)}`);
-    after(() => Promise.all([fillStoreIcons(summary.newStores), fillProductImages()]));
+    after(() => Promise.all([fillStoreIcons(summary.newStores), fillProductImages(), translatePending()]));
   } catch (e) {
     return { error: errorMessage(e) };
   }
@@ -116,7 +117,7 @@ export async function syncNetworks(_prev: SyncState, f: FormData): Promise<SyncS
         failed++;
       }
     }
-    after(() => Promise.all([fillStoreIcons(newStores), fillProductImages()]));
+    after(() => Promise.all([fillStoreIcons(newStores), fillProductImages(), translatePending()]));
     revalidatePath("/", "layout");
     return failed === accounts.length ? { error: lines.join("\n") } : { result: lines.join("\n") };
   } catch (e) {

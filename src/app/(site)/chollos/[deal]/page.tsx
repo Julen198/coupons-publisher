@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, factsOf } from "@/lib/catalog";
-import { currentVotes, dealComments, readerDealMarks, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
+import { copyBeaconHref, currentVotes, dealComments, readerDealMarks, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
 import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
 import { badgeInSentence, conditionsOf, lowerFirst, mentionsBadge } from "@/lib/deal-text";
@@ -271,7 +271,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
           </div>
           {live ? (
             <>
-              {hasCode && <CopyCode code={c.code} />}
+              {hasCode && <CopyCode code={c.code} beacon={copyBeaconHref(client, c)} />}
               <GoButton client={client} c={c} />
               <DealActions couponId={c.id} back={dealPath(c)} saved={marks.saved} reported={marks.reported} />
             </>
@@ -292,7 +292,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
       {live && (
         <div className="mbar">
           <span className={priceClass(c)}>{badge}</span>
-          {hasCode && <CopyCodeButton code={c.code} />}
+          {hasCode && <CopyCodeButton code={c.code} beacon={copyBeaconHref(client, c)} />}
           <GoButton client={client} c={c} />
         </div>
       )}

@@ -1,4 +1,4 @@
-import { storeTracked } from "./affiliate.ts";
+import { storeLinkProblem } from "./tracked-link.ts";
 import { effectiveCountry } from "./market.ts";
 
 // ponytail: filters in memory over all stores; move to SQL WHERE/LIMIT if the list grows into the thousands
@@ -11,12 +11,18 @@ export interface StoreFilters {
   country?: string; // a code of COUNTRIES, or "none" (no stored or inferred country)
 }
 
-type FilterableStore = { id: number; name: string; website: string; network: string; merchant_id: string; tracking_url: string; slug?: string; country?: string };
+type FilterableStore = {
+  id: number; name: string; website: string; network: string; merchant_id: string; tracking_url: string; publisher_id: string;
+  slug?: string; country?: string; alt_domains?: string;
+};
 
 // The stored country, else the inferred one: what the panel shows and filters by
 const countryOf = (s: FilterableStore) => effectiveCountry({ ...s, slug: s.slug ?? "" }).country;
 
 const norm = (v: string) => v.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+
+// The same check the public site's gate makes (trackedLinkOf), at store level
+const storeTracked = (s: FilterableStore) => storeLinkProblem({ ...s, slug: s.slug ?? "" }) === null;
 
 export function filterStores<T extends FilterableStore>(stores: T[], f: StoreFilters, liveCoupons: Map<number, number>): T[] {
   const q = norm(f.q?.trim() ?? "");

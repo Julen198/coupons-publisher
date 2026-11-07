@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { StoreMark } from "@/app/store-mark";
 import { AddStoresButton } from "./add-stores-button";
-import { NETWORKS, networkLabel, storeTracked } from "@/lib/affiliate";
+import { NETWORKS, networkLabel } from "@/lib/affiliate";
+import { isTracked, problemLabel, storeLinkProblem, trackedLinkOf } from "@/lib/tracked-link";
 import { filterStores, paginate, type StoreFilters } from "@/lib/store-filter";
 import { canEdit, requireUser } from "@/lib/auth";
 import { listAllCoupons, listPages, listStores } from "@/lib/db";
@@ -28,10 +29,16 @@ export default async function StoresPage({ searchParams }: PageProps<"/panel/sto
     country: one(sp.pais) === "none" || isCountryCode(one(sp.pais)) ? one(sp.pais) : undefined,
   };
   // visible on clients' pages vs. found on the web and waiting for someone to verify them
+  // (visible = public and with a tracked link, as the public site's gate decides)
   const live = new Map<number, number>();
   const review = new Map<number, number>();
+  const storeById = new Map(stores.map((s) => [s.id, s]));
+  const linked = (c: (typeof coupons)[number]) => {
+    const s = storeById.get(c.store_id);
+    return !!s && isTracked(trackedLinkOf(c, s, { client: { slug: "panel", awin_affiliate_id: "" } }));
+  };
   for (const c of coupons) {
-    const bucket = isPublic(c, t, unverified) ? live : c.source === "web" && !c.verified && statusOf(c, t) === "pending" ? review : null;
+    const bucket = isPublic(c, t, unverified) && linked(c) ? live : c.source === "web" && !c.verified && statusOf(c, t) === "pending" ? review : null;
     bucket?.set(c.store_id, (bucket.get(c.store_id) ?? 0) + 1);
   }
   const anyCoupons = new Map(stores.map((s) => [s.id, (live.get(s.id) ?? 0) + (review.get(s.id) ?? 0)]));
@@ -67,7 +74,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/panel/sto
             Tracking
             <select name="tracking" defaultValue={filters.tracking ?? ""} className={inputCls}>
               <option value="">Todas</option>
-              <option value="missing">Sin merchant ID o enlace</option>
+              <option value="missing">Sin tracking</option>
               <option value="ok">Con tracking</option>
             </select>
           </label>
@@ -114,7 +121,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/panel/sto
                   <td className="px-2 py-3 text-xs">
                     {networkLabel(s.network)}
                     {s.network === "awin" && s.merchant_id && <span className="ml-1 font-mono text-neutral-500">{s.merchant_id}</span>}
-                    {!storeTracked(s) && <span className="ml-1 text-amber-700 dark:text-amber-400">{s.network === "awin" ? "· sin merchant ID" : "· sin enlace"}</span>}
+                    <LinkFlag store={s} />
                   </td>
                   <td className="px-2 py-3">
                     <Link href={`/panel/coupons?store=${s.slug}`} className="flex flex-col hover:underline">
@@ -136,6 +143,11 @@ export default async function StoresPage({ searchParams }: PageProps<"/panel/sto
   );
 }
 
+// Why this store's coupons stay off the public site (the same check as its gate, see trackedLinkOf)
+function LinkFlag({ store }: { store: Parameters<typeof storeLinkProblem>[0] }) {
+  const problem = storeLinkProblem(store);
+  return problem ? <span className="ml-1 text-amber-700 dark:text-amber-400">· {problemLabel(problem, store.network)}</span> : null;
+}
 
 // The stored code in a solid badge; one read from the name or web (not saved yet) in a dashed one
 function CountryBadge({ store }: { store: { name: string; slug: string; website: string; tracking_url: string; country: string } }) {

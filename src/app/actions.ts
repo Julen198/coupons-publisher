@@ -13,6 +13,8 @@ import { asNetwork } from "@/lib/affiliate";
 import { storeCategory } from "@/lib/catalog";
 import { countryInput } from "@/lib/market";
 import { isMissingCountry } from "@/lib/country-column";
+import { altDomainsColumn } from "@/lib/tracking-columns";
+import { altDomainsInput } from "@/lib/tracked-link";
 import { cleanDisguise, cleanFontFamily, darkSvgDataUri, decodeHtml, isSvgUrl, isWhiteSvg, MAX_SVG_LOGO, validLogo, extractDisguise, siteDigest, type Disguise } from "@/lib/disguise";
 import { disguiseFromDigest, storesFromText } from "@/lib/ai-content";
 import { lookup } from "node:dns/promises";
@@ -200,8 +202,7 @@ export async function updateClient(f: FormData) {
   const [target] = await sql()<{ id: number }[]>`SELECT id FROM clients WHERE slug = ${s}`;
   if (!target || !canSeeClient(user, target.id)) throw new Error("No tienes acceso a este cliente");
   await sql()`
-    UPDATE clients SET domain = ${bareDomain(str(f, "domain"))},
-      clickref_prefix = ${str(f, "clickref_prefix")}
+    UPDATE clients SET domain = ${bareDomain(str(f, "domain"))}
     WHERE slug = ${s}`;
   revalidatePath(`/panel/clients/${s}`);
 }
@@ -362,6 +363,17 @@ async function saveManualCountry(slug: string, country: string): Promise<boolean
   }
 }
 
+// The store's other domains (see storeDomains). true when the column doesn't exist yet and something was typed.
+async function saveAltDomains(slug: string, domains: string): Promise<boolean> {
+  try {
+    await sql()`UPDATE stores SET alt_domains = ${domains} WHERE slug = ${slug} AND alt_domains <> ${domains}`;
+    return false;
+  } catch (e) {
+    if (altDomainsColumn.isMissing(e)) return domains !== "";
+    throw e;
+  }
+}
+
 export async function updateStore(_prev: FormState, f: FormData): Promise<FormState> {
   const s = required(f, "slug");
   try {
@@ -377,6 +389,10 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
     if (country !== null) {
       const missing = await saveManualCountry(s, country);
       if (missing && country) return { error: "Guardado, salvo el país. Ejecuta npm run db:setup para poder guardarlo" };
+    }
+    if (f.has("alt_domains")) {
+      const missing = await saveAltDomains(s, altDomainsInput(str(f, "alt_domains")));
+      if (missing) return { error: "Guardado, salvo los otros dominios. Ejecuta npm run db:setup para poder guardarlos" };
     }
   } catch (e) {
     return { error: errorMessage(e) };

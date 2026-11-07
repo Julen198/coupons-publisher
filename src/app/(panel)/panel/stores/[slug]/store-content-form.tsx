@@ -12,7 +12,7 @@ import { NetworkFields } from "../network-fields";
 interface StoreContentProps {
   store: {
     slug: string; name: string; website: string; network: string; merchant_id: string; tracking_url: string; intro: string; faqs: string;
-    category: string; facts: string; country: string; country_source: string;
+    category: string; facts: string; country: string; country_source: string; alt_domains?: string;
   };
   inferred: { country: string; reason: string } | null; // what the site reads from the name and web while País is empty
   discounts: string[];
@@ -62,6 +62,13 @@ export function StoreContentForm({ store, inferred, discounts }: StoreContentPro
         <input type="hidden" name="slug" value={store.slug} />
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Web" name="website" type="url" required defaultValue={store.website} />
+          <Field
+            label="Otros dominios de la tienda"
+            name="alt_domains"
+            defaultValue={store.alt_domains ?? ""}
+            placeholder="Opcional, p. ej. sprintersports.com"
+            title="Separados por comas. Los cupones que llevan a estos dominios van con tracking a esa página; los de cualquier otro dominio, a la portada de la tienda"
+          />
           <NetworkFields network={store.network} merchantId={store.merchant_id} trackingUrl={store.tracking_url} />
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-neutral-600 dark:text-neutral-400">Categoría</span>

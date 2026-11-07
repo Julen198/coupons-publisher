@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { byFeature, dailyByFeature, monthForecast, usageOf, type UsageRow } from "./ai-costs.ts";
+import { byFeature, dailyByFeature, DEFAULT_LIMITS, limitsFrom, monthForecast, usageOf, type UsageRow } from "./ai-costs.ts";
 
 test("usageOf adds tokens, web searches and both costs across steps", () => {
   const steps = [
@@ -34,4 +34,15 @@ test("byFeature and dailyByFeature group spend (days in Madrid time)", () => {
 
 test("monthForecast projects the month from the days elapsed", () => {
   assert.equal(monthForecast(12.4, new Date("2026-10-24T12:00:00Z")), 12.4 / 24 * 31);
+});
+
+test("limitsFrom reads the Costes de IA settings, defaults for missing or invalid ones", () => {
+  assert.deepEqual(limitsFrom({}), DEFAULT_LIMITS);
+  assert.deepEqual(limitsFrom({ ai_budget: "40", ai_alert: "50", ai_pause_search: "0" }), { budget: 40, alert: 50, pauseSearch: false });
+  assert.deepEqual(limitsFrom({ ai_budget: "-1", ai_alert: "70" }), DEFAULT_LIMITS);
+});
+
+test("translations have their own line in the daily chart", () => {
+  const days = dailyByFeature([row("2026-10-24T10:00:00Z", "translate", 0.01)], ["2026-10-24"]);
+  assert.equal(Math.round(days[0].translate * 1000), 10);
 });

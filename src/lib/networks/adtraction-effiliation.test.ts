@@ -45,3 +45,34 @@ test("Effiliation voucherOrDeal link: promo voucher/code â†’ code, percentage â†
   const deal = mapLink({ ...l, promo: undefined });
   assert.deepEqual([deal.kind, deal.discount, deal.expires], ["deal", "-15%", "2026-12-31"]);
 });
+
+// Sanitized from the real GET /publisher/programs answer (Nov 2026): the default tracked link already carries url=,
+// status says whether our partnership is live, coverageCountries the market
+const EFFI_PROGRAMS = [
+  { programId: 315019219, merchantName: "Alltricks.es", merchantUrl: "https://www.alltricks.es/", status: "active", coverageCountries: '["Spain"]',
+    defaultTrackedLink: "https://track.effiliation.com/servlet/effi.redir?id_compteur=11111111&url=https%3A%2F%2Fwww.alltricks.es%2F" },
+  { programId: 315033304, merchantName: "alpinstore", merchantUrl: "https://www.alpinstore.com", status: "inactive", coverageCountries: '["France"]',
+    defaultTrackedLink: "https://track.effiliation.com/servlet/effi.redir?id_compteur=22222222&url=https%3A%2F%2Fwww.alpinstore.com" },
+];
+
+test("Effiliation: a default tracked link that already has url= is rebuilt with our ref and the coupon's page", () => {
+  const adv = mapEffiliationProgram(EFFI_PROGRAMS[0]);
+  assert.equal(adv.trackingTemplate, "https://track.effiliation.com/servlet/effi.redir?id_compteur=11111111&effi_id={ref}&url={url}");
+  assert.equal(
+    trackingUrl(adv.trackingTemplate, "https://www.alltricks.es/C-2108359-summer-bikewear", "cuponlab-alltricks-852"),
+    "https://track.effiliation.com/servlet/effi.redir?id_compteur=11111111&effi_id=cuponlab-alltricks-852&url=https%3A%2F%2Fwww.alltricks.es%2FC-2108359-summer-bikewear",
+  );
+  assert.equal(adv.country, "ES");
+});
+
+test("Effiliation: an inactive partnership gets no link (it would not pay), and its country comes from coverageCountries", () => {
+  const adv = mapEffiliationProgram(EFFI_PROGRAMS[1]);
+  assert.equal(adv.trackingTemplate, "");
+  assert.equal(adv.country, "FR");
+  // several countries or none: no country
+  assert.equal(mapEffiliationProgram({ ...EFFI_PROGRAMS[0], coverageCountries: '["Spain","France"]' }).country, undefined);
+  assert.equal(mapEffiliationProgram({ ...EFFI_PROGRAMS[0], coverageCountries: "nope" }).country, undefined);
+  // http links and other hosts are not trusted
+  assert.equal(mapEffiliationProgram({ ...EFFI_PROGRAMS[0], defaultTrackedLink: "http://track.effiliation.com/servlet/effi.redir?id_compteur=1" }).trackingTemplate, "");
+  assert.equal(mapEffiliationProgram({ ...EFFI_PROGRAMS[0], defaultTrackedLink: "https://evil.example/servlet/effi.redir?id_compteur=1" }).trackingTemplate, "");
+});

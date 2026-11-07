@@ -5,6 +5,8 @@ import { decryptJson } from "./secrets.ts";
 import { adapterFor } from "./networks/index.ts";
 import { cleanAdvertiserName, matchStore, type StoreRef } from "./networks/match.ts";
 import { isMissingCountry } from "./country-column.ts";
+import { archiveMissing } from "./sync-archive";
+import { recordSuccess } from "./sync-success";
 import { httpsImage, networkCountries, type Credentials, type NetAdvertiser, type NetFeed, type NetOffer, type NetworkAdapter } from "./networks/types.ts";
 
 export interface NetworkAccount {
@@ -21,6 +23,7 @@ export interface SyncSummary {
   newStores: string[]; // slugs, for the icon lookup
   linkedStores: number; // existing stores tied to their advertiser
   otherNetwork: number; // advertisers whose shop already goes through another network
+  archived?: number; // live coupons that left the feed (see archiveMissing)
 }
 
 // Pull one account's advertisers and offers and fold them into stores and coupons.
@@ -84,7 +87,8 @@ async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, clientId: numbe
     await sql()`UPDATE stores SET publisher_id = ${publisherId} WHERE id = ANY(${[...new Set(storeOf.values())]}::int[]) AND publisher_id = ''`;
   }
   const { created, updated } = await upsertCoupons(net, feed.offers, storeOf, publisherId);
-  return { ...summary, created, updated };
+  const archived = await archiveMissing(net, feed.offers, [...new Set(storeOf.values())], publisherId, ownAccount);
+  return { ...summary, created, updated, archived };
 }
 
 // A client's own account: keep its link per store so that client's clicks go through its account, not ours
@@ -176,6 +180,7 @@ export const describeSync = (s: SyncSummary) =>
     s.newStores.length ? `${s.newStores.length} tiendas nuevas` : "",
     s.linkedStores ? `${s.linkedStores} tiendas vinculadas` : "",
     s.otherNetwork ? `${s.otherNetwork} anunciantes ya en otra red` : "",
+    s.archived ? `${s.archived} retirados del feed` : "",
   ].filter(Boolean).join(" · ");
 
 export async function recordSync(account: NetworkAccount, result: { summary?: SyncSummary; error?: string }) {
@@ -183,6 +188,7 @@ export async function recordSync(account: NetworkAccount, result: { summary?: Sy
   await sql()`
     UPDATE network_accounts SET last_sync_at = now(), last_result = ${text}, last_error = ${result.error ?? ""}
     WHERE id = ${account.id}`;
+  if (!result.error) await recordSuccess(account.id);
   await logActivity(result.error ? `Error sincronizando ${account.network}: ${result.error}` : `Sincronizado ${account.network}: ${text}`);
 }
 

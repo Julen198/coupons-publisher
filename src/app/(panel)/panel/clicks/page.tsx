@@ -55,6 +55,13 @@ export default async function ClicksPage({ searchParams }: PageProps<"/panel/cli
       value: change === null ? "—" : `${change > 0 ? "▲ +" : change < 0 ? "▼ " : ""}${change}%`,
       note: `${stats.previous.toLocaleString("es-ES")} clics los ${days} días anteriores`,
     },
+    {
+      label: "Ir a la tienda frente a copiar código",
+      value: `${stats.byKind.go.toLocaleString("es-ES")} / ${stats.byKind.copy.toLocaleString("es-ES")}`,
+      note: stats.byKind.untracked
+        ? `${stats.byKind.untracked.toLocaleString("es-ES")} fueron a la tienda sin tracking`
+        : "con tracking / códigos copiados",
+    },
     { label: "Media diaria", value: Math.round(stats.total / days).toLocaleString("es-ES"), note: "clics al día" },
     { label: "Tienda con más clics", value: stats.byStore[0]?.name ?? "—", note: stats.byStore[0] ? `${stats.byStore[0].clicks.toLocaleString("es-ES")} clics` : "" },
   ];
@@ -141,8 +148,9 @@ export default async function ClicksPage({ searchParams }: PageProps<"/panel/cli
       </section>
 
       <p className="text-xs text-neutral-500">
-        Cada clic se registra al pasar por <code className="font-mono">/go/…</code> antes de ir a Awin; no cuenta bots ni vistas previas de enlaces.
-        La demo incluye 60 días de clics de ejemplo. Las comisiones salen al conectar la API de informes de Awin.
+        Cada clic se registra al pasar por <code className="font-mono">/go/…</code> antes de ir a la red. No cuenta bots ni vistas previas de enlaces,
+        y el mismo navegador en el mismo cupón cuenta una vez cada 30 segundos. «Copiar código» se cuenta aparte y no suma en el total.
+        Si un enlace deja de llevar tracking, el lector va igualmente a la tienda y el clic sale como sin tracking.
       </p>
     </div>
   );
