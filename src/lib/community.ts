@@ -86,14 +86,27 @@ export type SharedDealResult = { ok: true; value: SharedDeal } | { ok: false; er
 const isRealDate = (iso: string) => /^\d{4}-\d{2}-\d{2}$/.test(iso) && new Date(`${iso}T00:00:00Z`).toISOString().slice(0, 10) === iso;
 
 // What a signed-in reader may submit as a deal. https only, since the link ends up behind a "Ir a la oferta" button.
+// The board's "Precio ahora" / "Precio antes": both optional; the discount % comes from them, the prices go in a first line
+function sharedPrices(nowRaw: string, wasRaw: string): { discount: string; line: string } | null {
+  const num = (v: string) => (v === "" ? 0 : /^\d{1,6}(,\d{1,2})?$/.test(v.replace(/\s|€/g, "")) ? Number(v.replace(/\s|€/g, "").replace(",", ".")) : NaN);
+  const now = num(nowRaw), was = num(wasRaw);
+  if (Number.isNaN(now) || Number.isNaN(was) || (now && was && was <= now)) return null;
+  const eur = (n: number) => `${n.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  if (now && was) return { discount: `${Math.round((1 - now / was) * 100)}%`, line: `Antes ${eur(was)}, ahora ${eur(now)}.` };
+  if (now) return { discount: "", line: `Ahora ${eur(now)}.` };
+  return { discount: "", line: "" };
+}
+
 export function parseSharedDeal(get: (k: string) => string, storeSlugs: ReadonlySet<string>): SharedDealResult {
   const text = (k: string) => get(k).replace(/\r\n?/g, "\n").trim();
   const store = text("store");
   const title = text("title");
   const url = text("url");
   const code = text("code").toUpperCase();
-  const discount = text("discount");
-  const description = text("description");
+  const prices = sharedPrices(text("price_now"), text("price_was"));
+  if (!prices) return { ok: false, error: "Escribe los precios en euros (por ejemplo 129,90) y el de antes mayor que el de ahora." };
+  const discount = prices.discount || text("discount");
+  const description = [prices.line, text("description")].filter(Boolean).join("\n");
   const expires_at = text("expires_at");
   if (!storeSlugs.has(store)) return { ok: false, error: "Elige una tienda de la lista." };
   if (title.length < 5 || title.length > 120) return { ok: false, error: "El título debe tener entre 5 y 120 caracteres." };

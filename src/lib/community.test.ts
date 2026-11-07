@@ -140,3 +140,17 @@ test("sortDeals orders a feed by the chosen tab without touching the list it get
   assert.deepEqual(sortDeals(list, "caducan").map((x) => x.id), [3, 1, 2]);
   assert.deepEqual(list.map((x) => x.id), [1, 2, 3]);
 });
+
+test("parseSharedDeal turns the board's price fields into the discount and a price line", () => {
+  const stores = new Set(["pccomponentes"]);
+  const form = (o: Record<string, string>) => (k: string) => o[k] ?? "";
+  const base = { store: "pccomponentes", title: "SSD 2 TB a 129 €", url: "https://www.pccomponentes.com/ssd", code: "", description: "Envío gratis", expires_at: "" };
+  const r = parseSharedDeal(form({ ...base, price_now: "129,90", price_was: "189,90" }), stores);
+  assert.deepEqual(r.ok && [r.value.discount, r.value.description], ["32%", "Antes 189,90 €, ahora 129,90 €.\nEnvío gratis"]);
+  const only = parseSharedDeal(form({ ...base, price_now: "129,90" }), stores);
+  assert.deepEqual(only.ok && [only.value.discount, only.value.description], ["", "Ahora 129,90 €.\nEnvío gratis"]);
+  const none = parseSharedDeal(form(base), stores);
+  assert.deepEqual(none.ok && [none.value.discount, none.value.description], ["", "Envío gratis"]);
+  assert.equal(parseSharedDeal(form({ ...base, price_now: "abc" }), stores).ok, false);
+  assert.equal(parseSharedDeal(form({ ...base, price_now: "200", price_was: "100" }), stores).ok, false);
+});

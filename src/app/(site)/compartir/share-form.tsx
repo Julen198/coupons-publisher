@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
 import { SHARE_LIMIT_PER_DAY } from "@/lib/community-rules";
 import { shareDeal } from "../actions-reader";
@@ -29,10 +28,16 @@ export function ShareForm({ stores }: { stores: { slug: string; name: string }[]
         Título
         <input name="title" required minLength={5} maxLength={120} placeholder="Samsung 990 PRO 2 TB a 129,90 €" />
       </label>
-      <label>
-        Descuento (si hay)
-        <input name="discount" maxLength={40} placeholder="15 %" />
-      </label>
+      <div className="row2">
+        <label>
+          Precio ahora
+          <input name="price_now" inputMode="decimal" maxLength={12} placeholder="129,90" />
+        </label>
+        <label>
+          Precio antes
+          <input name="price_was" inputMode="decimal" maxLength={12} placeholder="189,90" />
+        </label>
+      </div>
       <div className="row2">
         <label>
           Código (si hay)
@@ -49,7 +54,7 @@ export function ShareForm({ stores }: { stores: { slug: string; name: string }[]
       </label>
       {state.error && <p role="alert" className="auth-error">{state.error}</p>}
       <button className="btn btn-primary" disabled={pending}>{pending ? "Enviando…" : "Enviar para revisión"}</button>
-      <p className="small">Máximo {SHARE_LIMIT_PER_DAY} chollos al día por cuenta. ¿No está tu tienda? <Link href="/contacto">Escríbenos</Link>.</p>
+      <p className="small">Máximo {SHARE_LIMIT_PER_DAY} chollos al día por cuenta. ¿No está tu tienda? Dilo en el comentario.</p>
     </form>
   );
 }
