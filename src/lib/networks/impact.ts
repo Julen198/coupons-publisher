@@ -1,8 +1,9 @@
 import { discountBadge } from "../discount.ts";
-import { getJson, isoDay, required, siteOf, type Credentials, type NetAdvertiser, type NetOffer, type NetworkAdapter } from "./types.ts";
+import { getJson, httpsImage, isoDay, required, siteOf, type Credentials, type NetAdvertiser, type NetOffer, type NetworkAdapter } from "./types.ts";
 
 // impact.com Partner (Mediapartners) API — integrations.impact.com/impact-publisher: Basic auth Account SID + Auth Token,
-// GET /Mediapartners/{SID}/Campaigns (our contracts, with the tracking link) and /Deals (promos with their default code)
+// GET /Mediapartners/{SID}/Campaigns (our contracts, with the tracking link), then /Campaigns/{id}/Deals per campaign:
+// the partner API has no account-wide /Deals route (that one is brand-side and 404s here)
 const API = "https://api.impact.com/Mediapartners";
 const PAGE = 1000;
 const MAX_PAGES = 50;
@@ -31,6 +32,15 @@ export interface Deal {
   DiscountPercent?: string;
   DiscountCurrency?: string;
   Uri?: string;
+  Products?: { ProductImageUrl?: string }[];
+  BogoBuyImageUrl?: string;
+  BogoGetImageUrl?: string;
+}
+
+// The deal's product picture: the first product's, or for "buy one get one" deals the free item's (else the bought one's)
+export function imageOf(d: Deal): string {
+  const bogo = /BOGO/i.test(d.Type ?? "") ? httpsImage(d.BogoGetImageUrl) || httpsImage(d.BogoBuyImageUrl) : "";
+  return bogo || httpsImage(d.Products?.[0]?.ProductImageUrl);
 }
 
 const yes = (v: unknown) => v === true || String(v).toLowerCase() === "true";
@@ -60,6 +70,7 @@ export function discountOf(d: Deal): string {
 export function mapDeal(d: Deal, website = ""): NetOffer | null {
   if (d.State && !/^(ACTIVE|PENDING)$/i.test(d.State)) return null; // expired / paused deals
   const code = (d.DefaultPromoCode ?? "").trim();
+  const image = imageOf(d);
   return {
     id: String(d.Id),
     advertiserId: String(d.CampaignId),
@@ -70,6 +81,7 @@ export function mapDeal(d: Deal, website = ""): NetOffer | null {
     description: (d.Description ?? "").trim(),
     url: website,
     expires: isoDay(d.EndDate),
+    ...(image ? { image } : {}),
   };
 }
 
@@ -100,7 +112,9 @@ export const impact: NetworkAdapter = {
     const headers = { Authorization: `Basic ${Buffer.from(`${c.accountSid}:${c.authToken}`).toString("base64")}`, Accept: "application/json" };
     const base = `${API}/${c.accountSid}`;
     const campaigns = (await pages<Campaign>(`${base}/Campaigns`, "Campaigns", headers)).filter((cp) => !cp.ContractStatus || /active/i.test(cp.ContractStatus));
-    const deals = await pages<Deal>(`${base}/Deals`, "Deals", headers);
+    // ponytail: one request per active campaign, one after another; parallelise if a big account hits the sync timeout
+    const deals: Deal[] = [];
+    for (const cp of campaigns) deals.push(...(await pages<Deal>(`${base}/Campaigns/${encodeURIComponent(String(cp.CampaignId))}/Deals`, "Deals", headers)));
     const advertisers = new Map(campaigns.map((cp) => [String(cp.CampaignId), mapCampaign(cp)]));
     return {
       advertisers: [...advertisers.values()],

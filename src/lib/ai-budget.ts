@@ -31,6 +31,19 @@ export async function searchBlocked(): Promise<boolean> {
   return limits.pauseSearch && spent >= limits.budget;
 }
 
+// Optional AI jobs (deal texts) stop at the monthly budget, whatever the search setting says
+export class AiBudgetError extends Error {
+  constructor() {
+    super("Presupuesto de IA del mes superado (Costes de IA): no se generan más textos");
+    this.name = "AiBudgetError";
+  }
+}
+
+export async function assertWithinBudget(): Promise<void> {
+  const [limits, spent] = await Promise.all([aiLimits(), monthSpent()]);
+  if (spent >= limits.budget) throw new AiBudgetError();
+}
+
 export async function usageSince(days: number): Promise<UsageRow[]> {
   await io();
   const rows = await sql()<UsageRow[]>`

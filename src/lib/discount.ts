@@ -12,6 +12,14 @@ export function discountBadge(raw: string): string {
   if (nxm) return nxm[0].replace(/\s/g, "");
   const figure = s.match(/-?\d+(?:[.,]\d+)?\s?(?:%|€)/);
   if (!figure) return "";
+  // ponytail: over 90 % is a product spec ("pureza 99,99 %", "100 % algodón"), not a discount
+  if (figure[0].includes("%") && Math.abs(Number.parseFloat(figure[0].replace(",", "."))) > 90) return "";
   const upTo = /^hasta\b/i.test(s) ? "Hasta " : "";
   return `${upTo}${figure[0]}`;
+}
+
+// The badge as readers see it: one style for every figure, "60 %", "Hasta 83 %", "5 €", "2,5 €" (no minus sign,
+// a space before % and €). "2x1", "Envío gratis" and the like stay as they are.
+export function badgeLabel(raw: string): string {
+  return discountBadge(raw).replace(/-?(\d+(?:[.,]\d+)?)\s?(%|€)/, "$1 $2");
 }

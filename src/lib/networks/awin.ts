@@ -15,6 +15,15 @@ interface Promotion {
   url?: string;
   endDate?: string;
   voucher?: { code: string | null };
+  regions?: unknown; // { all: true } or the list of countries it's valid in
+}
+
+// regionCodes:["ES"] still lets through promotions valid in "all" regions, from Italian, German… programmes.
+// One belongs here when its programme is one of ours in Spain, or when it names Spain itself.
+export function forSpain(p: Pick<Promotion, "advertiser" | "regions">, spanishProgrammes: Set<string>): boolean {
+  if (spanishProgrammes.has(String(p.advertiser.id))) return true;
+  const regions = p.regions as { all?: boolean } | undefined;
+  return !regions?.all && new RegExp(`"${REGION}"`).test(JSON.stringify(regions ?? ""));
 }
 
 export function mapProgramme(p: Programme): NetAdvertiser {
@@ -37,12 +46,37 @@ export function mapPromotion(p: Promotion): NetOffer | null {
   };
 }
 
+// The token as pasted, «Bearer …» included or not
+export const bearer = (token: string) => `Bearer ${token.trim().replace(/^bearer\s+/i, "")}`;
+
+export interface AwinAccount { id: string; name: string }
+
+// GET /accounts: every account the token's user reaches; only publisher ones can read promotions
+export function parseAwinAccounts(v: unknown): AwinAccount[] {
+  const rows = (v as { accounts?: unknown } | null)?.accounts;
+  return (Array.isArray(rows) ? rows : [])
+    .filter((a): a is Record<string, unknown> => !!a && typeof a === "object" && a.accountType === "publisher")
+    .map((a) => ({ id: String(a.accountId), name: String(a.accountName ?? a.accountId) }));
+}
+
+export function pickAwinAccount(accounts: AwinAccount[]): string {
+  if (accounts.length === 1) return accounts[0].id;
+  if (!accounts.length) throw new Error("Ese token no tiene acceso a ninguna cuenta de publisher en Awin");
+  const list = accounts.map((a) => `${a.name} (${a.id})`).join(", ");
+  throw new Error(`Tu usuario de Awin tiene varias cuentas: ${list}. Escribe el Publisher ID de la que quieres conectar.`);
+}
+
+// The publisher id when the form left it empty: the token alone says which account it is, unless it reaches several
+export async function awinPublisherId(token: string): Promise<string> {
+  return pickAwinAccount(parseAwinAccounts(await getJson<unknown>(`${API}/accounts`, { headers: { Authorization: bearer(token) } })));
+}
+
 export const awin: NetworkAdapter = {
   id: "awin",
   label: "Awin",
   fields: [
-    { name: "publisherId", label: "Publisher ID", secret: false, numeric: true, placeholder: "p. ej. 123456", help: "Es también el awinaffid de los enlaces" },
     { name: "token", label: "API token", secret: true, placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" },
+    { name: "publisherId", label: "Publisher ID", secret: false, numeric: true, placeholder: "p. ej. 123456", optional: "solo si tu usuario tiene varias cuentas", help: "Es también el awinaffid de los enlaces" },
   ],
   docs: "https://help.awin.com/apidocs/introduction-1",
   where: "Awin → Toolbox → API Credentials (ui.awin.com/awin-api)",
@@ -50,7 +84,7 @@ export const awin: NetworkAdapter = {
   async fetchFeed(c: Credentials) {
     required(c, "publisherId", "token");
     if (!/^\d+$/.test(c.publisherId)) throw new Error("El Publisher ID de Awin es un número");
-    const headers = { Authorization: `Bearer ${c.token}`, "Content-Type": "application/json" };
+    const headers = { Authorization: bearer(c.token), "Content-Type": "application/json" };
     const programmes = await getJson<Programme[]>(
       `${API}/publishers/${c.publisherId}/programmes?relationship=joined&countryCode=${REGION}`,
       { headers },
@@ -66,15 +100,16 @@ export const awin: NetworkAdapter = {
       });
       return r.data ?? [];
     });
-    // an offer's advertiser may be joined outside the region filter: still known by id and name
     const advertisers = new Map(programmes.map((p) => [String(p.id), mapProgramme(p)]));
-    for (const p of promotions) {
+    const spanish = promotions.filter((p) => forSpain(p, new Set(advertisers.keys())));
+    // a programme joined outside Spain whose promotion names Spain: still known by id and name
+    for (const p of spanish) {
       const id = String(p.advertiser.id);
       if (!advertisers.has(id)) advertisers.set(id, { id, name: p.advertiser.name.trim(), website: siteOf(p.url), trackingTemplate: "" });
     }
     return {
       advertisers: [...advertisers.values()],
-      offers: promotions.map(mapPromotion).filter((o): o is NetOffer => o !== null),
+      offers: spanish.map(mapPromotion).filter((o): o is NetOffer => o !== null),
     };
   },
 };

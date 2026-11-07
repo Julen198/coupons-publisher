@@ -4,7 +4,7 @@ import { MagicConfirmForm } from "./confirm-form";
 
 async function Confirm({ searchParams }: { searchParams: PageProps<"/login/magic">["searchParams"] }) {
   const { token, next } = await searchParams;
-  return <MagicConfirmForm token={typeof token === "string" ? token : ""} next={typeof next === "string" ? next : "/"} />;
+  return <MagicConfirmForm token={typeof token === "string" ? token : ""} next={typeof next === "string" ? next : "/panel"} />;
 }
 
 // The emailed link lands here; signing in needs the button press (a POST), so link prefetchers can't burn the token

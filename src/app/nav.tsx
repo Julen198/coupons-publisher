@@ -4,18 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const MAIN = [
-  { href: "/", label: "Resumen" },
-  { href: "/clients", label: "Clientes" },
-  { href: "/stores", label: "Tiendas" },
-  { href: "/coupons", label: "Cupones" },
-  { href: "/pages", label: "Páginas" },
-  { href: "/clicks", label: "Clics" },
+  { href: "/panel", label: "Resumen" },
+  { href: "/panel/clients", label: "Clientes" },
+  { href: "/panel/stores", label: "Tiendas" },
+  { href: "/panel/coupons", label: "Cupones" },
+  { href: "/panel/moderacion", label: "Moderación" },
+  { href: "/panel/pages", label: "Páginas" },
+  { href: "/panel/clicks", label: "Clics" },
 ];
 const SECONDARY = [
-  { href: "/networks", label: "Redes de afiliación" },
+  { href: "/panel/networks", label: "Redes de afiliación" },
 ];
 const ADMIN = [
-  { href: "/costs", label: "Costes de IA" },
+  { href: "/panel/costs", label: "Costes de IA" },
 ];
 
 export function Nav({ admin = false }: { admin?: boolean }) {
@@ -23,7 +24,7 @@ export function Nav({ admin = false }: { admin?: boolean }) {
 }
 
 function NavLink({ href, label, path }: { href: string; label: string; path: string }) {
-  const active = href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
+  const active = href === "/panel" ? path === "/panel" : path === href || path.startsWith(`${href}/`);
   return (
     <Link
       href={href}

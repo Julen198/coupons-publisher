@@ -1,4 +1,5 @@
 import { poolerUrl } from "./pooler.ts";
+import type { CategorySlug } from "./catalog.ts";
 import postgres from "postgres";
 import { io } from "next/cache";
 
@@ -29,6 +30,8 @@ export type Store = {
   has_logo: boolean; // the icon itself (logo_data) stays out of lists: see /store-logo/<slug>
   intro: string;
   faqs: string; // one "Pregunta | Respuesta" per line
+  category: CategorySlug | ""; // "" = no category
+  facts: string; // one "Etiqueta | Valor" per line
 };
 
 export type Coupon = {
@@ -43,10 +46,15 @@ export type Coupon = {
   expires_at: string;
   verified: number;
   archived: number;
-  source: "manual" | "web" | "awin" | "tradedoubler" | "admitad" | "webgains" | "cj" | "rakuten" | "impact"; // web = found by the coupon finder, hidden until verified
+  source: "manual" | "web" | "awin" | "tradedoubler" | "admitad" | "webgains" | "cj" | "rakuten" | "impact" | "adtraction" | "effiliation" | "kwanko" | "affilae" | "partnerize"; // web = found by the coupon finder, hidden until verified
   source_url: string; // where a web find was seen, for whoever verifies it
   external_id: string | null;
   publisher_id: string; // Awin: publisher id of our account that imported it ("" = manual or a client's own account)
+  shared_by: number | null; // reader who shared it
+  review: "" | "pending" | "rejected"; // moderation of shared coupons
+  review_reason?: string; // why an editor rejected it ('' = none given); optional until the column exists
+  about: string; // "Sobre este chollo" text
+  about_status: "" | "draft" | "approved"; // public only when approved
 };
 
 export type CouponWithStore = Coupon & { store_name: string; store_slug: string; store_has_logo: boolean };
@@ -98,7 +106,7 @@ export const listClients = () => q(async (s) => plain(await s<Client[]>`SELECT *
 export const getClient = (slug: string) =>
   q(async (s) => plain(await s<Client[]>`SELECT * FROM clients WHERE slug = ${slug}`)[0] as Client | undefined);
 
-const STORE_COLS = "id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, logo_data <> '' AS has_logo";
+const STORE_COLS = "id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo";
 
 export const listStores = () => q(async (s) => plain(await s<Store[]>`SELECT ${s.unsafe(STORE_COLS)} FROM stores ORDER BY lower(name)`));
 
@@ -106,7 +114,7 @@ export const getStore = (slug: string) =>
   q(async (s) => plain(await s<Store[]>`SELECT ${s.unsafe(STORE_COLS)} FROM stores WHERE slug = ${slug}`)[0] as Store | undefined);
 
 export const listCoupons = (storeId: number) =>
-  q(async (s) => plain(await s<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${storeId} ORDER BY verified DESC, id`));
+  q(async (s) => plain(await s<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${storeId} AND review = '' ORDER BY verified DESC, id`));
 
 export const listAllCoupons = () =>
   q(async (s) =>
@@ -114,6 +122,7 @@ export const listAllCoupons = () =>
       await s<CouponWithStore[]>`
         SELECT coupons.*, stores.name AS store_name, stores.slug AS store_slug, stores.logo_data <> '' AS store_has_logo
         FROM coupons JOIN stores ON stores.id = coupons.store_id
+        WHERE coupons.review = ''
         ORDER BY lower(stores.name), coupons.verified DESC, coupons.id`,
     ),
   );

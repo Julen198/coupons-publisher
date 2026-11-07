@@ -4,7 +4,7 @@ import { slugify } from "./form.ts";
 import { decryptJson } from "./secrets.ts";
 import { adapterFor } from "./networks/index.ts";
 import { cleanAdvertiserName, matchStore, type StoreRef } from "./networks/match.ts";
-import type { Credentials, NetAdvertiser, NetFeed, NetOffer, NetworkAdapter } from "./networks/types.ts";
+import { httpsImage, type Credentials, type NetAdvertiser, type NetFeed, type NetOffer, type NetworkAdapter } from "./networks/types.ts";
 
 export interface NetworkAccount {
   id: number;
@@ -28,13 +28,16 @@ export interface SyncSummary {
 export async function syncAccount(account: NetworkAccount): Promise<SyncSummary> {
   const adapter = adapterFor(account.network);
   if (!adapter) throw new Error(`Red sin integración: ${account.network}`);
-  const creds = decryptJson<Credentials>(account.credentials);
+  return syncCredentials(adapter, decryptJson<Credentials>(account.credentials), account.client_id);
+}
+
+// Also how a new account is checked before it's saved: a feed that comes back is credentials that work
+export async function syncCredentials(adapter: NetworkAdapter, creds: Credentials, clientId: number | null): Promise<SyncSummary> {
   const feed = await adapter.fetchFeed(creds);
-  const ownAccount = account.client_id === null;
   // Awin links are built from merchant id + publisher id: remember which of our publisher ids can track each
   // coupon and store, so clients without an affiliate id of their own still get tracked links
-  const publisherId = account.network === "awin" && ownAccount ? (creds.publisherId ?? "") : "";
-  return mergeFeed(adapter, feed, account.client_id, publisherId);
+  const publisherId = adapter.id === "awin" && clientId === null ? (creds.publisherId ?? "") : "";
+  return mergeFeed(adapter, feed, clientId, publisherId);
 }
 
 async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, clientId: number | null, publisherId: string): Promise<SyncSummary> {
@@ -111,7 +114,7 @@ async function createStore(net: string, adv: NetAdvertiser): Promise<StoreRef | 
 
 const CHUNK = 500;
 
-// New offers come in verified (the network vouches for them); re-syncs refresh the text, code and dates
+// New offers come in verified (the network vouches for them); re-syncs refresh the text, code, dates and product image
 // but leave archived/verified as the team set them.
 async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<string, number>, publisherId: string) {
   // one row per offer: Postgres refuses to upsert the same key twice in one statement (pages can overlap)
@@ -123,6 +126,7 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
       store_id, kind: o.kind, title: o.title.slice(0, 300), code: o.code, discount: o.discount,
       description: o.description.slice(0, 2000), target_url: o.url, expires_at: o.expires,
       verified: 1, source: net, external_id: `${net}:${o.id}`, publisher_id: publisherId,
+      image_url: httpsImage(o.image),
     }];
   });
   let created = 0;
@@ -133,6 +137,10 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
       ON CONFLICT (external_id) DO UPDATE SET
         kind = excluded.kind, title = excluded.title, code = excluded.code, discount = excluded.discount,
         description = excluded.description, target_url = excluded.target_url, expires_at = excluded.expires_at,
+        -- a feed without a photo keeps the one read from the landing page (fill-product-images), unless the landing changed
+        image_url = CASE WHEN excluded.image_url <> '' THEN excluded.image_url
+          WHEN excluded.target_url <> coupons.target_url THEN '' ELSE coupons.image_url END,
+        image_checked_at = CASE WHEN excluded.target_url <> coupons.target_url THEN NULL ELSE coupons.image_checked_at END,
         -- a client's own account sends "": it never takes over the publisher id our account set
         publisher_id = CASE WHEN excluded.publisher_id <> '' THEN excluded.publisher_id ELSE coupons.publisher_id END
       RETURNING (xmax = 0) AS inserted`;

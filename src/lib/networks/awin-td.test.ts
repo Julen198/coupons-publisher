@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mapPromotion, mapProgramme } from "./awin.ts";
+import { forSpain, mapPromotion, mapProgramme } from "./awin.ts";
 import { mapVoucher, trackingTemplate } from "./tradedoubler.ts";
 
 test("Awin voucher → code coupon; hidden code is skipped; promotion → deal", () => {
@@ -28,4 +28,12 @@ test("Tradedoubler voucher types map to code / deal and a badge", () => {
   );
   const c = mapVoucher({ ...v, voucherTypeId: 1, code: "TEN", discountAmount: 10, isPercentage: true });
   assert.deepEqual([c.kind, c.code, c.discount], ["code", "TEN", "10%"]);
+});
+
+test("Awin: an «all regions» promotion only counts from our Spanish programmes; others must name ES", () => {
+  const spanish = new Set(["1"]);
+  assert.equal(forSpain({ advertiser: { id: 1, name: "ES shop" }, regions: { all: true } }, spanish), true);
+  assert.equal(forSpain({ advertiser: { id: 2, name: "Pc Componentes IT" }, regions: { all: true } }, spanish), false);
+  assert.equal(forSpain({ advertiser: { id: 2, name: "X" }, regions: { all: false, list: [{ countryCode: "ES" }] } }, spanish), true);
+  assert.equal(forSpain({ advertiser: { id: 2, name: "X" }, regions: { all: false, list: [{ countryCode: "IT" }] } }, spanish), false);
 });

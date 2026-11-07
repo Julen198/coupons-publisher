@@ -82,8 +82,6 @@ ALTER TABLE stores ADD COLUMN IF NOT EXISTS tracking_url text NOT NULL DEFAULT '
 -- square brand icon as a data: URI, served by /store-logo/<slug> (never selected in lists)
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS logo_data text NOT NULL DEFAULT '';
 ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_source_check;
-ALTER TABLE coupons ADD CONSTRAINT coupons_source_check CHECK (source IN ('manual', 'awin', 'web'));
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS source_url text NOT NULL DEFAULT '';
 ALTER TABLE pages ENABLE ROW LEVEL SECURITY;
 -- the hosted subdomain option was dropped: those pages are served like the widget (always current)
@@ -147,9 +145,6 @@ DO $$ BEGIN
   END IF;
 END $$;
 UPDATE coupons SET external_id = 'awin:' || external_id WHERE source = 'awin' AND external_id NOT LIKE 'awin:%';
-ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_source_check;
-ALTER TABLE coupons ADD CONSTRAINT coupons_source_check
-  CHECK (source IN ('manual', 'web', 'awin', 'tradedoubler', 'admitad', 'webgains'));
 
 -- affiliate network API accounts entered from the panel. client_id NULL = our own account;
 -- a client's id = that client's own publisher account. credentials = AES-GCM JSON (see lib/secrets.ts)
@@ -164,7 +159,7 @@ CREATE TABLE IF NOT EXISTS network_accounts (
   last_error text NOT NULL DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS network_accounts_owner_idx ON network_accounts(network, coalesce(client_id, 0));
+-- (the old one-account-per-owner index is dropped below; creating it first fails once an owner has several accounts)
 ALTER TABLE network_accounts ENABLE ROW LEVEL SECURITY;
 -- calls made before tracking existed, backfilled from measured averages
 ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS estimated boolean NOT NULL DEFAULT false;
@@ -186,14 +181,113 @@ CREATE TABLE IF NOT EXISTS client_tracking (
   PRIMARY KEY (client_id, store_id)
 );
 ALTER TABLE client_tracking ENABLE ROW LEVEL SECURITY;
--- CJ, Rakuten and Impact read through their APIs too
+-- category readers browse by on the public site ('' = none), and short facts for its guide: "Etiqueta | Valor" per line
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT '';
+ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_category_check;
+ALTER TABLE stores ADD CONSTRAINT stores_category_check
+  CHECK (category IN ('', 'tecnologia', 'zapatillas', 'moda', 'hogar', 'deporte', 'viajes'));
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS facts text NOT NULL DEFAULT '';
+-- the allowed sources and networks, defined once: an older, shorter list re-added first would reject rows a newer network already wrote
+-- Adtraction, Effiliation, Kwanko, Affilae and Partnerize read through their APIs too
 ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_source_check;
 ALTER TABLE coupons ADD CONSTRAINT coupons_source_check
-  CHECK (source IN ('manual', 'web', 'awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact'));
+  CHECK (source IN ('manual', 'web', 'awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact', 'adtraction', 'effiliation', 'kwanko', 'affilae', 'partnerize'));
 ALTER TABLE network_accounts DROP CONSTRAINT IF EXISTS network_accounts_network_check;
 ALTER TABLE network_accounts ADD CONSTRAINT network_accounts_network_check
-  CHECK (network IN ('awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact'));
+  CHECK (network IN ('awin', 'tradedoubler', 'admitad', 'webgains', 'cj', 'rakuten', 'impact', 'adtraction', 'effiliation', 'kwanko', 'affilae', 'partnerize'));
+-- Telegram: '' = not sent yet, review = in the admin's chat, published / discarded / expired in the public channel
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS telegram_status text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS telegram_message_id bigint;
+-- readers (email sign-in, no password), their votes and comments on coupons, and coupons they share
+CREATE TABLE IF NOT EXISTS readers (
+  id serial PRIMARY KEY,
+  email text NOT NULL UNIQUE,
+  handle text UNIQUE,
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blocked')),
+  session_version int NOT NULL DEFAULT 1,
+  login_token_hash text UNIQUE,
+  login_expires_at timestamptz,
+  link_sent_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE readers ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS votes (
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  value smallint NOT NULL CHECK (value IN (-1, 1)),
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, coupon_id)
+);
+CREATE INDEX IF NOT EXISTS votes_coupon_idx ON votes(coupon_id);
+ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS comments (
+  id serial PRIMARY KEY,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  body text NOT NULL,
+  hidden smallint NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS comments_coupon_idx ON comments(coupon_id, created_at);
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+-- who shared a coupon, and its moderation state ('' = normal)
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS shared_by int REFERENCES readers(id) ON DELETE SET NULL;
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS review text NOT NULL DEFAULT '';
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_review_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_review_check CHECK (review IN ('', 'pending', 'rejected'));
+-- readers mark comments as useful; replies point at their top-level comment (one level deep)
+CREATE TABLE IF NOT EXISTS comment_votes (
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  comment_id int NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, comment_id)
+);
+CREATE INDEX IF NOT EXISTS comment_votes_comment_idx ON comment_votes(comment_id);
+ALTER TABLE comment_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id int REFERENCES comments(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS comments_parent_idx ON comments(parent_id) WHERE parent_id IS NOT NULL;
+-- "Sobre este chollo": original text per deal, drafted by AI and public only once an editor approves it
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS about text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS about_status text NOT NULL DEFAULT '';
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_about_status_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_about_status_check CHECK (about_status IN ('', 'draft', 'approved'));
+-- product image from a network feed (https only, '' = none), deals readers save, and readers' "ha caducado" reports
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS image_url text NOT NULL DEFAULT '';
+CREATE TABLE IF NOT EXISTS saved_deals (
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, coupon_id)
+);
+ALTER TABLE saved_deals ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS expiry_reports (
+  reader_id int NOT NULL REFERENCES readers(id) ON DELETE CASCADE,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, coupon_id)
+);
+CREATE INDEX IF NOT EXISTS expiry_reports_coupon_idx ON expiry_reports(coupon_id);
+ALTER TABLE expiry_reports ENABLE ROW LEVEL SECURITY;
+-- when we last looked for a product photo on the deal's landing page (og:image): tried once, again after 30 days if none
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS image_checked_at timestamptz;
+-- why an editor rejected a shared deal (one of REJECT_REASONS, '' = none), shown to the reader on /cuenta
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS review_reason text NOT NULL DEFAULT '';
+-- "Avísame antes de cada fecha" (/calendario): who is subscribed, and which date each reader was already emailed about
+CREATE TABLE IF NOT EXISTS date_alert_subs (
+  reader_id int PRIMARY KEY REFERENCES readers(id) ON DELETE CASCADE,
+  at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE date_alert_subs ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS date_alert_sends (
+  reader_id int REFERENCES readers(id) ON DELETE CASCADE,
+  event_key text,
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, event_key)
+);
+ALTER TABLE date_alert_sends ENABLE ROW LEVEL SECURITY;
+-- the store's wordmark (logo with its name, data: URI, '' = none) for the landscape logo boxes; logo_data stays the square icon
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS wordmark_data text NOT NULL DEFAULT '';
 `;
 
-// "Borrar todos los datos" in Administración: business data only, users, settings and our own network accounts stay
-export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;
+// "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
+export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comment_votes, comments, saved_deals, expiry_reports, date_alert_subs, date_alert_sends, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;

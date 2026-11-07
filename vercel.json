@@ -1,3 +1,7 @@
 {
-  "regions": ["arn1"]
+  "regions": ["arn1"],
+  "crons": [
+    { "path": "/api/telegram/cron", "schedule": "0 8 * * *" },
+    { "path": "/api/date-alerts/cron", "schedule": "0 7 * * *" }
+  ]
 }

@@ -5,10 +5,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { fillStoreIcons } from "@/lib/fill-store-icons";
+import { fillProductImages } from "@/lib/fill-product-images";
 import { sql, type Client } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
 import { mapStoreLines } from "@/lib/store-import";
 import { asNetwork } from "@/lib/affiliate";
+import { storeCategory } from "@/lib/catalog";
 import { cleanDisguise, cleanFontFamily, darkSvgDataUri, decodeHtml, isSvgUrl, isWhiteSvg, MAX_SVG_LOGO, validLogo, extractDisguise, siteDigest, type Disguise } from "@/lib/disguise";
 import { disguiseFromDigest, storesFromText } from "@/lib/ai-content";
 import { lookup } from "node:dns/promises";
@@ -186,8 +188,8 @@ export async function createClient(_prev: FormState, f: FormData): Promise<FormS
   } catch (e) {
     return { error: errorMessage(e) };
   }
-  revalidatePath("/clients");
-  redirect(`/clients/${s}?created=1`);
+  revalidatePath("/panel/clients");
+  redirect(`/panel/clients/${s}?created=1`);
 }
 
 export async function updateClient(f: FormData) {
@@ -199,7 +201,7 @@ export async function updateClient(f: FormData) {
     UPDATE clients SET domain = ${bareDomain(str(f, "domain"))},
       clickref_prefix = ${str(f, "clickref_prefix")}
     WHERE slug = ${s}`;
-  revalidatePath(`/clients/${s}`);
+  revalidatePath(`/panel/clients/${s}`);
 }
 
 export async function updateDisguise(f: FormData) {
@@ -214,7 +216,7 @@ export async function updateDisguise(f: FormData) {
       font_style = ${str(f, "font_style") === "sans" ? "sans" : "serif"},
       font_family = ${cleanFontFamily(str(f, "font_family")) ?? ""}, layout = ${str(f, "layout") === "store" ? "store" : "newspaper"}
     WHERE slug = ${s}`;
-  revalidatePath(`/clients/${s}`);
+  revalidatePath(`/panel/clients/${s}`);
 }
 
 // Refills a saved client's disguise from their homepage. Only overwrites what it finds.
@@ -232,7 +234,7 @@ export async function generateDisguise(f: FormData) {
       font_style = ${d.font ?? client.font_style}, font_family = ${d.fontFamily ?? client.font_family},
       layout = ${d.layout ?? client.layout}
     WHERE slug = ${s}`;
-  revalidatePath(`/clients/${s}`);
+  revalidatePath(`/panel/clients/${s}`);
 }
 
 // ---------- stores ----------
@@ -241,9 +243,14 @@ export async function generateDisguise(f: FormData) {
 // any other network keeps the tracking link it gives ({url}/{ref} placeholders)
 function storeTracking(f: FormData) {
   const network = asNetwork(str(f, "network"));
-  const merchant_id = digits(f, "merchant_id", "El ID del anunciante");
+  // Awin ids are numbers; Affilae's are hex and Partnerize's mix letters ("10l176")
+  const merchant_id = network === "awin" ? digits(f, "merchant_id", "El ID del anunciante") : str(f, "merchant_id");
+  if (!/^[\w-]*$/.test(merchant_id)) throw new Error("El ID del anunciante solo lleva letras, números y guiones");
   if (network === "awin") return { network, merchant_id, tracking_url: "" };
-  return { network, merchant_id, tracking_url: str(f, "tracking_url") ? url(f, "tracking_url", "El enlace de seguimiento") : "" };
+  // "{url}?ae=…" (Affilae) tracks on the shop's own page: it isn't a URL by itself
+  const template = str(f, "tracking_url");
+  if (/^\{url\}[?&][^\s]+$/.test(template)) return { network, merchant_id, tracking_url: template };
+  return { network, merchant_id, tracking_url: template ? url(f, "tracking_url", "El enlace de seguimiento") : "" };
 }
 
 export async function createStore(_prev: FormState, f: FormData): Promise<FormState> {
@@ -265,7 +272,7 @@ export async function createStore(_prev: FormState, f: FormData): Promise<FormSt
   } catch (e) {
     return { error: errorMessage(e) };
   }
-  redirect(`/stores/${s}`);
+  redirect(`/panel/stores/${s}`);
 }
 
 export type ImportStoresState = FormState & { imported?: number; problems?: string[]; guessed?: string[]; rejected?: string };
@@ -347,12 +354,13 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
     await sql()`
       UPDATE stores SET website = ${url(f, "website", "La web")}, network = ${t.network}, merchant_id = ${t.merchant_id},
         tracking_url = ${t.tracking_url},
-        intro = ${str(f, "intro")}, faqs = ${str(f, "faqs")}
+        intro = ${str(f, "intro")}, faqs = ${str(f, "faqs")},
+        category = ${storeCategory(str(f, "category"))}, facts = ${str(f, "facts")}
       WHERE slug = ${s}`;
   } catch (e) {
     return { error: errorMessage(e) };
   }
-  revalidatePath(`/stores/${s}`);
+  revalidatePath(`/panel/stores/${s}`);
   return {};
 }
 
@@ -361,12 +369,12 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
 export async function deleteCoupon(f: FormData) {
   await requireEditor();
   await sql()`DELETE FROM coupons WHERE id = ${Number(required(f, "id"))}`;
-  revalidatePath(`/stores/${required(f, "store_slug")}`);
+  revalidatePath(`/panel/stores/${required(f, "store_slug")}`);
 }
 
 // Create (no id) or update (id) from the coupon drawer
 export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormState> {
-  const back = /^\/(coupons|stores\/[a-z0-9-]+)(\?|$)/.test(str(f, "back")) ? str(f, "back") : "/coupons";
+  const back = /^\/panel\/(coupons|stores\/[a-z0-9-]+)(\?|$)/.test(str(f, "back")) ? str(f, "back") : "/panel/coupons";
   try {
     await requireEditor();
     const kind = str(f, "kind") === "deal" ? "deal" : "code";
@@ -383,7 +391,8 @@ export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormSta
       archived: 0,
     };
     const id = Number(str(f, "id"));
-    if (id) await sql()`UPDATE coupons SET ${sql()(c)} WHERE id = ${id}`;
+    // reader-shared deals waiting for review (or rejected) are only handled on /panel/moderacion: never published from here
+    if (id) await sql()`UPDATE coupons SET ${sql()(c)} WHERE id = ${id} AND review = ''`;
     else {
       await sql()`INSERT INTO coupons ${sql()(c)}`;
       await logActivity(`Nuevo cupón: ${c.title}`);
@@ -391,8 +400,8 @@ export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormSta
   } catch (e) {
     return { error: errorMessage(e) };
   }
-  revalidatePath("/coupons");
-  revalidatePath("/stores", "layout");
+  revalidatePath("/panel/coupons");
+  revalidatePath("/panel/stores", "layout");
   redirect(back);
 }
 
@@ -402,6 +411,8 @@ export async function verifyCoupons(f: FormData) {
   if (!list.length) return;
   await sql()`UPDATE coupons SET verified = 1 WHERE id IN ${sql()(list)}`;
   await logActivity(list.length === 1 ? "Cupón verificado" : `${list.length} cupones verificados`);
+  // web finds are published here: look for their product photo once
+  after(() => fillProductImages(list));
   revalidatePath("/", "layout");
 }
 

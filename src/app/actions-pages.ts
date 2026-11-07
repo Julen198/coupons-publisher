@@ -28,7 +28,7 @@ export async function addPage(f: FormData) {
   const { client, store } = await pair(f);
   await sql()`INSERT INTO pages (client_id, store_id) VALUES (${client.id}, ${store.id}) ON CONFLICT DO NOTHING`;
   // ?nueva: the generator writes the store's FAQs on arrival if it has none yet
-  redirect(`/pages/${client.slug}/${store.slug}?nueva=1&desde=cliente`);
+  redirect(`/panel/pages/${client.slug}/${store.slug}?nueva=1&desde=cliente`);
 }
 
 // Generator form: save as draft or publish, with the chosen delivery method
@@ -50,7 +50,7 @@ export async function removePage(f: FormData) {
   const { client, store } = await pair(f);
   await sql()`DELETE FROM pages WHERE client_id = ${client.id} AND store_id = ${store.id}`;
   await logActivity(`Página ${store.name} retirada de ${client.name}`);
-  redirect(`/clients/${client.slug}`);
+  redirect(`/panel/clients/${client.slug}`);
 }
 
 // ---------- AI content ----------
