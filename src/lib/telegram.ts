@@ -89,11 +89,15 @@ export function cronAuthorized(secret: string | undefined, authorization: string
   return !!secret && authorization === `Bearer ${secret}`;
 }
 
+// A hung Bot API call must not hold the webhook or the cron until the platform kills the function
+const TELEGRAM_TIMEOUT_MS = 10_000;
+
 export async function tg<T = unknown>(cfg: TelegramConfig, method: string, body: Record<string, unknown>): Promise<T> {
   const res = await fetch(`https://api.telegram.org/bot${cfg.token}/${method}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TELEGRAM_TIMEOUT_MS),
   });
   const json = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: T; description?: string };
   if (!json.ok) throw new Error(`Telegram ${method}: ${json.description ?? res.status}`);
