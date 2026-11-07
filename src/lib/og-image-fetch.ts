@@ -36,25 +36,43 @@ const pinned = (addresses: Address[]): LookupFunction => (_host, options, done) 
   else done(null, addresses[0].address, addresses[0].family);
 };
 
-type Hop = { redirect: string } | { html: string };
+export interface FetchOptions {
+  accept: RegExp; // content types taken; anything else fails with "not <label>"
+  label: string;
+  maxBytes: number;
+  truncate?: boolean; // keep the first maxBytes of a bigger body instead of failing
+  stopWhen?: (tail: string) => boolean; // enough read (looked at the last two chunks)
+  httpsOnly?: boolean; // every hop, redirects included
+  anyStatus?: boolean; // also read 4xx/5xx bodies (status is returned)
+  headers?: Record<string, string>;
+  timeoutMs?: number;
+}
+export interface Fetched {
+  body: Buffer;
+  type: string;
+  url: string;
+  status: number;
+}
 
-function getOnce(url: URL, addresses: Address[], signal: AbortSignal): Promise<Hop> {
+type Hop = { redirect: string } | Omit<Fetched, "url">;
+
+function getOnce(url: URL, addresses: Address[], signal: AbortSignal, o: FetchOptions): Promise<Hop> {
   const client = url.protocol === "https:" ? https : http;
   return new Promise((resolve, reject) => {
-    const req = client.request(url, { method: "GET", headers: HEADERS, lookup: pinned(addresses), signal }, (res) => {
+    const req = client.request(url, { method: "GET", headers: { ...HEADERS, ...o.headers }, lookup: pinned(addresses), signal }, (res) => {
       const status = res.statusCode ?? 0;
+      const type = (res.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+      const fail = (e: Error) => {
+        res.resume();
+        reject(e);
+      };
       if (status >= 300 && status < 400 && res.headers.location) {
         res.resume();
         return resolve({ redirect: res.headers.location });
       }
-      if (status < 200 || status >= 300) {
-        res.resume();
-        return reject(new Error(`HTTP ${status}`));
-      }
-      if (!/html/i.test(res.headers["content-type"] ?? "")) {
-        res.resume();
-        return reject(new Error("not html"));
-      }
+      if ((status < 200 || status >= 300) && !o.anyStatus) return fail(new Error(`HTTP ${status}`));
+      if (!o.accept.test(type)) return fail(new Error(`not ${o.label}`));
+      if (!o.truncate && Number(res.headers["content-length"]) > o.maxBytes) return fail(new Error("too big"));
       const chunks: Buffer[] = [];
       let bytes = 0;
       let done = false;
@@ -62,13 +80,19 @@ function getOnce(url: URL, addresses: Address[], signal: AbortSignal): Promise<H
         if (done) return;
         done = true;
         res.destroy();
-        resolve({ html: Buffer.concat(chunks).subarray(0, MAX_BYTES).toString("utf8") });
+        resolve({ body: Buffer.concat(chunks).subarray(0, o.maxBytes), type, status });
       };
       res.on("data", (chunk: Buffer) => {
+        if (done) return;
         chunks.push(chunk);
         bytes += chunk.length;
-        // "</head>" may straddle two chunks: look at this one plus the end of the previous
-        if (bytes >= MAX_BYTES || /<\/head>/i.test(Buffer.concat(chunks.slice(-2)).toString("latin1"))) finish();
+        if (bytes > o.maxBytes && !o.truncate) {
+          done = true;
+          res.destroy();
+          return reject(new Error("too big"));
+        }
+        // a marker may straddle two chunks: look at this one plus the end of the previous
+        if (bytes >= o.maxBytes || o.stopWhen?.(Buffer.concat(chunks.slice(-2)).toString("latin1"))) finish();
       });
       res.on("end", finish);
       res.on("error", reject);
@@ -78,18 +102,26 @@ function getOnce(url: URL, addresses: Address[], signal: AbortSignal): Promise<H
   });
 }
 
-// The page's head (up to 512 KB) and the address it was finally read from
-export async function fetchHead(start: string, resolve: Resolve = publicAddresses): Promise<{ html: string; url: string }> {
-  const signal = AbortSignal.timeout(TIMEOUT_MS);
+// A public URL's body, following up to 3 redirects, each hop resolved, checked and pinned (see the top of the file)
+export async function fetchPublic(start: string, o: FetchOptions, resolve: Resolve = publicAddresses): Promise<Fetched> {
+  const signal = AbortSignal.timeout(o.timeoutMs ?? TIMEOUT_MS);
   let url = new URL(start);
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    if (!/^https?:$/.test(url.protocol)) throw new Error(`protocol ${url.protocol}`);
+    if (!(o.httpsOnly ? /^https:$/ : /^https?:$/).test(url.protocol)) throw new Error(`protocol ${url.protocol}`);
     if (isTrackingLink(url.href)) throw new Error("tracking link");
-    const res = await getOnce(url, await resolve(url.hostname), signal);
-    if ("html" in res) return { html: res.html, url: url.href };
+    const res = await getOnce(url, await resolve(url.hostname), signal, o);
+    if (!("redirect" in res)) return { ...res, url: url.href };
     url = new URL(res.redirect, url);
   }
   throw new Error("too many redirects");
+}
+
+const HEAD: FetchOptions = { accept: /html/i, label: "html", maxBytes: MAX_BYTES, truncate: true, stopWhen: (tail) => /<\/head>/i.test(tail) };
+
+// The page's head (up to 512 KB) and the address it was finally read from
+export async function fetchHead(start: string, resolve: Resolve = publicAddresses, options: Partial<FetchOptions> = {}): Promise<{ html: string; url: string }> {
+  const page = await fetchPublic(start, { ...HEAD, ...options }, resolve);
+  return { html: page.body.toString("utf8"), url: page.url };
 }
 
 const isRoot = (u: URL) => u.pathname.replace(/\/+$/, "") === "";

@@ -11,10 +11,15 @@ export function initialsOf(name: string): string {
   return caps || name.charAt(0).toUpperCase();
 }
 
-// A store's logo from /store-logo/<slug>, or its initials when it has none (or the image fails)
+// Smaller than this (image pixels) a logo is a smudge: initials read better
+const MIN_LOGO_PX = 24;
+
+// A store's logo from /store-logo/<slug>, or its initials when it has none (or the image fails, or is under 24px).
+// A logo too small for its frame is shown at its own crisp size, centred in the tile (the frames are grids).
 export function StoreLogoImg({ slug, name, hasLogo, className }: { slug: string; name: string; hasLogo: boolean; className?: string }) {
   const [failed, setFailed] = useState(false);
-  const { style, tooSmall, measure } = useCrispLogo();
+  // the tiny header icon (.slogo) keeps the usual rule: nothing rather than a smudge there
+  const { style, tooSmall, measure } = useCrispLogo(className === "slogo" ? {} : { minNaturalPx: MIN_LOGO_PX });
   if (hasLogo && !failed && !tooSmall) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- small icon from our own route
