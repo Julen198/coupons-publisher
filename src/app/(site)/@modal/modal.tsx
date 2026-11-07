@@ -4,12 +4,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { CloseIcon } from "../entrar/icons";
 
-// A native <dialog> (a bottom sheet on phones): focus trap, Esc and the backdrop come from the browser; closing goes back to the page underneath
-export function Modal({ children, labelledBy }: { children: ReactNode; labelledBy: string }) {
+// A native <dialog> (a bottom sheet on phones): focus trap, Esc and the backdrop come from the browser; closing goes back to the
+// page underneath, or to `closeTo` when there is none (a page opened from the email shows the home behind it)
+export function Modal({ children, labelledBy, at = "/entrar", closeTo }: { children: ReactNode; labelledBy: string; at?: string; closeTo?: string }) {
   const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
   const path = usePathname();
-  const here = path === "/entrar";
+  const here = path === at;
   useEffect(() => {
     const d = ref.current;
     if (here && d && !d.open) d.showModal();
@@ -22,7 +23,7 @@ export function Modal({ children, labelledBy }: { children: ReactNode; labelledB
       ref={ref}
       className="modal entry-card"
       aria-labelledby={labelledBy}
-      onClose={() => router.back()}
+      onClose={() => (closeTo ? router.replace(closeTo) : router.back())}
       onClick={(e) => e.target === e.currentTarget && ref.current?.close()}
     >
       {/* the bottom sheet's grab handle (phones only, CSS) */}

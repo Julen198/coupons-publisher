@@ -70,7 +70,8 @@ export function SeoToggle() {
   if (!SEO_PANEL) return null;
   return (
     <button ref={ref} className="btn btn-seo" type="button" aria-pressed={on} onClick={() => setOn((v) => !v)}>
-      Ver SEO/GEO
+      <span className="seo-long">Ver SEO/GEO</span>
+      <span className="seo-short">SEO</span>
     </button>
   );
 }

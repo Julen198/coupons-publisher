@@ -395,7 +395,32 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .top-actions { display: flex; gap: 8px; align-items: center; }
 .cl .top-actions .who { display: flex; gap: 8px; align-items: center; }
 .cl .top-actions .handle { font-weight: 600; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 640px) { .cl .top-actions { flex-wrap: wrap; } }
+/* header actions. Desktop: text buttons as the SiteHome board. Phones (SiteHeaderMobile board): logo and actions on one row,
+   search on its own full-width row, the share icon alone and the account behind a round button */
+.cl .top-actions .share svg { display: none; width: 20px; height: 20px; }
+.cl .seo-short, .cl .acct-btn { display: none; }
+.cl .acct-btn { width: 44px; height: 44px; border-radius: 50%; border: 0; padding: 0; background: var(--brand); color: var(--brand-ink); font: inherit; font-weight: 800; place-items: center; cursor: pointer; flex: none; }
+@media (max-width: 640px) {
+  .cl .top .wrap { gap: 8px 10px; }
+  .cl .logo { margin-right: auto; }
+  .cl .search { order: 3; flex: 1 1 100%; }
+  .cl .top-actions { gap: 8px; }
+  .cl .top-actions .who { display: none; }
+  .cl .top-actions .share { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; }
+  .cl .top-actions .share svg { display: block; }
+  .cl .top-actions .share-label { display: none; }
+  .cl .acct-btn { display: grid; }
+  .cl .btn-seo { padding: 4px 8px; font-size: .75rem; }
+  .cl .seo-long { display: none; }
+  .cl .seo-short { display: inline; }
+}
+/* the account sheet: the modal's dialog (a bottom sheet on phones) with a short list */
+.cl dialog.acct-sheet { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; padding: 16px; gap: 4px; align-content: start; }
+.cl .acct-sheet .acct-me { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; padding: 4px 48px 12px 0; border-bottom: 1px solid var(--line); }
+.cl .acct-sheet .acct-me .acct-btn { display: grid; width: 40px; height: 40px; cursor: default; }
+.cl .acct-sheet nav { display: grid; }
+.cl .acct-sheet nav a, .cl .acct-sheet .acct-out { display: flex; align-items: center; min-height: 48px; color: var(--ink); text-decoration: none; font: inherit; font-weight: 600; background: none; border: 0; padding: 0 4px; width: 100%; text-align: left; cursor: pointer; }
+.cl .acct-sheet .acct-out { color: var(--drop, #b4380a); }
 .cl .share-form { display: grid; gap: 12px; }
 .cl .share-card { max-width: 560px; margin: 32px auto; }
 

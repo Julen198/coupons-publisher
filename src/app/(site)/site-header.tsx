@@ -6,9 +6,19 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { CATEGORIES } from "@/lib/catalog";
 import { signOutReader } from "./actions-reader";
 import { SeoToggle } from "./seo-panel";
+import { AccountMenu } from "./account-menu";
 
 // undefined = not known yet (the Suspense fallback); null = signed out
 export type HeaderReader = { handle: string | null } | null;
+
+const SHARE_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+  </svg>
+);
 
 const LOGO = (
   <svg viewBox="0 0 32 32" aria-hidden="true">
@@ -77,11 +87,16 @@ function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: stri
               <button className="btn" type="submit">Salir</button>
             </form>
           )}
-          <Link className="btn btn-primary" href="/compartir">Compartir chollo</Link>
+          {/* phones: the share icon alone, and the account behind a round button (SiteHeaderMobile board) */}
+          <Link className="btn btn-primary share" href="/compartir" aria-label="Compartir chollo">
+            {SHARE_ICON}
+            <span className="share-label">Compartir chollo</span>
+          </Link>
+          {reader && <AccountMenu handle={reader.handle} />}
         </div>
       </div>
-      {/* the account pages (entrar, compartir, cuenta) have no category bar in the design */}
-      {!/^\/(entrar|compartir|cuenta)(\/|$)/.test(path) && (
+      {/* the account pages (entrar, compartir, cuenta) have no category bar in the design; /entrar/confirmar shows the home behind its card */}
+      {!/^\/(entrar(?!\/confirmar)|compartir|cuenta)(\/|$)/.test(path) && (
       <nav className="cats" aria-label="Categorías">
         <div className="wrap">
           {SECTIONS.map((s) => (

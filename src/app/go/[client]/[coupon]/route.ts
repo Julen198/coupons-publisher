@@ -1,8 +1,9 @@
 import { sql, type Client, type Coupon, type Store } from "@/lib/db";
-import { canRedirect } from "@/lib/coupon-status";
+import { canRedirect, statusOf } from "@/lib/coupon-status";
+import { redirectPage } from "@/lib/redirect-page";
 import { untrackedUrl } from "@/lib/render-page";
 import { publishUnverified } from "@/lib/settings";
-import { madridToday, siteUrl } from "@/lib/site-text";
+import { longDate, madridToday, siteUrl } from "@/lib/site-text";
 import { isTracked, trackedLinkOf } from "@/lib/tracked-link";
 import { accountsFor, clientLinks } from "@/lib/link-accounts";
 import { recordClick } from "@/lib/clicks";
@@ -22,7 +23,7 @@ async function load(ctx: RouteContext<"/go/[client]/[coupon]">): Promise<Target 
     db<Client[]>`SELECT * FROM clients WHERE slug = ${clientSlug}`,
     db<Coupon[]>`SELECT * FROM coupons WHERE id = ${couponId}`,
   ]);
-  const [store] = coupon ? await db<Store[]>`SELECT * FROM stores WHERE id = ${coupon.store_id}` : [];
+  const [store] = coupon ? await db<Store[]>`SELECT *, logo_data <> '' AS has_logo FROM stores WHERE id = ${coupon.store_id}` : [];
   if (!client || !coupon || !store) return null;
   // pending/rejected reader shares, unchecked web finds: no redirect and no click (expired and archived still go through:
   // clients' exported pages may still link them)
@@ -44,7 +45,26 @@ async function count(t: Target, kind: ClickKind, req: Request, ref: string) {
 const redirect = (location: string) =>
   new Response(null, { status: 302, headers: { Location: location, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade" } });
 
-// Click on a coupon button: count it, then send the reader to the tracked link. If that link stopped being tracked since
+// The loading page on the way to the store (SiteRedirect board): it jumps on its own to `location` after a moment, or
+// waits for a choice when the coupon has expired. Same headers as the 302 it replaces.
+function loadingPage(t: Target, location: string) {
+  const status = statusOf(t.coupon, madridToday().iso);
+  const html = redirectPage({
+    url: location,
+    storeName: t.store.name,
+    storeSlug: t.store.slug,
+    hasLogo: !!t.store.has_logo,
+    code: t.coupon.kind === "code" ? t.coupon.code : "",
+    expired: status === "expired" || status === "archived",
+    expiredOn: status === "expired" && t.coupon.expires_at ? longDate(t.coupon.expires_at) : "",
+  });
+  return new Response(html, {
+    status: 200,
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade", "X-Robots-Tag": "noindex, nofollow" },
+  });
+}
+
+// Click on a coupon button: count it, then send the reader to the tracked link through the loading page. If that link stopped being tracked since
 // the page was rendered (data changed), the reader still goes to the store and the click is logged as untracked so it
 // shows in Clics. Whatever fails, the reader is redirected: never a 500.
 export async function GET(req: Request, ctx: RouteContext<"/go/[client]/[coupon]">) {
@@ -57,11 +77,11 @@ export async function GET(req: Request, ctx: RouteContext<"/go/[client]/[coupon]
     const ref = refPath(req.headers.get("referer"), siteUrl());
     if (isTracked(link)) {
       await count(target, "go", req, ref);
-      return redirect(link.url);
+      return loadingPage(target, link.url);
     }
     console.warn("untracked click", { client: client.slug, coupon: coupon.id, store: store.slug, problem: link.problem });
     await count(target, "untracked", req, ref);
-    return redirect(untrackedUrl(coupon, store));
+    return loadingPage(target, untrackedUrl(coupon, store));
   } catch (e) {
     console.error("go redirect failed", e);
     return redirect(target ? untrackedUrl(target.coupon, target.store) : "/");
