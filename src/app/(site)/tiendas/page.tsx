@@ -4,7 +4,7 @@ import { CATEGORIES, categoryOf } from "@/lib/catalog";
 import { siteCoupons, type SiteCoupon } from "@/lib/public-site";
 import { siteUrl } from "@/lib/site-text";
 import { bestDiscountLine } from "@/lib/store-list";
-import { StoreLogoImg } from "../store-logo-img";
+import { StoreBrand } from "../store-logo-img";
 import { Crumbs, JsonLd, crumbsLd } from "../site-ui";
 
 export const metadata: Metadata = {
@@ -20,9 +20,9 @@ export default async function StoresPage({ searchParams }: PageProps<"/tiendas">
   const rawCat = (await searchParams).cat;
   const cat = categoryOf(typeof rawCat === "string" ? rawCat : "");
   const coupons = (await siteCoupons()).filter((c) => !cat || c.store_category === cat.slug);
-  const byStore = new Map<string, { name: string; slug: string; hasLogo: boolean; count: number; coupons: SiteCoupon[] }>();
+  const byStore = new Map<string, { name: string; slug: string; hasLogo: boolean; hasWordmark: boolean; count: number; coupons: SiteCoupon[] }>();
   for (const c of coupons) {
-    const s = byStore.get(c.store_slug) ?? { name: c.store_name, slug: c.store_slug, hasLogo: c.store_has_logo, count: 0, coupons: [] };
+    const s = byStore.get(c.store_slug) ?? { name: c.store_name, slug: c.store_slug, hasLogo: c.store_has_logo, hasWordmark: !!c.store_has_wordmark, count: 0, coupons: [] };
     s.count++;
     s.coupons.push(c);
     byStore.set(c.store_slug, s);
@@ -87,7 +87,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/tiendas">
                 <li key={s.slug}>
                   <Link className="store-card" href={`/tiendas/${s.slug}`}>
                     <span className="tile">
-                      <StoreLogoImg slug={s.slug} name={s.name} hasLogo={s.hasLogo} />
+                      <StoreBrand slug={s.slug} name={s.name} hasLogo={s.hasLogo} hasWordmark={s.hasWordmark} />
                     </span>
                     <span style={{ minWidth: 0 }}>
                       <b>{s.name}</b>

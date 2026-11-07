@@ -21,9 +21,9 @@ export const titleOf = (c: Pick<SiteCoupon, "title" | "store_name"> & { display_
 // The deal's product picture ("" = none, show the store logo); checked again here since it came from a network feed
 export const productImageOf = (c: Pick<SiteCoupon, "image_url">) => httpsImage(c.image_url);
 
-// Product image when the deal has one, else the store logo
-export function DealPicture({ c }: { c: SiteCoupon }) {
-  return <DealImg src={productImageOf(c)} title={titleOf(c)} slug={c.store_slug} name={c.store_name} hasLogo={c.store_has_logo} />;
+// Product image when the deal has one, else the store logo (its wordmark with `wordmark`: the frames with room for it)
+export function DealPicture({ c, wordmark = false }: { c: SiteCoupon; wordmark?: boolean }) {
+  return <DealImg src={productImageOf(c)} title={titleOf(c)} slug={c.store_slug} name={c.store_name} hasLogo={c.store_has_logo} hasWordmark={wordmark && !!c.store_has_wordmark} />;
 }
 
 // Structured data for search engines and AI answers
@@ -69,7 +69,7 @@ export function GoButton({ client, c, label }: { client: Client | undefined; c: 
 }
 
 export function StoreThumb({ c, className = "thumb", href }: { c: SiteCoupon; className?: string; href?: string }) {
-  const img = <DealPicture c={c} />;
+  const img = <DealPicture c={c} wordmark />;
   return href ? (
     <Link className={className} href={href} title={productImageOf(c) ? titleOf(c) : c.store_name}>
       {img}

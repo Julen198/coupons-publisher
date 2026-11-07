@@ -56,11 +56,31 @@ export function StoreLogoImg({ slug, name, hasLogo, className }: { slug: string;
   );
 }
 
-// A deal's product picture (network feed or the store's own page); falls back to the store logo if the image fails to load.
-// width/height reserve a square box before it loads (CSS sizes it to its frame, object-fit: contain).
-export function DealImg({ src, title, slug, name, hasLogo }: { src: string; title: string; slug: string; name: string; hasLogo: boolean }) {
+interface StoreBrandProps {
+  slug: string;
+  name: string;
+  hasLogo: boolean;
+  hasWordmark: boolean;
+}
+
+// Where there's room for the name: the store's wordmark (/store-logo/<slug>?v=wordmark, the logo with its letters)
+// on a white landscape box, else its square icon (StoreLogoImg: full-bleed rule, initials). The frame turns landscape
+// through CSS (:has(img.wordmark)), so without a wordmark it looks exactly as before.
+export function StoreBrand({ slug, name, hasLogo, hasWordmark }: StoreBrandProps) {
   const [failed, setFailed] = useState(false);
-  if (!src || failed) return <StoreLogoImg slug={slug} name={name} hasLogo={hasLogo} />;
+  if (!hasWordmark || failed) return <StoreLogoImg slug={slug} name={name} hasLogo={hasLogo} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- wordmark from our own route
+    <img src={`/store-logo/${slug}?v=wordmark`} alt={`Logo de ${name}`} className="wordmark" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+  );
+}
+
+// A deal's product picture (network feed or the store's own page); falls back to the store logo if the image fails to load
+// (the wordmark when `hasWordmark`, for the frames with room for it). width/height reserve a square box before it
+// loads (CSS sizes it to its frame, object-fit: contain).
+export function DealImg({ src, title, slug, name, hasLogo, hasWordmark = false }: { src: string; title: string; slug: string; name: string; hasLogo: boolean; hasWordmark?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <StoreBrand slug={slug} name={name} hasLogo={hasLogo} hasWordmark={hasWordmark} />;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- remote product image from the store's or network's CDN, any host
     <img src={src} alt={title} className="prod" width={400} height={400} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} />

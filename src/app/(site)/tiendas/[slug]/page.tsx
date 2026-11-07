@@ -8,7 +8,7 @@ import { badgeInSentence, storeH1, storeHeading } from "@/lib/deal-text";
 import { currentVotes, siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { MarkHeaderCategory } from "../../site-header";
-import { StoreLogoImg } from "../../store-logo-img";
+import { StoreBrand } from "../../store-logo-img";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
 
 async function load(slug: string) {
@@ -93,7 +93,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
         <Crumbs items={crumbs} />
         <section className="store-hero">
           <div className="tile">
-            <StoreLogoImg slug={store.slug} name={store.name} hasLogo={store.has_logo} />
+            <StoreBrand slug={store.slug} name={store.name} hasLogo={store.has_logo} hasWordmark={store.has_wordmark} />
           </div>
           <div>
           <h1 data-seo="H1 con intención">{title}</h1>
