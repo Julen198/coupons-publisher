@@ -30,6 +30,12 @@ export function commentInputError(live: boolean, body: string | null): string | 
 export const SHARE_LIMIT_PER_DAY = 5;
 export const shareLimitMessage = `Has compartido ${SHARE_LIMIT_PER_DAY} chollos hoy. Vuelve mañana`;
 
+// Shares in these review states don't use up the daily limit (shareDeal's count skips them, inside its one INSERT)
+export const SHARE_LIMIT_SKIPS: readonly string[] = ["rejected"];
+export const countsTowardShareLimit = (review: string): boolean => !SHARE_LIMIT_SKIPS.includes(review);
+// /cuenta, under the shared list (board text)
+export const SHARE_LIMIT_NOTE = "Un chollo rechazado no se publica y no cuenta para el límite diario.";
+
 export const storeIdFor = (stores: readonly { id: number; slug: string }[], slug: string): number | null =>
   stores.find((s) => s.slug === slug)?.id ?? null;
 

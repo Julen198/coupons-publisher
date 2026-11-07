@@ -4,6 +4,9 @@ import {
   COMMENT_COOLDOWN_MESSAGE,
   PARENT_GONE_MESSAGE,
   SHARE_LIMIT_PER_DAY,
+  SHARE_LIMIT_NOTE,
+  SHARE_LIMIT_SKIPS,
+  countsTowardShareLimit,
   commentInputError,
   expiryLimitMessage,
   moderationFlag,
@@ -91,4 +94,12 @@ test("rejectReasonOf only accepts the preset reasons", () => {
   assert.throws(() => rejectReasonOf(""), /Elige un motivo/);
   assert.throws(() => rejectReasonOf("spam <b>"), /Elige un motivo/);
   assert.throws(() => rejectReasonOf("Ha caducado"), /Elige un motivo/);
+});
+
+test("a rejected share doesn't count toward the daily limit; pending and published ones do", () => {
+  assert.deepEqual(SHARE_LIMIT_SKIPS, ["rejected"]);
+  assert.equal(countsTowardShareLimit("rejected"), false);
+  assert.equal(countsTowardShareLimit("pending"), true);
+  assert.equal(countsTowardShareLimit(""), true);
+  assert.equal(SHARE_LIMIT_NOTE, "Un chollo rechazado no se publica y no cuenta para el límite diario.");
 });

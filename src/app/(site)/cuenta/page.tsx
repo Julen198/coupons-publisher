@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ACCOUNT_TABS, accountHref, accountTabOf, liveFirst, sharedStatus } from "@/lib/account";
 import { timeAgo } from "@/lib/community";
+import { SHARE_LIMIT_NOTE } from "@/lib/community-rules";
 import { readerComments, readerSavedDeals, readerSharedDeals, readerStats, type AccountCoupon } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
 import { dealPath } from "@/lib/site-text";
@@ -112,8 +113,8 @@ export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">)
           ))}
         </nav>
         {tab === "compartidos" && <SharedList rows={shared} now={now} />}
-        {/* rejected shares still count toward the daily limit (actions-reader shareDeal), so the note only says what is true */}
-        {tab === "compartidos" && shared.length > 0 && <p className="small">Un chollo rechazado no se publica.</p>}
+        {/* true since shareDeal skips rejected shares in its count (SHARE_LIMIT_SKIPS) */}
+        {tab === "compartidos" && shared.length > 0 && <p className="small">{SHARE_LIMIT_NOTE}</p>}
         {tab === "guardados" && <SavedList rows={saved} />}
         {tab === "comentarios" && <CommentList readerId={reader.id} now={now} />}
       </section>

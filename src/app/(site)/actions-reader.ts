@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
 import { cleanComment, cleanHandle, couponIdOf, parseSharedDeal, replyParent, reportLimitReached, validEmail } from "@/lib/community";
 import {
-  COMMENT_COOLDOWN_MESSAGE, PARENT_GONE_MESSAGE, SHARE_LIMIT_PER_DAY, commentInputError, expiryLimitMessage, REPORT_INACTIVE_MESSAGE, savedRequest,
+  COMMENT_COOLDOWN_MESSAGE, PARENT_GONE_MESSAGE, SHARE_LIMIT_PER_DAY, SHARE_LIMIT_SKIPS, commentInputError, expiryLimitMessage, REPORT_INACTIVE_MESSAGE, savedRequest,
   shareLimitMessage, storeIdFor, voteRequest,
 } from "@/lib/community-rules";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, missingEmailConfig, readerLinkEmail, sendEmail } from "@/lib/email";
@@ -193,7 +193,8 @@ export async function toggleHelpful(f: FormData): Promise<void> {
   refresh();
 }
 
-// Stored hidden (archived + pending) until an editor publishes it
+// Stored hidden (archived + pending) until an editor publishes it. Rejected shares don't count toward the daily
+// limit (SHARE_LIMIT_SKIPS); the count and the insert are one statement under the reader's lock, so it stays atomic.
 export async function shareDeal(_prev: FormState, f: FormData): Promise<FormState & { done?: boolean }> {
   const reader = await getReader();
   if (!reader) return { error: "Entra para compartir un chollo" };
@@ -208,7 +209,8 @@ export async function shareDeal(_prev: FormState, f: FormData): Promise<FormStat
     INSERT INTO coupons (store_id, kind, title, code, discount, description, target_url, expires_at, source, verified, archived, review, shared_by)
     SELECT ${storeId}, ${d.code ? "code" : "deal"}, ${d.title}, ${d.code}, ${d.discount}, ${d.description}, ${d.url}, ${d.expires_at},
            'manual', 0, 1, 'pending', ${reader.id}
-    WHERE (SELECT count(*) FROM coupons WHERE shared_by = ${reader.id} AND created_at > now() - interval '24 hours') < ${SHARE_LIMIT_PER_DAY}
+    WHERE (SELECT count(*) FROM coupons WHERE shared_by = ${reader.id} AND created_at > now() - interval '24 hours'
+           AND review <> ALL(${SHARE_LIMIT_SKIPS as string[]})) < ${SHARE_LIMIT_PER_DAY}
     RETURNING id`);
   if (!inserted.length) return { error: shareLimitMessage };
   return { done: true };
