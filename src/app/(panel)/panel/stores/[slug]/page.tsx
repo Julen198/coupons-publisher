@@ -9,6 +9,7 @@ import { getStore, listCoupons, listPages, listStores } from "@/lib/db";
 import { expiresSoon, statusOf, today } from "@/lib/coupon-status";
 import { coverageOf, DELIVERY_LABEL } from "@/lib/page-status";
 import { btnCls, btnSecondaryCls, CoverageBadge, PageHeader } from "@/app/ui";
+import { translationDraft } from "@/lib/translation";
 import { CouponForm, type CouponDraft } from "@/app/(panel)/panel/coupons/coupon-form";
 import { StoreContentForm } from "./store-content-form";
 import { inferStoreCountry } from "@/lib/market";
@@ -137,7 +138,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
             {coupons.length === 0 && <p className="p-8 text-center text-sm text-neutral-500">Esta tienda aún no tiene cupones.</p>}
           </div>
           {editable && draft && (
-            <CouponForm key={draft.id ?? "new"} initial={draft} stores={stores.map(({ id, name, website }) => ({ id, name, website }))} back={back} />
+            <CouponForm key={draft.id ?? "new"} initial={draft} stores={stores.map(({ id, name, website }) => ({ id, name, website }))} back={back} translation={editing ? translationDraft(editing, store.name) : undefined} />
           )}
         </div>
       )}

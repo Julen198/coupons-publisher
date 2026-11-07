@@ -224,3 +224,39 @@ export function parseTranslateArgs(argv: readonly string[]): TranslateArgs {
   }
   return { apply, limit, only };
 }
+
+// ---- the panel's coupon editor
+
+export type TranslationDraft = {
+  id: number;
+  label: string; // "Original (inglés)"
+  title: string;
+  description: string;
+  title_es: string;
+  description_es: string;
+  status: TranslationStatus;
+  fresh: boolean; // the Spanish text translates the current original (else it is not shown, and is redone)
+};
+
+// What the editor shows under the coupon form; nothing before the columns exist, or for a coupon that needs no translation
+export function translationDraft(c: TranslatableRow & { id: number }, storeName: string): TranslationDraft | undefined {
+  if (c.translation_status === undefined) return undefined;
+  const status = (TRANSLATION_STATUSES as readonly string[]).includes(c.translation_status) ? (c.translation_status as TranslationStatus) : "";
+  const title_es = c.title_es ?? "";
+  if (!status && !title_es && !needsTranslation(c, storeName)) return undefined;
+  return {
+    id: c.id, label: originalLabel(c.title, c.description), title: c.title, description: c.description,
+    title_es, description_es: c.description_es ?? "", status, fresh: c.translated_from === sourceHash(c.title, c.description),
+  };
+}
+
+// An editor's Spanish text as saved: trimmed, one line each, within the column limits
+export function cleanTranslationInput(title: string, description: string): { title_es: string; description_es: string } {
+  const one = (s: string) => s.replace(/\s+/g, " ").trim();
+  const title_es = one(title);
+  const description_es = one(description);
+  if (!title_es) throw new Error("Falta el título en español");
+  if (title_es.length > TITLE_MAX) throw new Error(`El título en español no puede pasar de ${TITLE_MAX} caracteres`);
+  if (description_es.length > DESCRIPTION_MAX) throw new Error(`Las condiciones en español no pueden pasar de ${DESCRIPTION_MAX} caracteres`);
+  return { title_es, description_es };
+}

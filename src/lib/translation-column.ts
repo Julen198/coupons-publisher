@@ -4,6 +4,8 @@ import { isMissingSchema } from "./schema-guard.ts";
 // npm run db:setup). Until they exist, queries read "" (no translation: the original text shows) instead of failing;
 // once seen missing, they are tried again only every few minutes. Only an error naming them counts.
 // SELECT c.* picks them up by itself once they exist; this is for queries that name their columns.
+export const MISSING_COLUMNS = "Faltan las columnas de traducción: ejecuta antes npm run db:setup";
+
 const RETRY_MS = 5 * 60_000;
 let missingAt = Number.NEGATIVE_INFINITY;
 

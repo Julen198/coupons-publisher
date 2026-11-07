@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { test } from "node:test";
 import {
   checkTranslation, detectLang, estimateCost, estimateTokens, inputPriceFrom, needsTranslation, originalLabel, parseTranslateArgs, publicText,
-  sourceHash, sourceLanguage, translationInput,
+  cleanTranslationInput, sourceHash, sourceLanguage, translationDraft, translationInput,
 } from "./translation.ts";
 
 test("detectLang: titles and conditions in other languages are 'other'", () => {
@@ -127,4 +127,22 @@ test("estimateCost prices output tokens at 5x input, from history or $1 per mill
   assert.equal(inputPriceFrom({ cost: 0, input: 0, output: 0 }), 1e-6);
   assert.equal(inputPriceFrom({ cost: 6, input: 1_000_000, output: 1_000_000 }), 1e-6);
   assert.equal(estimateCost({ input: 1_000_000, output: 0 }, 1e-6), 1);
+});
+
+test("translationDraft: nothing before the columns exist or for a Spanish coupon, else the original next to the Spanish text", () => {
+  const en = { id: 3, title: "Free shipping", description: "On all orders" };
+  assert.equal(translationDraft(en, "Shop"), undefined);
+  assert.equal(translationDraft({ ...en, title: "Envío gratis", description: "", translation_status: "", title_es: "", description_es: "", translated_from: "" }, "Shop"), undefined);
+  const hash = sourceHash(en.title, en.description);
+  assert.deepEqual(translationDraft({ ...en, translation_status: "auto", title_es: "Envío gratis", description_es: "En todos los pedidos", translated_from: hash }, "Shop"), {
+    id: 3, label: "Original (inglés)", title: "Free shipping", description: "On all orders",
+    title_es: "Envío gratis", description_es: "En todos los pedidos", status: "auto", fresh: true,
+  });
+  assert.equal(translationDraft({ ...en, translation_status: "", title_es: "", description_es: "", translated_from: "" }, "Shop")?.fresh, false);
+});
+
+test("cleanTranslationInput trims, keeps one line and checks lengths", () => {
+  assert.deepEqual(cleanTranslationInput("  Envío   gratis ", "En todos\nlos pedidos"), { title_es: "Envío gratis", description_es: "En todos los pedidos" });
+  assert.throws(() => cleanTranslationInput("  ", ""), /Falta el título/);
+  assert.throws(() => cleanTranslationInput("x".repeat(301), ""), /300/);
 });

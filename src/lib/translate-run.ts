@@ -7,6 +7,9 @@ import { limitsFrom, madridDay } from "./ai-costs.ts";
 import { countrySql, withCountryColumn } from "./country-column.ts";
 import { onSpanishSite } from "./market.ts";
 import { isMissingSchema } from "./schema-guard.ts";
+import { MISSING_COLUMNS } from "./translation-column.ts";
+
+export { MISSING_COLUMNS };
 import { estimateCost, estimateTokens, inputPriceFrom, needsTranslation, sourceHash, sourceLanguage, TRANSLATE_BATCH, type Lang } from "./translation.ts";
 import { NO_USAGE, translateBatch, type BatchResult } from "./translate-ai.ts";
 
@@ -38,8 +41,6 @@ type Row = {
   id: number; title: string; description: string; code: string; store_name: string; store_slug: string;
   store_website: string; store_tracking_url: string; store_country: string;
 };
-
-export const MISSING_COLUMNS = "Faltan las columnas de traducción: ejecuta antes npm run db:setup";
 
 async function loadRows(db: postgres.Sql, only: number[] | undefined): Promise<Row[]> {
   const today = madridDay(new Date());
