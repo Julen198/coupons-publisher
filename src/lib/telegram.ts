@@ -84,6 +84,11 @@ export function telegramConfig(): TelegramConfig | null {
   return { token: TELEGRAM_BOT_TOKEN, channelId: TELEGRAM_CHANNEL_ID, adminChatId: TELEGRAM_ADMIN_CHAT_ID, webhookSecret: TELEGRAM_WEBHOOK_SECRET };
 }
 
+// The daily cron's Authorization header (Vercel sends Bearer CRON_SECRET). Fails closed when no secret is set.
+export function cronAuthorized(secret: string | undefined, authorization: string | null): boolean {
+  return !!secret && authorization === `Bearer ${secret}`;
+}
+
 export async function tg<T = unknown>(cfg: TelegramConfig, method: string, body: Record<string, unknown>): Promise<T> {
   const res = await fetch(`https://api.telegram.org/bot${cfg.token}/${method}`, {
     method: "POST",
