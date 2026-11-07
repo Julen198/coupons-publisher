@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { COUNTRIES, countryLabel, effectiveCountry, inferStoreCountry, isCountryCode, isSpanishMarket, onSpanishSite } from "./market.ts";
+import { COUNTRIES, countryInput, countryLabel, effectiveCountry, inferStoreCountry, isCountryCode, isSpanishMarket, onSpanishSite } from "./market.ts";
 
 test("stores whose website is in another European market are not for the Spanish site", () => {
   for (const site of [
@@ -152,4 +152,12 @@ test("the country list: España first, then by Spanish name; codes are checked a
   assert.equal(countryLabel("DE"), "Alemania");
   assert.equal(countryLabel("AU"), "AU");
   assert.equal(countryLabel(""), "Sin definir");
+});
+
+test("countryInput: the panel's País field, checked against the list", () => {
+  assert.equal(countryInput("ES"), "ES");
+  assert.equal(countryInput(" gb "), "GB");
+  assert.equal(countryInput(""), "");
+  assert.throws(() => countryInput("XX"), /País no válido/);
+  assert.throws(() => countryInput("<script>"), /País no válido/);
 });

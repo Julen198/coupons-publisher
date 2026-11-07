@@ -9,6 +9,7 @@ import { isPublic, statusOf, today } from "@/lib/coupon-status";
 import { publishUnverified } from "@/lib/settings";
 import { ClearFilters, inputCls, PageHeader, Pager } from "@/app/ui";
 import { SearchInput } from "@/app/search-input";
+import { COUNTRIES, countryLabel, effectiveCountry, isCountryCode } from "@/lib/market";
 
 const PAGE_SIZE = 15;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -24,6 +25,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/panel/sto
     network: NETWORKS.some((n) => n.id === one(sp.red)) ? one(sp.red) : undefined,
     tracking: one(sp.tracking) === "ok" || one(sp.tracking) === "missing" ? (one(sp.tracking) as StoreFilters["tracking"]) : undefined,
     coupons: one(sp.cupones) === "some" || one(sp.cupones) === "none" ? (one(sp.cupones) as StoreFilters["coupons"]) : undefined,
+    country: one(sp.pais) === "none" || isCountryCode(one(sp.pais)) ? one(sp.pais) : undefined,
   };
   // visible on clients' pages vs. found on the web and waiting for someone to verify them
   const live = new Map<number, number>();
@@ -35,10 +37,10 @@ export default async function StoresPage({ searchParams }: PageProps<"/panel/sto
   const anyCoupons = new Map(stores.map((s) => [s.id, (live.get(s.id) ?? 0) + (review.get(s.id) ?? 0)]));
   const filtered = filterStores([...stores], filters, anyCoupons);
   const { rows, page, pages: pageCount, from, to } = paginate(filtered, Number(one(sp.page)), PAGE_SIZE);
-  const active = Boolean(filters.q || filters.network || filters.tracking || filters.coupons);
+  const active = Boolean(filters.q || filters.network || filters.tracking || filters.coupons || filters.country);
   // keeps the current filters when moving between pages
   const pageHref = (n: number) => {
-    const q = new URLSearchParams(Object.entries({ q: filters.q, red: filters.network, tracking: filters.tracking, cupones: filters.coupons }).filter((e): e is [string, string] => !!e[1]));
+    const q = new URLSearchParams(Object.entries({ q: filters.q, red: filters.network, tracking: filters.tracking, cupones: filters.coupons, pais: filters.country }).filter((e): e is [string, string] => !!e[1]));
     if (n > 1) q.set("page", String(n));
     return `/panel/stores${q.size ? `?${q}` : ""}`;
   };
@@ -77,14 +79,23 @@ export default async function StoresPage({ searchParams }: PageProps<"/panel/sto
               <option value="none">Sin cupones</option>
             </select>
           </label>
+          <label className="flex flex-[0_1_170px] flex-col gap-1 text-xs text-neutral-600 dark:text-neutral-400">
+            País
+            <select name="pais" defaultValue={filters.country ?? ""} className={inputCls}>
+              <option value="">Todos</option>
+              {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+              <option value="none">Sin definir</option>
+            </select>
+          </label>
           <button className="min-h-10 rounded-md border border-neutral-300 px-4 text-sm dark:border-neutral-700">Filtrar</button>
           {active && <ClearFilters href="/panel/stores" />}
         </form>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[620px] text-sm">
             <thead className="bg-neutral-50 text-left text-xs text-neutral-500 dark:bg-neutral-900">
               <tr>
                 <th className="px-4 py-3 font-semibold">Tienda</th>
+                <th className="px-2 py-3 font-semibold">País</th>
                 <th className="px-2 py-3 font-semibold">Red</th>
                 <th className="px-2 py-3 font-semibold">Cupones</th>
                 <th className="px-4 py-3 font-semibold">Medios</th>
@@ -99,6 +110,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/panel/sto
                       <span className="flex flex-col">{s.name}<span className="text-xs font-normal text-neutral-500">{s.website.replace(/^https?:\/\//, "")}</span></span>
                     </Link>
                   </th>
+                  <td className="px-2 py-3"><CountryBadge store={s} /></td>
                   <td className="px-2 py-3 text-xs">
                     {networkLabel(s.network)}
                     {s.network === "awin" && s.merchant_id && <span className="ml-1 font-mono text-neutral-500">{s.merchant_id}</span>}
@@ -124,3 +136,19 @@ export default async function StoresPage({ searchParams }: PageProps<"/panel/sto
   );
 }
 
+
+// The stored code in a solid badge; one read from the name or web (not saved yet) in a dashed one
+function CountryBadge({ store }: { store: { name: string; slug: string; website: string; tracking_url: string; country: string } }) {
+  const { country, inferred, reason } = effectiveCountry(store);
+  if (!country) return <span className="text-xs text-neutral-500">Sin definir</span>;
+  const label = inferred ? `${countryLabel(country)}, deducido (${reason})` : countryLabel(country);
+  return (
+    <span
+      title={label}
+      aria-label={label}
+      className={`inline-block rounded border px-1.5 py-0.5 font-mono text-xs ${inferred ? "border-dashed border-neutral-400 text-neutral-600 dark:border-neutral-600 dark:text-neutral-400" : "border-neutral-300 bg-neutral-100 text-neutral-800 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"}`}
+    >
+      {country}
+    </span>
+  );
+}

@@ -11,6 +11,7 @@ import { coverageOf, DELIVERY_LABEL } from "@/lib/page-status";
 import { btnCls, btnSecondaryCls, CoverageBadge, PageHeader } from "@/app/ui";
 import { CouponForm, type CouponDraft } from "@/app/(panel)/panel/coupons/coupon-form";
 import { StoreContentForm } from "./store-content-form";
+import { inferStoreCountry } from "@/lib/market";
 
 const TABS = [
   { id: "cupones", label: "Cupones" },
@@ -143,7 +144,8 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
 
       {tab === "contenido" && (
         <StoreContentForm
-          store={{ slug: store.slug, name: store.name, website: store.website, network: store.network, merchant_id: store.merchant_id, tracking_url: store.tracking_url, intro: store.intro, faqs: store.faqs, category: store.category, facts: store.facts }}
+          store={{ slug: store.slug, name: store.name, website: store.website, network: store.network, merchant_id: store.merchant_id, tracking_url: store.tracking_url, intro: store.intro, faqs: store.faqs, category: store.category, facts: store.facts, country: store.country, country_source: store.country_source }}
+          inferred={inferStoreCountry({ name: store.name, slug: store.slug, website: store.website, trackingUrl: store.tracking_url })}
           discounts={coupons.filter((c) => !c.archived && statusOf(c, t) !== "expired").map((c) => c.discount)}
         />
       )}

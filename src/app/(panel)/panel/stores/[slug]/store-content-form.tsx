@@ -5,19 +5,27 @@ import { updateStore, type FormState } from "@/app/actions";
 import { generateContent } from "@/app/actions-pages";
 import { pageTitle, parseFaqs } from "@/lib/affiliate";
 import { CATEGORIES, factsOf } from "@/lib/catalog";
+import { COUNTRIES, countryLabel } from "@/lib/market";
 import { btnCls, btnSecondaryCls, cardCls, Field, inputCls } from "@/app/ui";
 import { NetworkFields } from "../network-fields";
 
 interface StoreContentProps {
-  store: { slug: string; name: string; website: string; network: string; merchant_id: string; tracking_url: string; intro: string; faqs: string; category: string; facts: string };
+  store: {
+    slug: string; name: string; website: string; network: string; merchant_id: string; tracking_url: string; intro: string; faqs: string;
+    category: string; facts: string; country: string; country_source: string;
+  };
+  inferred: { country: string; reason: string } | null; // what the site reads from the name and web while País is empty
   discounts: string[];
 }
 
-export function StoreContentForm({ store, discounts }: StoreContentProps) {
+const SOURCE_NOTE: Record<string, string> = { network: "Lo dio la red de afiliación", inferred: "Deducido al importar", manual: "Elegido a mano" };
+
+export function StoreContentForm({ store, inferred, discounts }: StoreContentProps) {
   const [intro, setIntro] = useState(store.intro);
   const [faqs, setFaqs] = useState(store.faqs);
   // controlled: a form action resets uncontrolled fields to their first value, and the next save would send that
   const [category, setCategory] = useState(store.category);
+  const [country, setCountry] = useState(store.country);
   const [facts, setFacts] = useState(store.facts);
   const [aiError, setAiError] = useState("");
   const [generating, startGenerate] = useTransition();
@@ -63,6 +71,25 @@ export function StoreContentForm({ store, discounts }: StoreContentProps) {
                 <option key={c.slug} value={c.slug}>{c.label}</option>
               ))}
             </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-neutral-600 dark:text-neutral-400">País</span>
+            <select name="country" value={country} onChange={(e) => setCountry(e.target.value)} className={inputCls} aria-describedby="country-note">
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.label}</option>
+              ))}
+              {store.country && !COUNTRIES.some((c) => c.code === store.country) && <option value={store.country}>{store.country}</option>}
+              <option value="">Sin definir</option>
+            </select>
+            <span id="country-note" className="text-xs text-neutral-600 dark:text-neutral-400">
+              {country
+                ? country === store.country && SOURCE_NOTE[store.country_source]
+                  ? `${SOURCE_NOTE[store.country_source]}. En la web solo salen las tiendas de España.`
+                  : "En la web solo salen las tiendas de España."
+                : inferred
+                  ? `Sin definir. Parece de ${countryLabel(inferred.country)} (${inferred.reason}).`
+                  : "Sin definir. Sale en la web salvo que su dominio sea de otro país."}
+            </span>
           </label>
         </div>
 

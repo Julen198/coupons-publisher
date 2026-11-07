@@ -11,6 +11,8 @@ import { logActivity } from "@/lib/activity";
 import { mapStoreLines } from "@/lib/store-import";
 import { asNetwork } from "@/lib/affiliate";
 import { storeCategory } from "@/lib/catalog";
+import { countryInput } from "@/lib/market";
+import { isMissingCountry } from "@/lib/country-column";
 import { cleanDisguise, cleanFontFamily, darkSvgDataUri, decodeHtml, isSvgUrl, isWhiteSvg, MAX_SVG_LOGO, validLogo, extractDisguise, siteDigest, type Disguise } from "@/lib/disguise";
 import { disguiseFromDigest, storesFromText } from "@/lib/ai-content";
 import { lookup } from "node:dns/promises";
@@ -346,17 +348,36 @@ async function dropUnknownDomains(p: ReturnType<typeof mapStoreLines>) {
   };
 }
 
+// A country picked in the panel is 'manual' (network syncs and the backfill leave it alone); saving the form with the
+// same country keeps where it came from. true when the columns don't exist yet (npm run db:setup).
+async function saveManualCountry(slug: string, country: string): Promise<boolean> {
+  try {
+    await sql()`
+      UPDATE stores SET country = ${country}, country_source = 'manual'
+      WHERE slug = ${slug} AND country <> ${country}`;
+    return false;
+  } catch (e) {
+    if (isMissingCountry(e)) return true;
+    throw e;
+  }
+}
+
 export async function updateStore(_prev: FormState, f: FormData): Promise<FormState> {
   const s = required(f, "slug");
   try {
     await requireEditor();
     const t = storeTracking(f);
+    const country = f.has("country") ? countryInput(str(f, "country")) : null;
     await sql()`
       UPDATE stores SET website = ${url(f, "website", "La web")}, network = ${t.network}, merchant_id = ${t.merchant_id},
         tracking_url = ${t.tracking_url},
         intro = ${str(f, "intro")}, faqs = ${str(f, "faqs")},
         category = ${storeCategory(str(f, "category"))}, facts = ${str(f, "facts")}
       WHERE slug = ${s}`;
+    if (country !== null) {
+      const missing = await saveManualCountry(s, country);
+      if (missing && country) return { error: "Guardado, salvo el país. Ejecuta npm run db:setup para poder guardarlo" };
+    }
   } catch (e) {
     return { error: errorMessage(e) };
   }

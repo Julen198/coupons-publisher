@@ -31,3 +31,17 @@ test("paginate clamps the page and reports the range", () => {
   assert.equal(paginate(items, -1, 25).page, 1);
   assert.deepEqual(paginate([], 1, 25), { rows: [], page: 1, pages: 1, from: 0, to: 0 });
 });
+
+test("filters by country: the stored one, else the one read from the store; none = no country at all", () => {
+  const c = [
+    { ...s(5, "Myprotein DE", "https://de.myprotein.com"), slug: "myprotein-de", country: "" },
+    { ...s(6, "PcComponentes", "https://www.pccomponentes.com"), slug: "pccomponentes", country: "" },
+    { ...s(7, "JD Sports", "https://www.jdsports.it"), slug: "jd-sports", country: "ES" },
+    { ...s(8, "Decathlon", "https://www.decathlon.es"), slug: "decathlon", country: "" },
+  ];
+  const ids = (country: string) => filterStores(c, { country }, live).map((x) => x.id);
+  assert.deepEqual(ids("DE"), [5]);
+  assert.deepEqual(ids("ES"), [7, 8]);
+  assert.deepEqual(ids("none"), [6]);
+  assert.deepEqual(ids(""), [5, 6, 7, 8]);
+});

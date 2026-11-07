@@ -37,6 +37,13 @@ const KNOWN = new Set(COUNTRIES.map((c) => c.code));
 // One of COUNTRIES, exactly as stored (upper case)
 export const isCountryCode = (code: string): boolean => KNOWN.has(code);
 
+// The País select of the store form: "" (Sin definir) or one of COUNTRIES
+export function countryInput(raw: string): string {
+  const code = raw.trim().toUpperCase();
+  if (code && !isCountryCode(code)) throw new Error("País no válido. Elige uno de la lista");
+  return code;
+}
+
 export const countryLabel = (code: string): string => (code ? (COUNTRIES.find((c) => c.code === code)?.label ?? code) : "Sin definir");
 
 // "es" / "ES" → "ES", "uk" → "GB"; "" when it isn't one of COUNTRIES
