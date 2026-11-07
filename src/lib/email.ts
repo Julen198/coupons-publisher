@@ -45,13 +45,41 @@ export function magicLinkEmail(name: string, link: string): Mail {
   };
 }
 
+// The reader sign-in email (SiteEntrarVuelta board, step 1). Tables and inline styles only: mail clients drop <style>
+// and most layout CSS. The logo is drawn with table cells, not an image or SVG, so it shows with images blocked.
 export function readerLinkEmail(link: string): Mail {
-  const body = `Pulsa el botón para entrar en CuponLab. El enlace caduca en ${MAGIC_LINK_MINUTES} minutos y solo sirve una vez.`;
-  const footer = "Si no lo has pedido tú, ignora este email.";
+  const body = `Pulsa el botón para entrar. El enlace sirve una vez y caduca en ${MAGIC_LINK_MINUTES} minutos.`;
+  const footer = "Si no lo has pedido tú, ignora este email. Nadie puede entrar sin él.";
+  const cta = "Entrar en CuponLab";
+  const href = escapeHtml(link);
+  const font = "font-family:Archivo,'Helvetica Neue',Arial,sans-serif";
+  const html = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(cta)}</title></head>
+<body style="margin:0;padding:0;background:#f3f5fa">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f5fa">
+<tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:420px;background:#ffffff;border:1px solid #d9dfeb;border-radius:10px;${font};color:#141a2b">
+<tr><td style="padding:24px 22px 0">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="26" height="26" align="center" valign="middle" style="width:26px;height:26px;background:#1d4ed8;border-radius:7px;color:#ffffff;font-size:15px;font-weight:800;line-height:26px">%</td>
+<td style="padding-left:8px;font-size:17px;font-weight:800;color:#141a2b">Cupon<span style="color:#1d4ed8">Lab</span></td>
+</tr></table>
+</td></tr>
+<tr><td style="padding:16px 22px 0;font-size:15px;line-height:1.55">${escapeHtml(body)}</td></tr>
+<tr><td style="padding:18px 22px 0">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td align="center" style="background:#1d4ed8;border-radius:10px"><a href="${href}" style="display:block;padding:13px 16px;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none">${escapeHtml(cta)}</a></td>
+</tr></table>
+</td></tr>
+<tr><td style="padding:16px 22px 24px;font-size:12px;line-height:1.5;color:#5f6880">${escapeHtml(footer)}</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
   return {
     subject: "Tu enlace para entrar en CuponLab",
-    text: `Hola.\n\n${body}\n${link}\n\n${footer}`,
-    html: layout("", body, "Entrar en CuponLab", link, footer),
+    text: `${body}\n\n${cta}:\n${link}\n\n${footer}`,
+    html,
   };
 }
 
