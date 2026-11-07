@@ -20,8 +20,8 @@ test("logoDataInfo reads a stored data: URI's real type and size; null for empty
 });
 
 test("parseRefreshArgs: dry run by default, --apply, --only list, --force and --from need --only", () => {
-  assert.deepEqual(parseRefreshArgs([]), { apply: false, only: [], force: false, from: "", out: "", clear: false });
-  assert.deepEqual(parseRefreshArgs(["--apply", "--only=a, b", "--out=/tmp/x.html"]), { apply: true, only: ["a", "b"], force: false, from: "", out: "/tmp/x.html", clear: false });
+  assert.deepEqual(parseRefreshArgs([]), { apply: false, only: [], force: false, from: "", out: "", clear: false, wordmarks: false });
+  assert.deepEqual(parseRefreshArgs(["--apply", "--only=a, b", "--out=/tmp/x.html"]), { apply: true, only: ["a", "b"], force: false, from: "", out: "/tmp/x.html", clear: false, wordmarks: false });
   assert.deepEqual(parseRefreshArgs(["--only=eci", "--force", "--from=https://x.es/l.svg"]).from, "https://x.es/l.svg");
   assert.throws(() => parseRefreshArgs(["--force"]), /--only/);
   assert.throws(() => parseRefreshArgs(["--from=https://x.es/l.png", "--only=a,b"]), /one store/);
@@ -52,4 +52,22 @@ test("renderLogoReview escapes store text and only embeds image data URIs", () =
   assert.doesNotMatch(html, /<script>alert/);
   assert.match(html, /512×512/);
   assert.equal((html.match(/src="data:image\/png;base64,/g) ?? []).length, 4); // current + proposed, at 112 and 16
+});
+
+test("parseRefreshArgs: --wordmarks works with the same options", () => {
+  assert.equal(parseRefreshArgs(["--wordmarks"]).wordmarks, true);
+  const one = parseRefreshArgs(["--wordmarks", "--only=eci", "--from=https://upload.wikimedia.org/x.svg", "--apply"]);
+  assert.deepEqual([one.wordmarks, one.apply, one.from], [true, true, "https://upload.wikimedia.org/x.svg"]);
+  assert.equal(parseRefreshArgs(["--wordmarks", "--clear", "--only=eci"]).clear, true);
+});
+
+test("renderLogoReview in wordmark mode shows each one in the 120×50 card box and the 240×100 hero box", () => {
+  const html = renderLogoReview(
+    [{ name: "Shop", slug: "shop", current: { dataUri: "", info: null }, proposed: { dataUri: png(512), source: "header", url: "https://shop.es/l.png", width: 512, height: 512, type: "image/png", bytes: 33 }, willUpdate: true, tried: [] }],
+    { apply: false, generatedAt: "2026-11-07", kind: "wordmark" },
+  );
+  assert.match(html, /Revisión de wordmarks/);
+  assert.match(html, /class="wm card"/);
+  assert.match(html, /class="wm hero"/);
+  assert.equal((html.match(/src="data:image\/png;base64,/g) ?? []).length, 2);
 });

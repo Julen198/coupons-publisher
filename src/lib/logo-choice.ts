@@ -53,8 +53,8 @@ export function isBetterLogo(current: { width: number; height: number; type: str
 
 // ---- Parsing ----
 
-const tagAttr = (tag: string, name: string) => new RegExp(`\\s${name}\\s*=\\s*["']([^"']*)["']`, "i").exec(tag)?.[1];
-const httpsUrl = (href: unknown, base: string, allowHttp = false): string | undefined => {
+export const tagAttr = (tag: string, name: string) => new RegExp(`\\s${name}\\s*=\\s*["']([^"']*)["']`, "i").exec(tag)?.[1];
+export const httpsUrl = (href: unknown, base: string, allowHttp = false): string | undefined => {
   if (typeof href !== "string") return undefined;
   const clean = href.trim().replace(/&amp;/g, "&");
   if (!clean || !URL.canParse(clean, base)) return undefined;
@@ -67,7 +67,8 @@ const listed = (url: string, source: LogoSource, side = 0, type = ""): LogoCandi
 
 const ORG_TYPES = /^(Organization|Corporation|OnlineStore|OnlineBusiness|Store|LocalBusiness|Brand)$/;
 
-function schemaLogos(html: string): unknown[] {
+// schema.org Organization/Brand "logo" values anywhere in the JSON-LD blocks (raw: URL strings, or not)
+export function schemaLogos(html: string): unknown[] {
   const found: unknown[] = [];
   // anywhere in the block: @graph lists, a WebSite's "publisher", an Offer's "seller"...
   const visit = (node: unknown, depth: number) => {

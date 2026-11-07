@@ -285,6 +285,8 @@ CREATE TABLE IF NOT EXISTS date_alert_sends (
   PRIMARY KEY (reader_id, event_key)
 );
 ALTER TABLE date_alert_sends ENABLE ROW LEVEL SECURITY;
+-- the store's wordmark (logo with its name, data: URI, '' = none) for the landscape logo boxes; logo_data stays the square icon
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS wordmark_data text NOT NULL DEFAULT '';
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
