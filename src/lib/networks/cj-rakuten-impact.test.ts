@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mapLink, parseLinks, trackingTemplate as cjTemplate } from "./cj.ts";
 import { mapCoupon, parseCoupons, trackingTemplate as rakutenTemplate } from "./rakuten.ts";
-import { impact, mapCampaign, mapDeal } from "./impact.ts";
+import { activeContract, impact, mapCampaign, mapDeal } from "./impact.ts";
 import { decodeXml, elements, text } from "./xml.ts";
 import { trackingUrl } from "../affiliate.ts";
 
@@ -64,6 +64,22 @@ test("Impact campaign deep link and deals: percent/amount badges, expired droppe
   });
   assert.equal(mapDeal({ ...deal, DiscountPercent: "", DiscountAmount: "5", DiscountCurrency: "EUR" })?.discount, "5€");
   assert.equal(mapDeal({ ...deal, State: "EXPIRED" }), null);
+});
+
+test("Impact deal: its own Uri is the deep link when it is a valid http(s) address, else the campaign's site", () => {
+  const deal = { Id: "5", Name: "Rebajas", CampaignId: "9", State: "ACTIVE" };
+  assert.equal(mapDeal({ ...deal, Uri: "https://www.marca.es/rebajas?x=1" }, "https://marca.es")?.url, "https://www.marca.es/rebajas?x=1");
+  assert.equal(mapDeal({ ...deal, Uri: "  " }, "https://marca.es")?.url, "https://marca.es");
+  assert.equal(mapDeal({ ...deal, Uri: "javascript:alert(1)" }, "https://marca.es")?.url, "https://marca.es");
+});
+
+test("Impact: only campaigns whose contract is exactly active (INACTIVE and DEACTIVATED are not)", () => {
+  assert.equal(activeContract({ ContractStatus: "Active" }), true);
+  assert.equal(activeContract({ ContractStatus: "ACTIVE" }), true);
+  assert.equal(activeContract({}), true); // the API leaves it out: the campaign is listed because we have a contract
+  assert.equal(activeContract({ ContractStatus: "Inactive" }), false);
+  assert.equal(activeContract({ ContractStatus: "DEACTIVATED" }), false);
+  assert.equal(activeContract({ ContractStatus: "Expired" }), false);
 });
 
 test("Impact deal takes its product image (https only); BOGO deals take the get or buy image", () => {
