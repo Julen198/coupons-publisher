@@ -510,6 +510,10 @@ body:has(.cl) { background: #f3f5fa; }
 .cl dialog.modal[open] { display: grid; }
 .cl dialog.modal::backdrop { background: rgba(12, 17, 32, .55); backdrop-filter: blur(2px); }
 .dark .cl dialog.modal::backdrop { background: rgba(2, 4, 10, .7); }
+/* sent open by the server (OverHome) it is not modal until the page's JS upgrades it: the same dimmed page behind it,
+   drawn with a shadow, so the first paint (and a page without JS) already looks like the modal */
+.cl dialog.modal[open]:not(:modal) { z-index: 50; box-shadow: 0 0 0 100vmax rgba(12, 17, 32, .55), 0 24px 60px rgba(12, 17, 32, .32); }
+.dark .cl dialog.modal[open]:not(:modal) { box-shadow: 0 0 0 100vmax rgba(2, 4, 10, .7), 0 24px 60px rgba(12, 17, 32, .32); }
 .cl dialog.modal .entry-head { padding-right: 36px; }
 .cl dialog.modal .entry-sent .entry-head { padding-inline: 36px; }
 .cl .modal-grab { display: none; }
