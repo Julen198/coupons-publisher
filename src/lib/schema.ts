@@ -287,6 +287,14 @@ CREATE TABLE IF NOT EXISTS date_alert_sends (
 ALTER TABLE date_alert_sends ENABLE ROW LEVEL SECURITY;
 -- the store's wordmark (logo with its name, data: URI, '' = none) for the landscape logo boxes; logo_data stays the square icon
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS wordmark_data text NOT NULL DEFAULT '';
+-- the country a store sells in (ISO 3166-1 alpha-2, upper case, '' = unknown): the public site only lists ES ones (onSpanishSite);
+-- where it came from: 'network' (its affiliate API), 'inferred' (scripts/backfill-store-country.ts), 'manual' (the panel, never overwritten)
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS country text NOT NULL DEFAULT '';
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS country_source text NOT NULL DEFAULT '';
+ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_country_check;
+ALTER TABLE stores ADD CONSTRAINT stores_country_check CHECK (country ~ '^([A-Z]{2})?$');
+ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_country_source_check;
+ALTER TABLE stores ADD CONSTRAINT stores_country_source_check CHECK (country_source IN ('', 'network', 'inferred', 'manual'));
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay

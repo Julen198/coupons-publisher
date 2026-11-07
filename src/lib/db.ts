@@ -1,4 +1,5 @@
 import { poolerUrl } from "./pooler.ts";
+import { countrySql, withCountryColumn } from "./country-column.ts";
 import type { CategorySlug } from "./catalog.ts";
 import postgres from "postgres";
 import { io } from "next/cache";
@@ -32,6 +33,8 @@ export type Store = {
   faqs: string; // one "Pregunta | Respuesta" per line
   category: CategorySlug | ""; // "" = no category
   facts: string; // one "Etiqueta | Valor" per line
+  country: string; // ISO 3166-1 alpha-2 it sells in, "" = unknown (see onSpanishSite); "" too until npm run db:setup adds the column
+  country_source: "" | "network" | "inferred" | "manual";
 };
 
 export type Coupon = {
@@ -106,12 +109,15 @@ export const listClients = () => q(async (s) => plain(await s<Client[]>`SELECT *
 export const getClient = (slug: string) =>
   q(async (s) => plain(await s<Client[]>`SELECT * FROM clients WHERE slug = ${slug}`)[0] as Client | undefined);
 
-const STORE_COLS = "id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo";
+// country: whether stores.country exists yet (see withCountryColumn)
+const storeCols = (country: boolean) =>
+  `id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo, ${countrySql(country, "stores", "")}`;
 
-export const listStores = () => q(async (s) => plain(await s<Store[]>`SELECT ${s.unsafe(STORE_COLS)} FROM stores ORDER BY lower(name)`));
+export const listStores = () =>
+  q(async (s) => plain(await withCountryColumn((c) => s<Store[]>`SELECT ${s.unsafe(storeCols(c))} FROM stores ORDER BY lower(name)`)));
 
 export const getStore = (slug: string) =>
-  q(async (s) => plain(await s<Store[]>`SELECT ${s.unsafe(STORE_COLS)} FROM stores WHERE slug = ${slug}`)[0] as Store | undefined);
+  q(async (s) => plain(await withCountryColumn((c) => s<Store[]>`SELECT ${s.unsafe(storeCols(c))} FROM stores WHERE slug = ${slug}`))[0] as Store | undefined);
 
 export const listCoupons = (storeId: number) =>
   q(async (s) => plain(await s<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${storeId} AND review = '' ORDER BY verified DESC, id`));

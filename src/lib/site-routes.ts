@@ -1,6 +1,6 @@
 // Which public URLs exist, decided before the page renders (see src/proxy.ts): pure, so it tests without a database.
 import { isPublic, statusOf } from "./coupon-status.ts";
-import { isSpanishMarket } from "./market.ts";
+import { onSpanishSite, type CountryStore } from "./market.ts";
 import { dealPath, parseDealId } from "./site-text.ts";
 
 export type DealVisibility = "live" | "expired" | "gone";
@@ -12,12 +12,20 @@ export type VisibilityFields = {
   source: string;
   review: string;
   store_website: string;
+  store_name?: string;
+  store_slug?: string;
+  store_country?: string; // "" or missing = unknown, see onSpanishSite
+  store_tracking_url?: string;
 };
+
+const storeOf = (c: VisibilityFields): CountryStore => ({
+  name: c.store_name ?? "", slug: c.store_slug ?? "", website: c.store_website, country: c.store_country, tracking_url: c.store_tracking_url,
+});
 
 // live: shown everywhere. expired: once public, its page stays up marked as expired.
 // gone: archived, pending, never-checked web finds and other markets have no page.
 export function dealVisibility(c: VisibilityFields, today: string, unverified: boolean): DealVisibility {
-  if (!isSpanishMarket(c.store_website)) return "gone";
+  if (!onSpanishSite(storeOf(c))) return "gone";
   if (isPublic(c, today, unverified)) return "live";
   const wasPublic = statusOf(c, today) === "expired" && (unverified || c.source !== "web" || c.verified);
   return wasPublic ? "expired" : "gone";
@@ -36,8 +44,8 @@ export function dealRouteVerdict(param: string, row: DealRouteRow | undefined, t
 }
 
 // /tiendas/<slug>: the store exists and belongs to the Spanish market
-export function storeRouteVerdict(row: { website: string } | undefined): RouteVerdict {
-  return row && isSpanishMarket(row.website) ? { kind: "ok" } : { kind: "missing" };
+export function storeRouteVerdict(row: CountryStore | undefined): RouteVerdict {
+  return row && onSpanishSite(row) ? { kind: "ok" } : { kind: "missing" };
 }
 
 // A browser loading the page itself, the only request whose status a crawler sees. Next 16 strips the router's Flight

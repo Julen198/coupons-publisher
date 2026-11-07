@@ -25,6 +25,9 @@ test("dealVisibility: live, expired once public, gone otherwise", () => {
   assert.equal(dealVisibility(row({ source: "web", verified: 0 }), T, true), "live");
   assert.equal(dealVisibility(row({ source: "web", verified: 0, expires_at: "2026-10-01" }), T, false), "gone");
   assert.equal(dealVisibility(row({ store_website: "https://www.jdsports.it" }), T, false), "gone");
+  assert.equal(dealVisibility(row({ store_name: "43einhalb DE" }), T, false), "gone", "a store named for another country");
+  assert.equal(dealVisibility(row({ store_country: "DE" }), T, false), "gone");
+  assert.equal(dealVisibility(row({ store_website: "https://www.jdsports.it", store_country: "ES" }), T, false), "live");
 });
 
 test("dealRouteVerdict: canonical path is ok", () => {
@@ -52,9 +55,13 @@ test("dealRouteVerdict: an id from another row never matches", () => {
 });
 
 test("storeRouteVerdict: Spanish stores are ok, missing or foreign ones are not", () => {
-  assert.deepEqual(storeRouteVerdict({ website: "https://www.adidas.es" }), { kind: "ok" });
-  assert.deepEqual(storeRouteVerdict({ website: "" }), { kind: "ok" });
-  assert.deepEqual(storeRouteVerdict({ website: "https://www.jdsports.it" }), { kind: "missing" });
+  const st = (website: string, name = "Tienda", slug = "tienda", country?: string) => ({ name, slug, website, country });
+  assert.deepEqual(storeRouteVerdict(st("https://www.adidas.es")), { kind: "ok" });
+  assert.deepEqual(storeRouteVerdict(st("")), { kind: "ok" });
+  assert.deepEqual(storeRouteVerdict(st("https://www.jdsports.it")), { kind: "missing" });
+  assert.deepEqual(storeRouteVerdict(st("https://de.myprotein.com", "Myprotein DE", "myprotein-de")), { kind: "missing" });
+  assert.deepEqual(storeRouteVerdict(st("https://www.pccomponentes.com", "PcComponentes", "pccomponentes", "FR")), { kind: "missing" });
+  assert.deepEqual(storeRouteVerdict(st("https://www.jdsports.it", "JD Sports", "jd-sports", "ES")), { kind: "ok" });
   assert.deepEqual(storeRouteVerdict(undefined), { kind: "missing" });
 });
 
