@@ -175,16 +175,16 @@ export default async function AdminPage({ searchParams }: PageProps<"/panel/sett
             <form action={setRetention} className={`${cardCls} flex flex-col gap-3`}>
               <h2 className="font-semibold">Guardar clics durante</h2>
               <div role="radiogroup" aria-label="Retención de clics" className="flex flex-wrap gap-2">
-                {[["90", "90 días"], ["365", "1 año"], ["all", "Siempre"]].map(([v, label]) => (
+                {[["400", "400 días"], ["all", "Siempre"]].map(([v, label]) => (
                   <label key={v} className="flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-neutral-300 px-3 text-sm has-[:checked]:border-2 has-[:checked]:border-blue-700 has-[:checked]:bg-blue-50 has-[:checked]:font-semibold dark:border-neutral-700 dark:has-[:checked]:border-blue-400 dark:has-[:checked]:bg-blue-950">
-                    <input type="radio" name="retention" value={v} defaultChecked={retention === v} className="size-4" />
+                    <input type="radio" name="retention" value={v} defaultChecked={(retention === "all" ? "all" : "400") === v} className="size-4" />
                     {label}
                   </label>
                 ))}
               </div>
               <div className="flex items-center gap-3">
                 <button className="min-h-10 rounded-md border border-neutral-300 px-4 text-sm font-medium dark:border-neutral-700">Guardar</button>
-                <span className="text-xs text-neutral-500">Los clics más antiguos se borran al consultar las estadísticas.</span>
+                <span className="text-xs text-neutral-500">Una tarea diaria borra los más antiguos. Nunca se guardan menos de 400 días, para comparar con el año anterior.</span>
               </div>
             </form>
           </div>

@@ -206,6 +206,10 @@ export function goHref(client: Client | undefined, c: SiteCoupon): string {
   return couponAffiliateUrl(ours, store, c);
 }
 
+// Where "Copiar código" counts a copy (POST to the same /go address); none without the site client to count it for
+export const copyBeaconHref = (client: Client | undefined, c: Pick<SiteCoupon, "id">): string | undefined =>
+  client ? `/go/${encodeURIComponent(client.slug)}/${c.id}` : undefined;
+
 export type DealComment = {
   id: number; parent_id: number | null; reader_id: number; handle: string; body: string; created_at: Date; by_sharer: boolean;
   helpful: number; mine: boolean;
