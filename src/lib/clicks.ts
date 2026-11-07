@@ -48,9 +48,9 @@ export async function recordClick(e: ClickEvent): Promise<"recorded" | "duplicat
     }
     const rows = await sql()`
       INSERT INTO clicks (client_id, store_id, coupon_id, kind, ref, ua_hash)
-      SELECT ${e.clientId}, ${e.storeId}, ${e.couponId}, ${e.kind}, ${e.ref}, ${e.uaHash}
+      SELECT ${e.clientId}::int, ${e.storeId}::int, ${e.couponId}::int, ${e.kind}::text, ${e.ref}::text, ${e.uaHash}::text
       WHERE NOT EXISTS (
-        SELECT 1 FROM clicks WHERE coupon_id = ${e.couponId} AND ua_hash = ${e.uaHash} AND kind = ${e.kind}
+        SELECT 1 FROM clicks WHERE coupon_id = ${e.couponId}::int AND ua_hash = ${e.uaHash}::text AND kind = ${e.kind}::text
           AND at > now() - ${DEDUPE_SECONDS} * interval '1 second')
       RETURNING id`;
     return rows.length ? "recorded" : "duplicate";
