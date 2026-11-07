@@ -5,7 +5,7 @@ import { untrackedUrl } from "@/lib/render-page";
 import { publishUnverified } from "@/lib/settings";
 import { longDate, madridToday, siteUrl } from "@/lib/site-text";
 import { isTracked, trackedLinkOf } from "@/lib/tracked-link";
-import { accountsFor, clientLinks } from "@/lib/link-accounts";
+import { SITE_CLIENT_SLUG, accountsFor, clientLinks } from "@/lib/link-accounts";
 import { recordClick } from "@/lib/clicks";
 import { isBot, refPath, uaHash, type ClickKind } from "@/lib/click-signals";
 
@@ -45,6 +45,10 @@ async function count(t: Target, kind: ClickKind, req: Request, ref: string) {
 const redirect = (location: string) =>
   new Response(null, { status: 302, headers: { Location: location, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer-when-downgrade" } });
 
+// Only CuponLab's own deal pages get the loading page: a client's exported page keeps the plain 302, so the network
+// still sees the client's own page as the referrer and no CuponLab branding shows on their readers' way out
+const toStore = (t: Target, location: string) => (t.client.slug === SITE_CLIENT_SLUG ? loadingPage(t, location) : redirect(location));
+
 // The loading page on the way to the store (SiteRedirect board): it jumps on its own to `location` after a moment, or
 // waits for a choice when the coupon has expired. Same headers as the 302 it replaces.
 function loadingPage(t: Target, location: string) {
@@ -77,11 +81,11 @@ export async function GET(req: Request, ctx: RouteContext<"/go/[client]/[coupon]
     const ref = refPath(req.headers.get("referer"), siteUrl());
     if (isTracked(link)) {
       await count(target, "go", req, ref);
-      return loadingPage(target, link.url);
+      return toStore(target, link.url);
     }
     console.warn("untracked click", { client: client.slug, coupon: coupon.id, store: store.slug, problem: link.problem });
     await count(target, "untracked", req, ref);
-    return loadingPage(target, untrackedUrl(coupon, store));
+    return toStore(target, untrackedUrl(coupon, store));
   } catch (e) {
     console.error("go redirect failed", e);
     return redirect(target ? untrackedUrl(target.coupon, target.store) : "/");

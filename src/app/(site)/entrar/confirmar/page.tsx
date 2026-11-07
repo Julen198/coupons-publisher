@@ -19,7 +19,7 @@ export default async function ConfirmarPage({ searchParams }: PageProps<"/entrar
       <div inert aria-hidden="true">
         <HomePage params={Promise.resolve({})} searchParams={Promise.resolve({})} />
       </div>
-      <Modal labelledBy="confirmar-h" at="/entrar/confirmar" closeTo={target}>
+      <Modal labelledBy="confirmar-h" at="/entrar/confirmar" closeTo={target} openOnLoad>
         {invalid ? (
           <>
             <span className="entry-mark entry-mark-warn" aria-hidden="true"><AlertIcon /></span>

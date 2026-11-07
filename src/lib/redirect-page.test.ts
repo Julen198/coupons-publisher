@@ -8,6 +8,8 @@ test("a live coupon jumps to the tracked link and shows the code", () => {
   const html = redirectPage(base);
   assert.match(html, /http-equiv="refresh" content="1;url=https:\/\/www\.awin1\.com\/cread\.php\?awinmid=1&amp;p=x"/);
   assert.match(html, /location\.replace\(u\)/);
+  // the meta refresh is only for no-JS browsers, so a JS browser navigates once
+  assert.match(html, /<noscript><meta http-equiv="refresh"/);
   assert.match(html, /<b>VERANO15<\/b>/);
   assert.match(html, /Cómo usarlo/);
   assert.match(html, /noindex/);

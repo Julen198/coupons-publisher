@@ -1,7 +1,7 @@
 // The loading page /go shows on its way to the store (SiteRedirect board in the design canvas): the store, the code to
 // paste and a link in case the jump doesn't happen. A live coupon jumps on its own after REDIRECT_DELAY_MS; an expired or
 // archived one waits for the reader to choose. The click is counted before this page is sent, and the link it opens is
-// the same affiliate link the 302 used to send, so the networks see the same visit.
+// the same affiliate link the 302 used to send. Only CuponLab's own pages use it (see /go).
 
 export const REDIRECT_DELAY_MS = 800;
 export const SLOW_AFTER_MS = 4000;
@@ -24,7 +24,6 @@ export const safeTarget = (url: string): string => (/^https?:\/\//i.test(url) ? 
 
 const TICKET = `<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M10 9l4 6"/>`;
 const LOGO = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#1d4ed8"/><g fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="translate(4 4)">${TICKET}</g></svg>`;
-const CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>`;
 
 const CSS = `
 :root{--bg:#f3f5fa;--surface:#fff;--surface-2:#e9edf6;--line:#d9dfeb;--ink:#141a2b;--ink-2:#4a5470;--ink-3:#5f6880;--brand:#1d4ed8;--brand-ink:#fff;--brand-soft:#e3eafc;--ok:#13733a;--ok-soft:#e1f3e6;--drop:#b4380a;--drop-soft:#fdebdd;color-scheme:light dark}
@@ -47,7 +46,7 @@ h1{margin:0;font-size:1.45rem;line-height:1.15;font-weight:800;letter-spacing:-.
 .lead{color:var(--ink-2)}
 .code{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;border:1.5px dashed var(--brand);border-radius:10px;background:var(--brand-soft);padding:10px 12px}
 .code b{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-size:1.15rem;letter-spacing:.06em;word-break:break-all;text-align:left}
-.pill{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-weight:700;color:var(--ok);background:var(--ok-soft);border-radius:999px;padding:3px 9px;flex:none}.pill svg{width:12px;height:12px}
+.pill{font-size:.78rem;font-weight:700;color:var(--ink-3);flex:none}
 .noc{width:100%;border-radius:10px;background:var(--ok-soft);color:var(--ok);font-weight:700;font-size:.92rem;padding:10px 12px}
 .warn{width:100%;border-radius:10px;background:var(--drop-soft);color:var(--drop);font-weight:600;font-size:.9rem;padding:10px 12px;text-align:left}
 .bar{width:100%;height:4px;border-radius:4px;background:var(--surface-2);overflow:hidden}
@@ -74,7 +73,7 @@ function storeMark(i: RedirectPageInput): string {
 function liveCard(i: RedirectPageInput, href: string): string {
   const name = esc(i.storeName);
   const code = i.code
-    ? `<div class="code"><b>${esc(i.code)}</b><span class="pill">${CHECK}Copiado</span></div>
+    ? `<div class="code"><b>${esc(i.code)}</b><span class="pill">Tu código</span></div>
        <p class="lead live-only">Pégalo en la cesta de ${name} antes de pagar.</p>`
     : `<p class="noc">No necesitas código. El descuento se aplica en la web.</p>`;
   return `<section class="card" aria-live="polite">
@@ -84,7 +83,6 @@ function liveCard(i: RedirectPageInput, href: string): string {
     <div class="bar live-only" role="progressbar" aria-label="Abriendo la tienda"><i></i></div>
     <a class="link live-only" href="${href}" rel="nofollow sponsored">¿No se abre? Ir a ${name}</a>
     <a class="btn btn-primary slow-only" href="${href}" rel="nofollow sponsored">Ir a ${name}</a>
-    <a class="link slow-only" href="javascript:history.back()">Volver al cupón</a>
   </section>`;
 }
 
@@ -108,9 +106,10 @@ export function redirectPage(i: RedirectPageInput): string {
   const href = esc(target);
   const live = !i.expired;
   const name = esc(i.storeName);
-  // the meta refresh is the fallback for browsers without JS; the script uses replace() so Atrás skips this page
+  // the meta refresh only for browsers without JS (inside <noscript>, so a JS browser makes one navigation, not two);
+  // the script uses replace() so Atrás skips this page
   const jump = live
-    ? `<meta http-equiv="refresh" content="${Math.ceil(REDIRECT_DELAY_MS / 1000)};url=${href}">
+    ? `<noscript><meta http-equiv="refresh" content="${Math.ceil(REDIRECT_DELAY_MS / 1000)};url=${href}"></noscript>
 <script>(function(){var u=${JSON.stringify(target).replace(/</g, "\\u003c")};setTimeout(function(){location.replace(u)},${REDIRECT_DELAY_MS});setTimeout(function(){document.body.classList.add("slow")},${SLOW_AFTER_MS})})()</script>`
     : "";
   return `<!doctype html>
