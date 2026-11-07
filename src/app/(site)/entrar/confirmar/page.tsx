@@ -3,17 +3,23 @@ import Link from "next/link";
 import { safeNext } from "@/lib/session";
 import { confirmReaderLink } from "../../actions-reader";
 import { AlertIcon, ArrowIcon, TicketIcon } from "../icons";
+import { Modal } from "../../@modal/modal";
+import HomePage from "../../page";
 
 export const metadata: Metadata = { title: "Entrar", robots: { index: false } };
 
 // The emailed link lands here (SiteEntrarVuelta board, step 2). Signing in needs the button press (a POST),
-// so link prefetchers and mail scanners can't burn the token.
+// so link prefetchers and mail scanners can't burn the token. The card floats over the home page, dimmed behind it
+// (SiteHeaderMobile board, step 4); closing it leaves the reader on that page.
 export default async function ConfirmarPage({ searchParams }: PageProps<"/entrar/confirmar">) {
   const { token, next, invalid } = await searchParams;
   const target = safeNext(typeof next === "string" ? next : null, "/");
   return (
-    <main className="wrap entry-page">
-      <section className="entry-card" aria-labelledby="confirmar-h">
+    <>
+      <div inert aria-hidden="true">
+        <HomePage params={Promise.resolve({})} searchParams={Promise.resolve({})} />
+      </div>
+      <Modal labelledBy="confirmar-h" at="/entrar/confirmar" closeTo={target} openOnLoad>
         {invalid ? (
           <>
             <span className="entry-mark entry-mark-warn" aria-hidden="true"><AlertIcon /></span>
@@ -38,7 +44,7 @@ export default async function ConfirmarPage({ searchParams }: PageProps<"/entrar
             <p className="entry-muted">Un clic más para que los antivirus que abren enlaces no gasten el tuyo.</p>
           </>
         )}
-      </section>
-    </main>
+      </Modal>
+    </>
   );
 }

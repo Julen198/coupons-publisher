@@ -10,6 +10,7 @@ import { daysBetween, dealPath, shortDate } from "@/lib/site-text";
 import { vote } from "./actions-reader";
 import { CopyCode } from "./copy-code";
 import { DealImg, StoreLogoImg } from "./store-logo-img";
+import { ArrowIcon } from "./entrar/icons";
 
 export const badgeOf = (c: Pick<SiteCoupon, "discount" | "kind">) => badgeLabel(c.discount) || (c.kind === "code" ? "Código" : "Oferta");
 // No figure to show: the badge is just the word "Oferta" or "Código", set as small text instead of a big price
@@ -62,8 +63,9 @@ export function StatusBadges({ c, today, live = true }: { c: SiteCoupon; today: 
 // Affiliate links: sponsored for search engines, new tab for readers
 export function GoButton({ client, c, label }: { client: Client | undefined; c: SiteCoupon; label?: string }) {
   return (
-    <a className="btn btn-primary" href={goHref(client, c)} target="_blank" rel="sponsored nofollow noopener">
-      {label ?? `Ir a ${c.store_name}`} ↗
+    <a className="btn btn-primary go-btn" href={goHref(client, c)} target="_blank" rel="sponsored nofollow noopener">
+      {label ?? `Ir a ${c.store_name}`}
+      <ArrowIcon />
     </a>
   );
 }
