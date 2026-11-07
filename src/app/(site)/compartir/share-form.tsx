@@ -17,8 +17,7 @@ export function ShareForm({ stores }: { stores: { slug: string; name: string }[]
       </label>
       <label>
         Tienda
-        <select name="store" required defaultValue="">
-          <option value="" disabled>Elige una tienda</option>
+        <select name="store" required>
           {stores.map((s) => (
             <option key={s.slug} value={s.slug}>{s.name}</option>
           ))}
