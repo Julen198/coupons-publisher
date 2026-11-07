@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, factsOf, ordenOf, type Orden } from "@/lib/catalog";
 import { sortDeals } from "@/lib/community";
-import { badgeInSentence, storeHeading } from "@/lib/deal-text";
+import { badgeInSentence, storeH1, storeHeading } from "@/lib/deal-text";
 import { currentVotes, siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { MarkHeaderCategory } from "../../site-header";
@@ -62,7 +62,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   const cat = categoryOf(store.category);
   const domain = store.website.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
   const crumbs = [{ name: "Inicio", href: "/" }, { name: "Tiendas", href: "/tiendas" }, { name: store.name }];
-  const title = storeHeading(store.name, coupons, now);
+  const title = storeH1(store.name, coupons, now);
 
   // other stores of the same category first, then the ones with the most coupons
   const counts = new Map<string, { name: string; slug: string; n: number; same: boolean }>();

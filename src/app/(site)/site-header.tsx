@@ -80,6 +80,8 @@ function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: stri
           <Link className="btn btn-primary" href="/compartir">Compartir chollo</Link>
         </div>
       </div>
+      {/* the account pages (entrar, compartir, cuenta) have no category bar in the design */}
+      {!/^\/(entrar|compartir|cuenta)(\/|$)/.test(path) && (
       <nav className="cats" aria-label="Categorías">
         <div className="wrap">
           {SECTIONS.map((s) => (
@@ -89,6 +91,7 @@ function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: stri
           ))}
         </div>
       </nav>
+      )}
     </header>
   );
 }

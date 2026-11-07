@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { SHARE_LIMIT_PER_DAY } from "@/lib/community-rules";
 import { shareDeal } from "../actions-reader";
@@ -48,7 +49,7 @@ export function ShareForm({ stores }: { stores: { slug: string; name: string }[]
       </label>
       {state.error && <p role="alert" className="auth-error">{state.error}</p>}
       <button className="btn btn-primary" disabled={pending}>{pending ? "Enviando…" : "Enviar para revisión"}</button>
-      <p className="small">Máximo {SHARE_LIMIT_PER_DAY} chollos al día por cuenta. ¿No está tu tienda? Dilo en el comentario.</p>
+      <p className="small">Máximo {SHARE_LIMIT_PER_DAY} chollos al día por cuenta. ¿No está tu tienda? <Link href="/contacto">Escríbenos</Link>.</p>
     </form>
   );
 }

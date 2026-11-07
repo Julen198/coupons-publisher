@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BRAND_ALLOWLIST, badgeInSentence, conditionsOf, dedupeDeals, displayTitle, lowerFirst, mentionsBadge, storeHeading } from "./deal-text.ts";
+import { BRAND_ALLOWLIST, badgeInSentence, conditionsOf, dedupeDeals, displayTitle, lowerFirst, mentionsBadge, storeHeading, storeH1 } from "./deal-text.ts";
 
 test("conditionsOf splits a description into short reader-facing bullets", () => {
   assert.deepEqual(conditionsOf("No válido en lanzamientos. Pedido mínimo 50 €."), ["No válido en lanzamientos", "Pedido mínimo 50 €"]);
@@ -150,4 +150,12 @@ test("BRAND_ALLOWLIST covers the usual sports and electronics brands", () => {
   for (const b of ["Nike", "Adidas", "Puma", "Reebok", "Asics", "Samsung", "Apple", "Xiaomi", "Sony", "Philips", "Dyson", "Lego", "Garmin", "Logitech", "New Balance", "Converse", "Vans"])
     assert.ok(BRAND_ALLOWLIST.includes(b), b);
   assert.equal(displayTitle("ATÉ 60 % DE DESCONTO EM ARTIGOS DA REEBOK", "JD Sports PT", BRAND_ALLOWLIST), "Até 60 % de desconto em artigos da Reebok");
+});
+
+test("storeH1 is the store heading without figures, as the design shows it", () => {
+  const now = new Date(2026, 10, 5);
+  const deal = (discount: string) => ({ kind: "deal" as const, code: "", discount });
+  const code = (discount: string) => ({ kind: "code" as const, code: "X", discount });
+  assert.equal(storeH1("PcComponentes", [deal("20%"), deal("320 €")], now), "Ofertas PcComponentes noviembre 2026");
+  assert.equal(storeH1("zooplus", [code("15%")], now), "Códigos descuento zooplus noviembre 2026");
 });

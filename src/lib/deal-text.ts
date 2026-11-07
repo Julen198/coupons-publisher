@@ -144,3 +144,9 @@ export function storeHeading(storeName: string, coupons: Titled[], now: Date): s
   const head = `${codes.length ? "Códigos descuento" : "Ofertas"} ${storeName}`;
   return `${head}${top.length ? ` ${top.map((f) => f.text).join(" y ")}` : ""}, ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
 }
+
+// The store page h1 as the design shows it: kind of discounts, store and month, no figures (those stay in the <title>)
+export function storeH1(storeName: string, coupons: Titled[], now: Date): string {
+  const hasCodes = coupons.some((c) => c.kind === "code" && c.code.trim());
+  return `${hasCodes ? "Códigos descuento" : "Ofertas"} ${storeName} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+}
