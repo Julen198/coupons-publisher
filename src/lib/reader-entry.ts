@@ -2,7 +2,7 @@
 // "you're in" flash. No server or browser imports, so the client bundle and the tests can both use them.
 
 // Matches the server's per-email cooldown (MAGIC_LINK_COOLDOWN_SECONDS), which still has the last word
-export const RESEND_SECONDS = 60;
+export const RESEND_SECONDS = 65; // the server refuses a second link to the same email within 60 s
 
 export function formatCountdown(seconds: number): string {
   const s = Math.max(0, Math.ceil(seconds));

@@ -12,7 +12,7 @@ test("formatCountdown: m:ss, never negative", () => {
 });
 
 test("resendLabel: counts down, then offers the resend", () => {
-  assert.equal(RESEND_SECONDS, 60);
+  assert.equal(RESEND_SECONDS, 65); // past the server's 60 s per-email limit, so a resend at 0:00 really sends
   assert.equal(resendLabel(42), "Reenviar en 0:42");
   assert.equal(resendLabel(0), "Reenviar");
 });
