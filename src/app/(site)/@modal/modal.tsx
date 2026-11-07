@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { CloseIcon } from "../entrar/icons";
 
@@ -8,10 +8,15 @@ import { CloseIcon } from "../entrar/icons";
 export function Modal({ children, labelledBy }: { children: ReactNode; labelledBy: string }) {
   const router = useRouter();
   const ref = useRef<HTMLDialogElement>(null);
+  const path = usePathname();
+  const here = path === "/entrar";
   useEffect(() => {
     const d = ref.current;
-    if (d && !d.open) d.showModal();
-  }, []);
+    if (here && d && !d.open) d.showModal();
+  }, [here]);
+  // a parallel slot keeps its last page after the reader navigates elsewhere: once the URL isn't /entrar, the modal goes
+  // (a catch-all slot page would do it too, but it captured /login and the whole panel)
+  if (!here) return null;
   return (
     <dialog
       ref={ref}
