@@ -1,19 +1,13 @@
 import { io } from "next/cache";
 import { sql } from "./db";
-import type { UsageRow } from "./ai-costs";
+import { limitsFrom, type AiLimits, type UsageRow } from "./ai-costs";
 
-export interface AiLimits { budget: number; alert: number; pauseSearch: boolean }
-export const DEFAULT_LIMITS: AiLimits = { budget: 25, alert: 80, pauseSearch: true };
+export { DEFAULT_LIMITS, type AiLimits } from "./ai-costs";
 
 export async function aiLimits(): Promise<AiLimits> {
   await io();
   const rows = await sql()<{ key: string; value: string }[]>`SELECT key, value FROM settings WHERE key IN ('ai_budget', 'ai_alert', 'ai_pause_search')`;
-  const v = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-  return {
-    budget: Number(v.ai_budget) > 0 ? Number(v.ai_budget) : DEFAULT_LIMITS.budget,
-    alert: [50, 80, 100].includes(Number(v.ai_alert)) ? Number(v.ai_alert) : DEFAULT_LIMITS.alert,
-    pauseSearch: v.ai_pause_search ? v.ai_pause_search === "1" : DEFAULT_LIMITS.pauseSearch,
-  };
+  return limitsFrom(Object.fromEntries(rows.map((r) => [r.key, r.value])));
 }
 
 // Spend since the 1st of this month (Madrid time), in USD at list price

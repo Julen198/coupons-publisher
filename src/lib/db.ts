@@ -58,6 +58,11 @@ export type Coupon = {
   review_reason?: string; // why an editor rejected it ('' = none given); optional until the column exists
   about: string; // "Sobre este chollo" text
   about_status: "" | "draft" | "approved"; // public only when approved
+  // Spanish version of a title/description that came in another language (see translation.ts); optional until the columns exist
+  title_es?: string;
+  description_es?: string;
+  translation_status?: "" | "auto" | "approved" | "skip";
+  translated_from?: string; // md5 of the source title + description it translates
 };
 
 export type CouponWithStore = Coupon & { store_name: string; store_slug: string; store_has_logo: boolean };

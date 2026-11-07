@@ -295,6 +295,19 @@ ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_country_check;
 ALTER TABLE stores ADD CONSTRAINT stores_country_check CHECK (country ~ '^([A-Z]{2})?$');
 ALTER TABLE stores DROP CONSTRAINT IF EXISTS stores_country_source_check;
 ALTER TABLE stores ADD CONSTRAINT stores_country_source_check CHECK (country_source IN ('', 'network', 'inferred', 'manual'));
+-- coupons in another language shown in Spanish: the AI's translation (or an editor's), its state and what it was made from
+-- ('' = not translated, 'auto' = AI, public right away, 'approved' = checked by an editor, 'skip' = "No traducir");
+-- translated_from = md5(title || E'\\n' || description) of the source it translates, so a changed source is translated again
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS title_es text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS description_es text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS translation_status text NOT NULL DEFAULT '';
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS translated_from text NOT NULL DEFAULT '';
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_translation_status_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_translation_status_check CHECK (translation_status IN ('', 'auto', 'approved', 'skip'));
+CREATE INDEX IF NOT EXISTS coupons_translation_auto_idx ON coupons(id) WHERE translation_status = 'auto';
+-- their cost has its own line in Costes de IA
+ALTER TABLE ai_usage DROP CONSTRAINT IF EXISTS ai_usage_feature_check;
+ALTER TABLE ai_usage ADD CONSTRAINT ai_usage_feature_check CHECK (feature IN ('search', 'content', 'style', 'stores', 'translate'));
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
