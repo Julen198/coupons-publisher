@@ -121,7 +121,7 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .deal-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: .82rem; color: var(--ink-3); }
 .cl .store { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ink); text-decoration: none; }
 .cl .store:hover { text-decoration: underline; }
-.cl .slogo { width: 18px; height: 18px; border-radius: 4px; object-fit: contain; background: #fff; border: 1px solid var(--line); }
+.cl .slogo { width: 16px; height: 16px; border-radius: 4px; object-fit: contain; background: #fff; border: 1px solid var(--line); }
 .cl .badge { display: inline-flex; align-items: center; gap: 4px; font-size: .74rem; font-weight: 700; padding: 1px 6px; border-radius: 3px; }
 .cl .b-ok { background: var(--ok-soft); color: var(--ok-ink); }
 .cl .b-low { background: var(--drop-soft); color: var(--drop-ink); }
@@ -137,7 +137,7 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .price-kind { color: var(--ink-3); font-size: .9rem; }
 /* "Oferta" or "Código" with no figure: plain text, not a big orange price */
 .cl .price-now.is-word, .cl .buybox .price-now.is-word, .cl .mbar .price-now.is-word { font-family: var(--f-body); font-size: .9rem; font-weight: 700; color: var(--ink); line-height: inherit; }
-.cl .conds { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--ink-2); margin: 10px 0 0; padding: 0; list-style: none; }
+.cl .conds { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--ink-2); margin: 10px 0 13px; padding: 0; list-style: none; }
 .cl .conds li { display: inline-flex; gap: 5px; align-items: flex-start; max-width: 100%; }
 /* the dot sits on the first line, however many lines the condition takes */
 .cl .conds li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); flex: none; margin-top: calc(.775em - 2.5px); }
@@ -201,7 +201,7 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .store-guides { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 @media (max-width: 860px) { .cl .store-guides { grid-template-columns: minmax(0, 1fr); } }
 .cl .guide { border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 10px; align-content: start; background: var(--bg); }
-.cl .guide p { font-size: .9rem; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.cl .guide p { font-size: .9rem; color: var(--ink-2); }
 .cl dl.facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: .86rem; }
 .cl dl.facts dt { color: var(--ink-3); }
 .cl dl.facts dd { margin: 0; color: var(--ink); font-weight: 600; }
@@ -231,7 +231,7 @@ body:has(.cl) { background: #f3f5fa; }
 
 /* Deal detail */
 .cl .dt-top { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; padding-block: 16px 48px; }
-@media (max-width: 960px) { .cl .dt-top { grid-template-columns: minmax(0, 1fr); padding-bottom: 96px; } }
+@media (max-width: 960px) { .cl .dt-top { grid-template-columns: minmax(0, 1fr); padding-bottom: 72px; } }
 .cl .dt-main { display: grid; gap: 28px; min-width: 0; }
 .cl .back { display: inline-flex; gap: 6px; font-weight: 600; font-size: .88rem; text-decoration: none; }
 .cl .dt-hero { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -362,7 +362,7 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .top-actions { display: flex; gap: 8px; align-items: center; }
 .cl .top-actions .who { display: flex; gap: 8px; align-items: center; }
 .cl .top-actions .handle { font-weight: 600; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 640px) { .cl .top-actions { flex-wrap: wrap; } .cl .top-actions .btn { padding: 8px 12px; } }
+@media (max-width: 640px) { .cl .top-actions { flex-wrap: wrap; } }
 .cl .share-form { display: grid; gap: 12px; }
 .cl .share-form label { display: grid; gap: 4px; font-weight: 600; font-size: .9rem; }
 .cl .share-form input, .cl .share-form select, .cl .share-form textarea { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: inherit; font-weight: 400; background: var(--surface); color: var(--ink); }
