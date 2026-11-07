@@ -5,16 +5,18 @@
 //   node scripts/refresh-logos.ts --only=slug --force [--apply]  replaces even if not bigger
 //   node scripts/refresh-logos.ts --only=slug --from=https://.../logo.svg [--apply]   a logo you picked by hand
 //   node scripts/refresh-logos.ts --clear --only=slug1,slug2      remove their logos (the site shows initials)
+//   node scripts/refresh-logos.ts [--wordmarks] --only=slug --file=~/Downloads/logo.png [--apply]   a logo file you downloaded
 // --wordmarks: the same for wordmark_data, the logo WITH the name for the landscape boxes (schema.org logo, og:logo,
 // the header's logo picture or inline SVG); review page shows them at 120x50 and 240x100. Needs npm run db:setup first.
 //   node scripts/refresh-logos.ts --wordmarks [--only=...] [--apply] [--force] [--from=https://.../logo.svg] [--clear]
 import nextEnv from "@next/env";
 import { writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import postgres from "postgres";
 import { isBetterLogo } from "../src/lib/logo-choice.ts";
-import { downloadLogo, fetchLogo, placeholderHashes, type FetchedLogo } from "../src/lib/logo-fetch.ts";
+import { downloadLogo, fetchLogo, logoFromBytes, placeholderHashes, type FetchedLogo } from "../src/lib/logo-fetch.ts";
 import { logoDataInfo, parseRefreshArgs, renderLogoReview, type ReviewRow } from "../src/lib/logo-review.ts";
 import { isMissingSchema } from "../src/lib/schema-guard.ts";
 import { isWordmarkShape } from "../src/lib/wordmark-choice.ts";
@@ -66,7 +68,19 @@ async function proposeWordmark(store: Store): Promise<Proposal> {
   return { logo: found.wordmark, tried: found.tried, source: found.wordmark?.source ?? "" };
 }
 
+// --file: a logo the editor downloaded by hand (El Corte Inglés blocks bots, even on its press-kit downloads)
+async function proposeFromFile(): Promise<Proposal> {
+  const path = args.file.replace(/^~(?=\/)/, homedir());
+  try {
+    const logo = logoFromBytes(await readFile(path), `file:${path}`, "icon");
+    return { logo, tried: [{ url: path, source: "file", result: `${logo.width}x${logo.height} ${logo.type}` }], source: "manual (--file)" };
+  } catch (e) {
+    return { logo: null, tried: [{ url: path, source: "file", result: errorText(e) }], source: "" };
+  }
+}
+
 async function propose(store: Store, placeholders: Set<string>): Promise<Proposal> {
+  if (args.file) return proposeFromFile();
   if (args.wordmarks) return proposeWordmark(store);
   if (args.from) {
     try {

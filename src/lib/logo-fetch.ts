@@ -39,22 +39,21 @@ export async function downloadLogo(url: string, source: LogoSource, o: LogoFetch
     { accept: /^image\//, label: "an image", maxBytes: MAX_LOGO_BYTES, httpsOnly: !o.allowHttp, headers: { Accept: "image/png,image/webp,image/svg+xml,image/jpeg;q=0.9,*/*;q=0.1" } },
     o.resolve ?? publicAddresses,
   );
-  const real = sniffImageType(res.body);
   if (!LOGO_TYPES.includes(res.type)) throw new Error(`not an allowed image (${res.type})`);
+  const real = sniffImageType(res.body);
   if (real !== res.type) throw new Error(`not a ${res.type.split("/")[1]} (${real || "unknown bytes"})`);
-  if (real === "image/svg+xml" && isUnsafeSvg(res.body.toString("utf8"))) throw new Error("unsafe svg");
-  const size = imageSize(res.body, real);
+  return logoFromBytes(res.body, res.url, source);
+}
+
+// The same checks for bytes that didn't come over HTTP (a logo file the editor downloaded by hand, --file)
+export function logoFromBytes(body: Buffer, url: string, source: LogoSource): FetchedLogo {
+  if (body.length > MAX_LOGO_BYTES) throw new Error(`too big (${Math.round(body.length / 1024)} KB, max ${MAX_LOGO_BYTES / 1024} KB)`);
+  const real = sniffImageType(body);
+  if (!real || !LOGO_TYPES.includes(real)) throw new Error(`not an allowed image (${real || "unknown bytes"})`);
+  if (real === "image/svg+xml" && isUnsafeSvg(body.toString("utf8"))) throw new Error("unsafe svg");
+  const size = imageSize(body, real);
   if (!size) throw new Error("unreadable size");
-  return {
-    url: res.url,
-    source,
-    type: real,
-    width: size.width,
-    height: size.height,
-    sha256: sha256(res.body),
-    bytes: res.body.length,
-    dataUri: `data:${real};base64,${res.body.toString("base64")}`,
-  };
+  return { url, source, type: real, width: size.width, height: size.height, sha256: sha256(body), bytes: body.length, dataUri: `data:${real};base64,${body.toString("base64")}` };
 }
 
 // Hashes of Google's generic "no favicon" globe (read once per run; empty if Google can't be reached)

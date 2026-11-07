@@ -6,13 +6,14 @@ export interface RefreshArgs {
   only: string[];
   force: boolean; // with --only: replace even when the proposal isn't bigger
   from: string; // with one --only store: take the logo from this image URL instead of searching
+  file: string; // with one --only store: take the logo from this local file (a site that blocks bots; downloaded by hand)
   out: string;
   clear: boolean; // with --only: remove the stored logo, so the site shows the store's initials
   wordmarks: boolean; // work on wordmark_data (the logo with the name, landscape boxes) instead of the square icon
 }
 
 export function parseRefreshArgs(argv: readonly string[]): RefreshArgs {
-  const args: RefreshArgs = { apply: false, only: [], force: false, from: "", out: "", clear: false, wordmarks: false };
+  const args: RefreshArgs = { apply: false, only: [], force: false, from: "", file: "", out: "", clear: false, wordmarks: false };
   for (const a of argv) {
     const [flag, ...rest] = a.split("=");
     const value = rest.join("=");
@@ -22,12 +23,14 @@ export function parseRefreshArgs(argv: readonly string[]): RefreshArgs {
     else if (a === "--wordmarks") args.wordmarks = true;
     else if (flag === "--only") args.only = value.split(",").map((s) => s.trim()).filter(Boolean);
     else if (flag === "--from") args.from = value.trim();
+    else if (flag === "--file") args.file = value.trim();
     else if (flag === "--out") args.out = value.trim();
     else throw new Error(`Opción desconocida: ${a}`);
   }
   if (args.force && !args.only.length) throw new Error("--force solo vale junto a --only=<slugs>");
   if (args.clear && !args.only.length) throw new Error("--clear solo vale junto a --only=<slugs>");
   if (args.from && args.only.length !== 1) throw new Error("--from necesita --only con una sola tienda (one store)");
+  if (args.file && args.only.length !== 1) throw new Error("--file necesita --only con una sola tienda (one store)");
   return args;
 }
 

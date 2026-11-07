@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Resolve } from "./og-image-fetch.ts";
-import { downloadLogo, fetchLogo, placeholderHashes } from "./logo-fetch.ts";
+import { downloadLogo, fetchLogo, logoFromBytes, placeholderHashes } from "./logo-fetch.ts";
 
 const png = (w: number, h = w, pad = 0) => {
   const b = Buffer.alloc(33 + pad);
@@ -102,4 +102,14 @@ test("fetchLogo refuses non-https websites and private hosts", async () => {
   const { logo, tried } = await fetchLogo("https://intranet.local/", { ...opts(), googleFavicon: (h: string) => `https://intranet.local/g?${h}` });
   assert.equal(logo, null);
   assert.ok(tried.every((t) => /blocked host/.test(t.result)));
+});
+
+test("logoFromBytes checks a local file like a download: real type, size, safe SVG, size cap", () => {
+  const ok = logoFromBytes(png(300, 120), "file:logo.png", "icon");
+  assert.equal(ok.type, "image/png");
+  assert.equal(ok.width, 300);
+  assert.match(ok.dataUri, /^data:image\/png;base64,/);
+  assert.throws(() => logoFromBytes(Buffer.from("<svg><script>alert(1)</script></svg>"), "file:x.svg", "icon"), /unsafe/);
+  assert.throws(() => logoFromBytes(Buffer.from("hello"), "file:x.txt", "icon"), /not an allowed image/);
+  assert.throws(() => logoFromBytes(Buffer.alloc(400 * 1024), "file:big.png", "icon"), /too big/);
 });
