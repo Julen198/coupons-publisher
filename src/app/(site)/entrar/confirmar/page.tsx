@@ -3,8 +3,7 @@ import Link from "next/link";
 import { safeNext } from "@/lib/session";
 import { confirmReaderLink } from "../../actions-reader";
 import { AlertIcon, ArrowIcon, TicketIcon } from "../icons";
-import { Modal } from "../../@modal/modal";
-import HomePage from "../../page";
+import { OverHome } from "../over-home";
 
 export const metadata: Metadata = { title: "Entrar", robots: { index: false } };
 
@@ -15,11 +14,7 @@ export default async function ConfirmarPage({ searchParams }: PageProps<"/entrar
   const { token, next, invalid } = await searchParams;
   const target = safeNext(typeof next === "string" ? next : null, "/");
   return (
-    <>
-      <div inert aria-hidden="true">
-        <HomePage params={Promise.resolve({})} searchParams={Promise.resolve({})} />
-      </div>
-      <Modal labelledBy="confirmar-h" at="/entrar/confirmar" closeTo={target} openOnLoad>
+    <OverHome at="/entrar/confirmar" closeTo={target} labelledBy="confirmar-h">
         {invalid ? (
           <>
             <span className="entry-mark entry-mark-warn" aria-hidden="true"><AlertIcon /></span>
@@ -44,7 +39,6 @@ export default async function ConfirmarPage({ searchParams }: PageProps<"/entrar
             <p className="entry-muted">Un clic más para que los antivirus que abren enlaces no gasten el tuyo.</p>
           </>
         )}
-      </Modal>
-    </>
+    </OverHome>
   );
 }

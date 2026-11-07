@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getReader } from "@/lib/reader";
 import { safeNext } from "@/lib/session";
 import { NombreForm } from "./nombre-form";
+import { OverHome } from "../over-home";
 
 export const metadata: Metadata = { title: "Elige tu nombre público", robots: { index: false } };
 
@@ -13,14 +14,12 @@ export default async function NombrePage({ searchParams }: PageProps<"/entrar/no
   const target = safeNext(typeof next === "string" ? next : null, "/");
   if (reader.handle) redirect(target);
   return (
-    <main className="wrap entry-page">
-      <section className="entry-card" aria-labelledby="nombre-h">
-        <div className="entry-head">
-          <span className="entry-kicker">Último paso</span>
-          <h1 id="nombre-h">Elige tu nombre público</h1>
-        </div>
-        <NombreForm next={target} />
-      </section>
-    </main>
+    <OverHome at="/entrar/nombre" closeTo={target} labelledBy="nombre-h">
+      <div className="entry-head">
+        <span className="entry-kicker">Último paso</span>
+        <h1 id="nombre-h">Elige tu nombre público</h1>
+      </div>
+      <NombreForm next={target} />
+    </OverHome>
   );
 }

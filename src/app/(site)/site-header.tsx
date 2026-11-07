@@ -95,8 +95,8 @@ function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: stri
           {reader && <AccountMenu handle={reader.handle} />}
         </div>
       </div>
-      {/* the account pages (entrar, compartir, cuenta) have no category bar in the design; /entrar/confirmar shows the home behind its card */}
-      {!/^\/(entrar(?!\/confirmar)|compartir|cuenta)(\/|$)/.test(path) && (
+      {/* compartir and cuenta have no category bar in the design; the entrar pages are modals over a page that has one */}
+      {!/^\/(compartir|cuenta)(\/|$)/.test(path) && (
       <nav className="cats" aria-label="Categorías">
         <div className="wrap">
           {SECTIONS.map((s) => (
