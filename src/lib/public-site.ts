@@ -63,8 +63,8 @@ const couponSelect = (wordmark: boolean, country: boolean) => `
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
 // The store fields onSpanishSite reads, from a coupon row
-export const couponStore = (c: Pick<SiteCoupon, "store_name" | "store_slug" | "store_website" | "store_country" | "store_tracking_url">) => ({
-  name: c.store_name, slug: c.store_slug, website: c.store_website, country: c.store_country, tracking_url: c.store_tracking_url,
+export const couponStore = (c: Pick<SiteCoupon, "store_name" | "store_slug" | "store_website" | "store_country" | "store_country_source" | "store_tracking_url">) => ({
+  name: c.store_name, slug: c.store_slug, website: c.store_website, country: c.store_country, country_source: c.store_country_source, tracking_url: c.store_tracking_url,
 });
 
 // Store names plus BRAND_ALLOWLIST: words a shouting feed title gives back their own case ("NIKE" → "Nike")
@@ -203,7 +203,7 @@ export async function dealComments(couponId: number, readerId: number | null): P
 // Every store of the Spanish market, for the "share a deal" picker
 export async function siteStoreOptions(): Promise<{ slug: string; name: string }[]> {
   await io();
-  const rows = await withCountryColumn((c) => sql()<{ slug: string; name: string; website: string; tracking_url: string; country: string }[]>`
+  const rows = await withCountryColumn((c) => sql()<{ slug: string; name: string; website: string; tracking_url: string; country: string; country_source: string }[]>`
     SELECT slug, name, website, tracking_url, ${sql().unsafe(countrySql(c, "stores", ""))} FROM stores ORDER BY lower(name)`);
   return rows.filter((r) => onSpanishSite(r)).map((r) => ({ slug: r.slug, name: r.name }));
 }

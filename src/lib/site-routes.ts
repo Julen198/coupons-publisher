@@ -15,11 +15,12 @@ export type VisibilityFields = {
   store_name?: string;
   store_slug?: string;
   store_country?: string; // "" or missing = unknown, see onSpanishSite
+  store_country_source?: string;
   store_tracking_url?: string;
 };
 
 const storeOf = (c: VisibilityFields): CountryStore => ({
-  name: c.store_name ?? "", slug: c.store_slug ?? "", website: c.store_website, country: c.store_country, tracking_url: c.store_tracking_url,
+  name: c.store_name ?? "", slug: c.store_slug ?? "", website: c.store_website, country: c.store_country, country_source: c.store_country_source, tracking_url: c.store_tracking_url,
 });
 
 // live: shown everywhere. expired: once public, its page stays up marked as expired.
