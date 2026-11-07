@@ -1,11 +1,12 @@
 import { discountBadge } from "../discount.ts";
-import { allPages, getJson, isoDay, REGION, required, siteOf, type Credentials, type NetAdvertiser, type NetOffer, type NetworkAdapter } from "./types.ts";
+import { allPages, countryCode, getJson, isoDay, REGION, required, siteOf, type Credentials, type NetAdvertiser, type NetOffer, type NetworkAdapter } from "./types.ts";
 
 // Awin Publisher API — help.awin.com/apidocs: GET /publishers/{id}/programmes, POST /publisher/{id}/promotions
 const API = "https://api.awin.com";
 const PAGE = 200;
 
-interface Programme { id: number; name: string; displayUrl?: string; logoUrl?: string }
+// primaryRegion: the market the programme is run for (GET /publishers/{id}/programmes), e.g. { name: "Germany", countryCode: "DE" }
+interface Programme { id: number; name: string; displayUrl?: string; logoUrl?: string; primaryRegion?: { name?: string; countryCode?: string } }
 interface Promotion {
   promotionId: number;
   type: "promotion" | "voucher";
@@ -27,7 +28,8 @@ export function forSpain(p: Pick<Promotion, "advertiser" | "regions">, spanishPr
 }
 
 export function mapProgramme(p: Programme): NetAdvertiser {
-  return { id: String(p.id), name: p.name.trim(), website: siteOf(p.displayUrl), trackingTemplate: "" };
+  const country = countryCode(p.primaryRegion?.countryCode);
+  return { id: String(p.id), name: p.name.trim(), website: siteOf(p.displayUrl), trackingTemplate: "", ...(country ? { country } : {}) };
 }
 
 export function mapPromotion(p: Promotion): NetOffer | null {

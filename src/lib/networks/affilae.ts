@@ -1,5 +1,5 @@
 import { discountBadge } from "../discount.ts";
-import { getJson, isoDay, REGION, required, siteOf, type Credentials, type NetAdvertiser, type NetOffer, type NetworkAdapter } from "./types.ts";
+import { getJson, isoDay, REGION, required, singleCountry, siteOf, type Credentials, type NetAdvertiser, type NetOffer, type NetworkAdapter } from "./types.ts";
 
 // Affilae publisher API — rest.affilae.com/reference: Bearer token. GET /publisher/publishers.me (our affiliate
 // profiles), /publisher/partnerships.list (approved programmes), /publisher/vouchers.list (codes) and
@@ -69,7 +69,12 @@ export const affilae: NetworkAdapter = {
       for (const p of partnerships?.data ?? []) {
         const countries = p.program?.countries ?? [];
         if (!p.program || (countries.length && !countries.includes(REGION))) continue;
-        advertisers.set(p.program.id, { id: p.program.id, name: (p.program.name ?? p.program.id).trim(), website: siteOf(p.program.url), trackingTemplate: partnershipTemplate(p) });
+        // a programme open to one country only is that country's (open to several, or to all, says nothing)
+        const country = singleCountry(countries);
+        advertisers.set(p.program.id, {
+          id: p.program.id, name: (p.program.name ?? p.program.id).trim(), website: siteOf(p.program.url), trackingTemplate: partnershipTemplate(p),
+          ...(country ? { country } : {}),
+        });
       }
       const ads = await getJson<CouponAd[]>(`${API}/publisher/ads.list?affiliateProfile=${profile}&type=coupon&status=active`, { headers });
       for (const v of await vouchersOf(profile, headers)) {

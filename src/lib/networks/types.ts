@@ -18,6 +18,7 @@ export interface NetAdvertiser {
   name: string;
   website: string; // https://… or "" when the network doesn't say
   trackingTemplate: string; // link with {url}/{ref} for stores.tracking_url; "" for Awin (built from merchant_id)
+  country?: string; // ISO 3166-1 alpha-2 the programme is for, only when the network says so (see networkCountries)
 }
 
 export interface NetFeed {
@@ -148,3 +149,25 @@ export const required = (c: Credentials, ...names: string[]) => {
   const missing = names.filter((n) => !c[n]?.trim());
   if (missing.length) throw new Error(`Faltan credenciales: ${missing.join(", ")}`);
 };
+
+// "de" → "DE", "UK" → "GB"; "" when it isn't a two-letter country code
+export function countryCode(raw: string | null | undefined): string {
+  const v = (raw ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(v)) return "";
+  return v === "UK" ? "GB" : v;
+}
+
+// The one country of a list ("ES" in ["ES", "es"]), "" when it names none or several
+export function singleCountry(list: readonly string[]): string {
+  const codes = new Set(list.map(countryCode).filter(Boolean));
+  return codes.size === 1 ? [...codes][0] : "";
+}
+
+// Store id → country, for the advertisers matched to a store whose network gave a valid country
+export function networkCountries(advertisers: readonly NetAdvertiser[], storeOf: ReadonlyMap<string, number>): Map<number, string> {
+  return new Map(advertisers.flatMap((a) => {
+    const store = storeOf.get(a.id);
+    const code = countryCode(a.country);
+    return store && code ? [[store, code] as const] : [];
+  }));
+}

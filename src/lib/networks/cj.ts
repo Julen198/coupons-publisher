@@ -1,5 +1,5 @@
 import { discountBadge } from "../discount.ts";
-import { getText, isoDay, REGION, required, siteOf, type Credentials, type NetAdvertiser, type NetOffer, type NetworkAdapter } from "./types.ts";
+import { getText, isoDay, REGION, required, singleCountry, siteOf, type Credentials, type NetAdvertiser, type NetOffer, type NetworkAdapter } from "./types.ts";
 import { attr, elements, text } from "./xml.ts";
 
 // CJ (Commission Junction) Link Search API — developers.cj.com/docs/rest-apis/link-search:
@@ -67,6 +67,14 @@ export function mapLink(l: CjLink): NetOffer | null {
   };
 }
 
+// An advertiser whose every link targets the same single country sells there; a link with no targeted countries
+// (everywhere) or links for several countries say nothing
+export function advertiserCountry(links: readonly Pick<CjLink, "countries">[]): string {
+  const lists = links.map((l) => l.countries.split(/[,\s]+/).filter(Boolean));
+  if (!lists.length || lists.some((c) => !c.length)) return "";
+  return singleCountry(lists.flat());
+}
+
 export const cj: NetworkAdapter = {
   id: "cj",
   label: "CJ",
@@ -96,6 +104,11 @@ export const cj: NetworkAdapter = {
       const a = { id: l.advertiserId, name: l.advertiserName, website: siteOf(l.destination), trackingTemplate: trackingTemplate(l.clickUrl) };
       advertisers.set(l.advertiserId, known ? { ...known, website: known.website || a.website, trackingTemplate: known.trackingTemplate || a.trackingTemplate } : a);
     }
-    return { advertisers: [...advertisers.values()], offers: links.map(mapLink).filter((o): o is NetOffer => o !== null && Boolean(o.id)) };
+    const country = (id: string) => advertiserCountry(links.filter((l) => l.advertiserId === id));
+    const withCountry = [...advertisers.values()].map((a) => {
+      const code = country(a.id);
+      return code ? { ...a, country: code } : a;
+    });
+    return { advertisers: withCountry, offers: links.map(mapLink).filter((o): o is NetOffer => o !== null && Boolean(o.id)) };
   },
 };

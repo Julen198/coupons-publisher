@@ -4,7 +4,8 @@ import { slugify } from "./form.ts";
 import { decryptJson } from "./secrets.ts";
 import { adapterFor } from "./networks/index.ts";
 import { cleanAdvertiserName, matchStore, type StoreRef } from "./networks/match.ts";
-import { httpsImage, type Credentials, type NetAdvertiser, type NetFeed, type NetOffer, type NetworkAdapter } from "./networks/types.ts";
+import { isMissingCountry } from "./country-column.ts";
+import { httpsImage, networkCountries, type Credentials, type NetAdvertiser, type NetFeed, type NetOffer, type NetworkAdapter } from "./networks/types.ts";
 
 export interface NetworkAccount {
   id: number;
@@ -77,6 +78,7 @@ async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, clientId: numbe
   }
 
   if (clientId !== null) await saveClientTracking(clientId, net, feed.advertisers, storeOf);
+  await saveNetworkCountries(networkCountries(feed.advertisers, storeOf));
   if (publisherId && storeOf.size) {
     // first of our publisher ids joined to the advertiser keeps the store; manual coupons there use it
     await sql()`UPDATE stores SET publisher_id = ${publisherId} WHERE id = ANY(${[...new Set(storeOf.values())]}::int[]) AND publisher_id = ''`;
@@ -94,6 +96,22 @@ async function saveClientTracking(clientId: number, net: string, advertisers: Ne
   await sql()`DELETE FROM client_tracking WHERE client_id = ${clientId} AND network = ${net}`;
   for (let i = 0; i < rows.length; i += CHUNK) {
     await sql()`INSERT INTO client_tracking ${sql()(rows.slice(i, i + CHUNK))} ON CONFLICT (client_id, store_id) DO UPDATE SET network = excluded.network, tracking_url = excluded.tracking_url`;
+  }
+}
+
+// The country a network gives for its programme becomes the store's (country_source 'network'), unless an editor set it
+// by hand. Skipped until npm run db:setup adds the columns.
+async function saveNetworkCountries(countries: Map<number, string>) {
+  if (!countries.size) return;
+  const ids = [...countries.keys()];
+  const codes = ids.map((id) => countries.get(id) ?? "");
+  try {
+    await sql()`
+      UPDATE stores s SET country = v.country, country_source = 'network'
+      FROM (SELECT unnest(${ids}::int[]) AS id, unnest(${codes}::text[]) AS country) v
+      WHERE s.id = v.id AND s.country_source <> 'manual' AND (s.country <> v.country OR s.country_source <> 'network')`;
+  } catch (e) {
+    if (!isMissingCountry(e)) throw e;
   }
 }
 
