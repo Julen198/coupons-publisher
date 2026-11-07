@@ -4,6 +4,7 @@
 //   node scripts/refresh-logos.ts --apply [--only=...]          updates logo_data where the proposal is bigger
 //   node scripts/refresh-logos.ts --only=slug --force [--apply]  replaces even if not bigger
 //   node scripts/refresh-logos.ts --only=slug --from=https://.../logo.svg [--apply]   a logo you picked by hand
+//   node scripts/refresh-logos.ts --clear --only=slug1,slug2      remove their logos (the site shows initials)
 import nextEnv from "@next/env";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -66,6 +67,14 @@ async function review(store: Store, placeholders: Set<string>): Promise<ReviewRo
 }
 
 const sql = postgres(url, { prepare: false, max: 1, onnotice: () => {} });
+
+// --clear --only=a,b: forget those stores' logos; the site shows their initials instead
+if (args.clear) {
+  const gone = await sql`UPDATE stores SET logo_data = '' WHERE slug = ANY(${args.only}) RETURNING slug`;
+  console.log(`Logo quitado en ${gone.length} tienda(s): ${gone.map((r) => r.slug).join(", ") || "ninguna (revisa los slugs)"}`);
+  await sql.end();
+  process.exit(0);
+}
 try {
   const stores = args.only.length
     ? await sql<Store[]>`SELECT slug, name, website, logo_data FROM stores WHERE slug IN ${sql(args.only)} ORDER BY name`

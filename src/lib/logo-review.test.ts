@@ -20,12 +20,15 @@ test("logoDataInfo reads a stored data: URI's real type and size; null for empty
 });
 
 test("parseRefreshArgs: dry run by default, --apply, --only list, --force and --from need --only", () => {
-  assert.deepEqual(parseRefreshArgs([]), { apply: false, only: [], force: false, from: "", out: "" });
-  assert.deepEqual(parseRefreshArgs(["--apply", "--only=a, b", "--out=/tmp/x.html"]), { apply: true, only: ["a", "b"], force: false, from: "", out: "/tmp/x.html" });
+  assert.deepEqual(parseRefreshArgs([]), { apply: false, only: [], force: false, from: "", out: "", clear: false });
+  assert.deepEqual(parseRefreshArgs(["--apply", "--only=a, b", "--out=/tmp/x.html"]), { apply: true, only: ["a", "b"], force: false, from: "", out: "/tmp/x.html", clear: false });
   assert.deepEqual(parseRefreshArgs(["--only=eci", "--force", "--from=https://x.es/l.svg"]).from, "https://x.es/l.svg");
   assert.throws(() => parseRefreshArgs(["--force"]), /--only/);
   assert.throws(() => parseRefreshArgs(["--from=https://x.es/l.png", "--only=a,b"]), /one store/);
   assert.throws(() => parseRefreshArgs(["--aply"]), /--aply/);
+  // --clear removes the stored logo (the site then shows the store's initials); only for named stores
+  assert.equal(parseRefreshArgs(["--clear", "--only=el-corte-ingles,rituals"]).clear, true);
+  assert.throws(() => parseRefreshArgs(["--clear"]), /--only/);
 });
 
 test("renderLogoReview escapes store text and only embeds image data URIs", () => {

@@ -1,23 +1,34 @@
 "use client";
 
 import { useState } from "react";
+import { initialsOf } from "@/lib/initials";
 import { useCrispLogo } from "../use-crisp-logo";
 
-// "43einhalb" → "43", "El Corte Inglés" → "ECI", "PcComponentes" → "PC", "zalando" → "Z"
-export function initialsOf(name: string): string {
-  const digits = /^\d{1,2}/.exec(name)?.[0];
-  if (digits) return digits;
-  const caps = (name.match(/\p{Lu}/gu) ?? []).slice(0, 3).join("");
-  return caps || name.charAt(0).toUpperCase();
+// Smaller than this (image pixels) a logo is a smudge: initials read better
+const MIN_LOGO_PX = 64; // a 32-48px favicon shown at its crisp 16-24px is lost in a 44-112px tile
+
+// An app-style icon (opaque to its corners, square, at least 96px) fills the whole tile instead of sitting as a stamp
+// inside it; a transparent glyph keeps the tile's white margin. Our own route, so the canvas can read it.
+function isFullBleed(img: HTMLImageElement): boolean {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (!w || Math.abs(w - h) > w * 0.05 || Math.min(w, h) < 96) return false;
+  try {
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return false;
+    ctx.drawImage(img, 0, 0);
+    return [[1, 1], [w - 2, 1], [1, h - 2], [w - 2, h - 2]].every(([x, y]) => ctx.getImageData(x, y, 1, 1).data[3] > 250);
+  } catch {
+    return false; // can't read it: leave it as it is
+  }
 }
 
-// Smaller than this (image pixels) a logo is a smudge: initials read better
-const MIN_LOGO_PX = 24;
-
-// A store's logo from /store-logo/<slug>, or its initials when it has none (or the image fails, or is under 24px).
+// A store's logo from /store-logo/<slug>, or its initials when it has none (or the image fails, or is under 64px).
 // A logo too small for its frame is shown at its own crisp size, centred in the tile (the frames are grids).
 export function StoreLogoImg({ slug, name, hasLogo, className }: { slug: string; name: string; hasLogo: boolean; className?: string }) {
   const [failed, setFailed] = useState(false);
+  const [full, setFull] = useState(false);
   // the tiny header icon (.slogo) keeps the usual rule: nothing rather than a smudge there
   const { style, tooSmall, measure } = useCrispLogo(className === "slogo" ? {} : { minNaturalPx: MIN_LOGO_PX });
   if (hasLogo && !failed && !tooSmall) {
@@ -27,10 +38,13 @@ export function StoreLogoImg({ slug, name, hasLogo, className }: { slug: string;
         ref={measure}
         src={`/store-logo/${slug}`}
         alt={`Logo de ${name}`}
-        className={className}
-        style={style}
+        className={[className, full && "logo-full"].filter(Boolean).join(" ") || undefined}
+        style={full ? undefined : style}
         loading="lazy"
-        onLoad={(e) => measure(e.currentTarget)}
+        onLoad={(e) => {
+          measure(e.currentTarget);
+          if (className !== "slogo") setFull(isFullBleed(e.currentTarget));
+        }}
         onError={() => setFailed(true)}
       />
     );

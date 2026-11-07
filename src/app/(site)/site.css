@@ -512,3 +512,6 @@ body:has(.cl) { background: #f3f5fa; }
 
 /* three initials ("ASM", "ECI") are wider than the tile was sized for: shrink them in every context */
 .cl .initial[data-n="3"] { transform: scale(.72); }
+
+/* app-style store icons (opaque, square) fill their tile; transparent glyphs keep the white margin (store-logo-img.tsx) */
+.cl img.logo-full { width: 100%; height: 100%; object-fit: cover; }

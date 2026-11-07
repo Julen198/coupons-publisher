@@ -8,21 +8,24 @@ export interface RefreshArgs {
   force: boolean; // with --only: replace even when the proposal isn't bigger
   from: string; // with one --only store: take the logo from this image URL instead of searching
   out: string;
+  clear: boolean; // with --only: remove the stored logo, so the site shows the store's initials
 }
 
 export function parseRefreshArgs(argv: readonly string[]): RefreshArgs {
-  const args: RefreshArgs = { apply: false, only: [], force: false, from: "", out: "" };
+  const args: RefreshArgs = { apply: false, only: [], force: false, from: "", out: "", clear: false };
   for (const a of argv) {
     const [flag, ...rest] = a.split("=");
     const value = rest.join("=");
     if (a === "--apply") args.apply = true;
     else if (a === "--force") args.force = true;
+    else if (a === "--clear") args.clear = true;
     else if (flag === "--only") args.only = value.split(",").map((s) => s.trim()).filter(Boolean);
     else if (flag === "--from") args.from = value.trim();
     else if (flag === "--out") args.out = value.trim();
     else throw new Error(`Opción desconocida: ${a}`);
   }
   if (args.force && !args.only.length) throw new Error("--force solo vale junto a --only=<slugs>");
+  if (args.clear && !args.only.length) throw new Error("--clear solo vale junto a --only=<slugs>");
   if (args.from && args.only.length !== 1) throw new Error("--from necesita --only con una sola tienda (one store)");
   return args;
 }
