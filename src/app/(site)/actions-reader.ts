@@ -10,7 +10,7 @@ import {
   COMMENT_COOLDOWN_MESSAGE, PARENT_GONE_MESSAGE, SHARE_LIMIT_PER_DAY, commentInputError, expiryLimitMessage, REPORT_INACTIVE_MESSAGE, savedRequest,
   shareLimitMessage, storeIdFor, voteRequest,
 } from "@/lib/community-rules";
-import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, readerLinkEmail, sendEmail } from "@/lib/email";
+import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, missingEmailConfig, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
 import { siteCoupon } from "@/lib/public-site";
@@ -25,6 +25,9 @@ const GLOBAL_LINK_WINDOW_MINUTES = 10;
 export async function requestReaderLink(_prev: FormState, f: FormData): Promise<FormState & { sent?: boolean }> {
   const email = str(f, "email").toLowerCase();
   if (!validEmail(email)) return { error: "Escribe un email válido." };
+  // the reader still sees "sent" (no account probing), so the server log is where a broken setup shows
+  const missing = missingEmailConfig(process.env);
+  if (missing.length) console.error("[reader-link] email not configured", { missing });
   const token = newToken();
   try {
     const [recent] = await sql()<{ n: number }[]>`

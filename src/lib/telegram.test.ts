@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { channelUrl, dealMessage, hashtag, parseCallback, promptCouponId, reviewKeyboard } from "./telegram.ts";
+import { channelUrl, cronAuthorized, dealMessage, hashtag, parseCallback, promptCouponId, reviewKeyboard } from "./telegram.ts";
 
 test("channel join link comes from a public @username only", () => {
   assert.equal(channelUrl("@cuponlabchollos"), "https://t.me/cuponlabchollos");
@@ -58,4 +58,12 @@ test("edit prompt carries the coupon id", () => {
   assert.equal(promptCouponId("✏️ Responde con el título para el canal (#42)"), 42);
   assert.equal(promptCouponId("hola"), null);
   assert.equal(promptCouponId(undefined), null);
+});
+
+test("cronAuthorized: only the Bearer CRON_SECRET header, and never without a secret set", () => {
+  assert.equal(cronAuthorized("s3cret", "Bearer s3cret"), true);
+  assert.equal(cronAuthorized("s3cret", "Bearer other"), false);
+  assert.equal(cronAuthorized("s3cret", null), false);
+  assert.equal(cronAuthorized(undefined, "Bearer undefined"), false);
+  assert.equal(cronAuthorized("", "Bearer "), false);
 });

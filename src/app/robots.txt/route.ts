@@ -1,7 +1,7 @@
+import { robotsTxt } from "@/lib/robots";
 import { siteUrl } from "@/lib/site-text";
 
-// Only the public deals site is for search engines; the panel and clients' pages stay out
+// Only the public deals site is for search engines; the panel and clients' pages stay out (see src/lib/robots.ts)
 export function GET() {
-  const body = ["User-agent: *", "Allow: /$", "Allow: /chollos/", "Allow: /tiendas", "Allow: /calendario", "Disallow: /", "", `Sitemap: ${siteUrl()}/sitemap.xml`, ""].join("\n");
-  return new Response(body, { headers: { "Content-Type": "text/plain" } });
+  return new Response(robotsTxt(siteUrl()), { headers: { "Content-Type": "text/plain" } });
 }

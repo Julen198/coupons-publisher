@@ -64,6 +64,12 @@ export function inviteEmail(name: string, inviter: string, link: string, days: n
   };
 }
 
+// The Resend settings a real send needs and that are unset or blank (names only, safe to log). Without RESEND_FROM
+// mail goes out from onboarding@resend.dev, which only reaches the Resend account owner.
+export function missingEmailConfig(env: Record<string, string | undefined>): string[] {
+  return ["RESEND_API_KEY", "RESEND_FROM"].filter((k) => !env[k]?.trim());
+}
+
 // Resend REST API directly: one fetch doesn't justify the SDK
 export async function sendEmail(to: string, mail: Mail): Promise<void> {
   const key = process.env.RESEND_API_KEY;

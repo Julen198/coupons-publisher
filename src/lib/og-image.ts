@@ -81,7 +81,9 @@ const BLOCKED = new BlockList();
 for (const [net, prefix] of [["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.168.0.0", 16], ["198.18.0.0", 15], ["224.0.0.0", 3]] as const) {
   BLOCKED.addSubnet(net, prefix, "ipv4");
 }
-for (const [net, prefix] of [["::", 127], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8], ["64:ff9b::", 96]] as const) {
+// IPv6: unspecified, loopback and IPv4-compatible (::/96), ULA, link-local, multicast, NAT64, and the tunnels that carry
+// an IPv4 address inside (6to4 2002::/16, Teredo 2001::/32): a public-looking v6 must not reach a private v4
+for (const [net, prefix] of [["::", 96], ["fc00::", 7], ["fe80::", 10], ["ff00::", 8], ["64:ff9b::", 96], ["2002::", 16], ["2001::", 32]] as const) {
   BLOCKED.addSubnet(net, prefix, "ipv6");
 }
 

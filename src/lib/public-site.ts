@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { io } from "next/cache";
 import { sql, type Client, type Coupon, type Store } from "./db";
 import { isPublic } from "./coupon-status.ts";
@@ -9,6 +10,9 @@ import { madridToday } from "./site-text.ts";
 import { BRAND_ALLOWLIST, dedupeDeals, displayTitle } from "./deal-text.ts";
 import { isSpanishMarket } from "./market.ts";
 import type { CategorySlug } from "./catalog.ts";
+
+// Readers wrapped in React cache() run once per render: generateMetadata, the page and its related deals share one
+// query. The memo lasts one request only (no cross-request caching), and callers copy before sorting.
 
 // A coupon with what the public site needs from its store
 export type SiteCoupon = Coupon & {
@@ -50,10 +54,10 @@ const COUPON_SELECT = `
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
 // Store names plus BRAND_ALLOWLIST: words a shouting feed title gives back their own case ("NIKE" → "Nike")
-async function knownBrands(): Promise<string[]> {
+const knownBrands = cache(async (): Promise<string[]> => {
   const rows = await sql()<{ name: string }[]>`SELECT name FROM stores`;
   return [...BRAND_ALLOWLIST, ...rows.map((r) => r.name)];
-}
+});
 
 // Plain copies with display_title filled in
 function titled<T extends { title: string; store_name: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string })[] {
@@ -62,7 +66,7 @@ function titled<T extends { title: string; store_name: string }>(rows: readonly 
 
 // Every live coupon readers may see (same rule as clients' pages), newest first. Stores of other European
 // markets stay out (the site is Spanish), and a deal listed twice by its store shows once.
-export async function siteCoupons(): Promise<SiteCoupon[]> {
+export const siteCoupons = cache(async (): Promise<SiteCoupon[]> => {
   await io();
   const [rows, unverified, brands] = await Promise.all([
     sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.archived = 0 ORDER BY c.verified DESC, c.id DESC`,
@@ -71,10 +75,10 @@ export async function siteCoupons(): Promise<SiteCoupon[]> {
   ]);
   const t = madridToday().iso;
   return dedupeDeals(titled(rows, brands).filter((c) => isPublic(c, t, unverified) && isSpanishMarket(c.store_website)));
-}
+});
 
 // One coupon for its own page: live ones, and expired ones too (shown as expired so the URL keeps working)
-export async function siteCoupon(id: number): Promise<{ coupon: SiteCoupon; live: boolean } | undefined> {
+export const siteCoupon = cache(async (id: number): Promise<{ coupon: SiteCoupon; live: boolean } | undefined> => {
   await io();
   const [[row], unverified, brands] = await Promise.all([
     sql()<SiteCoupon[]>`${sql().unsafe(COUPON_SELECT)} WHERE c.id = ${id}`,
@@ -85,7 +89,7 @@ export async function siteCoupon(id: number): Promise<{ coupon: SiteCoupon; live
   const [coupon] = titled([row], brands);
   const seen = dealVisibility(coupon, madridToday().iso, unverified);
   return seen === "gone" ? undefined : { coupon, live: seen === "live" };
-}
+});
 
 // What a reader has voted, by coupon id
 export async function readerVotes(readerId: number): Promise<Map<number, -1 | 1>> {
@@ -95,10 +99,10 @@ export async function readerVotes(readerId: number): Promise<Map<number, -1 | 1>
 }
 
 // The signed-in reader's votes, or none. One query per request.
-export async function currentVotes(): Promise<Map<number, -1 | 1>> {
+export const currentVotes = cache(async (): Promise<Map<number, -1 | 1>> => {
   const reader = await getReader();
   return reader ? readerVotes(reader.id) : new Map();
-}
+});
 
 // What the signed-in reader did on one deal: saved it (Guardar), reported it as expired (Marcar como caducado)
 export async function readerDealMarks(readerId: number | null, couponId: number): Promise<{ saved: boolean; reported: boolean }> {
@@ -110,13 +114,13 @@ export async function readerDealMarks(readerId: number | null, couponId: number)
   return { saved: !!row?.saved, reported: !!row?.reported };
 }
 
-export async function siteStore(slug: string): Promise<Store | undefined> {
+export const siteStore = cache(async (slug: string): Promise<Store | undefined> => {
   await io();
   const [row] = await sql()<Store[]>`
     SELECT id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo
     FROM stores WHERE slug = ${slug}`;
   return row && isSpanishMarket(row.website) ? { ...row } : undefined;
-}
+});
 
 export async function siteStoreById(id: number): Promise<Pick<Store, "intro" | "faqs" | "category" | "facts"> | undefined> {
   await io();
@@ -136,11 +140,11 @@ export async function storeGuides(storeIds: number[]): Promise<Pick<Store, "id" 
 // The client whose clicks the public site counts as (create it in Clientes with this slug)
 export const SITE_CLIENT_SLUG = process.env.SITE_CLIENT_SLUG || "cuponlab";
 
-export async function siteClient(): Promise<Client | undefined> {
+export const siteClient = cache(async (): Promise<Client | undefined> => {
   await io();
   const [row] = await sql()<Client[]>`SELECT * FROM clients WHERE slug = ${SITE_CLIENT_SLUG}`;
   return row ? { ...row } : undefined;
-}
+});
 
 // Where "Ir a la tienda" goes: through /go (counted) when the site client exists, else straight to the
 // affiliate link with our own publisher ids

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dealRouteVerdict, dealVisibility, storeRouteVerdict } from "./site-routes.ts";
+import { dealRouteVerdict, dealVisibility, isDocumentRequest, storeRouteVerdict } from "./site-routes.ts";
 
 const T = "2026-11-06";
 const row = (over: Partial<Parameters<typeof dealVisibility>[0] & { id: number; title: string; store_name: string }> = {}) => ({
@@ -56,4 +56,16 @@ test("storeRouteVerdict: Spanish stores are ok, missing or foreign ones are not"
   assert.deepEqual(storeRouteVerdict({ website: "" }), { kind: "ok" });
   assert.deepEqual(storeRouteVerdict({ website: "https://www.jdsports.it" }), { kind: "missing" });
   assert.deepEqual(storeRouteVerdict(undefined), { kind: "missing" });
+});
+
+test("isDocumentRequest: only GET/HEAD HTML navigations, never RSC or prefetch fetches", () => {
+  const html = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+  const url = (q = "") => new URL(`https://cuponlab.es/chollos/42-x${q}`);
+  assert.equal(isDocumentRequest("GET", html, url()), true);
+  assert.equal(isDocumentRequest("HEAD", html, url()), true);
+  assert.equal(isDocumentRequest("POST", html, url()), false);
+  assert.equal(isDocumentRequest("GET", "*/*", url()), false); // client router fetch() (RSC navigation / prefetch)
+  assert.equal(isDocumentRequest("GET", null, url()), false);
+  assert.equal(isDocumentRequest("GET", html, url("?_rsc=abc")), false);
+  assert.equal(isDocumentRequest("GET", "TEXT/HTML", url()), true);
 });

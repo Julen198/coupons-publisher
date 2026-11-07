@@ -100,3 +100,12 @@ test("isTrackingLink spots affiliate redirects, which must not be fetched (they 
   assert.equal(isTrackingLink("https://www.anrdoezrs.net/click-1-2"), true);
   assert.equal(isTrackingLink("https://www.tienda.es/cafeteras/magnifica-s"), false);
 });
+
+test("isBlockedAddress blocks IPv6 forms that embed an IPv4 address: IPv4-compatible, 6to4 and Teredo", () => {
+  for (const ip of ["::7f00:1", "::127.0.0.1", "::a9fe:a9fe", "::10.0.0.1", "2002:7f00:1::", "2002:c0a8:101::1", "2002:808:808::1", "2001:0:4136:e378:8000:63bf:3fff:fdd2", "2001::1"]) {
+    assert.equal(isBlockedAddress(ip), true, ip);
+  }
+  for (const ip of ["2001:4860:4860::8888", "2606:4700:4700::1111", "2003::1"]) {
+    assert.equal(isBlockedAddress(ip), false, ip);
+  }
+});
