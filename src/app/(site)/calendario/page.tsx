@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { blackFriday, calendarGroups, daysBetween, eventsOf, longDate, madridToday, monthShort, siteUrl, untilLabel } from "@/lib/site-text";
+import Link from "next/link";
+import { hasDateAlert } from "@/lib/date-alert-subs";
+import { getReader } from "@/lib/reader";
+import { toggleDateAlert } from "../actions-reader";
 import { Crumbs, Faqs, JsonLd, crumbsLd, faqLd } from "../site-ui";
 
 export const metadata: Metadata = {
@@ -13,6 +17,28 @@ const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes
 const weekday = (iso: string) => WEEKDAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()];
 // "11 de noviembre", the year left out as the h1 already gives it
 const dayMonth = (iso: string) => longDate(iso).replace(/ de \d{4}$/, "");
+
+// "Avísame antes de cada fecha" (board SiteCalendar): signed out it goes to sign in and back here; signed in the
+// button creates or removes the subscription the daily cron (/api/date-alerts/cron) emails
+async function DateAlertPanel() {
+  const reader = await getReader();
+  const on = reader ? await hasDateAlert(reader.id) : false;
+  return (
+    <section className="panel" aria-labelledby="aviso-h2">
+      <h2 id="aviso-h2">Avísame antes de cada fecha</h2>
+      <p className="small">Un email dos días antes con los mejores chollos de esa fecha. Sin spam.</p>
+      {!reader ? (
+        <Link className="btn btn-primary" href="/entrar?next=/calendario">Crear aviso</Link>
+      ) : (
+        <form action={toggleDateAlert} className="alert-form">
+          <input type="hidden" name="on" value={on ? "0" : "1"} />
+          {on && <p className="small" role="status">Aviso activado</p>}
+          <button className={on ? "btn" : "btn btn-primary"} type="submit">{on ? "Quitar aviso" : "Crear aviso"}</button>
+        </form>
+      )}
+    </section>
+  );
+}
 
 // The next 12 months of shopping dates, month by month
 export default async function CalendarPage() {
@@ -88,6 +114,7 @@ export default async function CalendarPage() {
             ))}
           </div>
           <aside className="rail">
+            <DateAlertPanel />
             <section className="panel">
               <h2>Dudas sobre estas fechas</h2>
               <Faqs items={faqs} />

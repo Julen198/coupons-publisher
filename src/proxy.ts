@@ -9,7 +9,9 @@ const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/
 // Reachable without signing in: the public site, login, accepting an invitation, and what publishers embed on their sites
 const PUBLIC = [...SITE, /^\/login$/, /^\/login\/magic$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//,
   // Telegram webhook and its daily cron: each checks its own secret header instead of a session
-  /^\/api\/telegram(\/cron)?$/];
+  /^\/api\/telegram(\/cron)?$/,
+  // date alerts: the cron checks CRON_SECRET, the unsubscribe link carries its own signed token
+  /^\/api\/date-alerts\/(cron|baja)$/];
 
 const DEAL_PAGE = /^\/chollos\/([^/]+)$/;
 const STORE_PAGE = /^\/tiendas\/([^/]+)$/;

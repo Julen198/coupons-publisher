@@ -14,12 +14,13 @@ export function appUrl(): string {
   return "http://localhost:3000";
 }
 
-const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+export const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-interface Mail {
+export interface Mail {
   subject: string;
   text: string;
   html: string;
+  headers?: Record<string, string>; // extra mail headers, e.g. List-Unsubscribe
 }
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? "";

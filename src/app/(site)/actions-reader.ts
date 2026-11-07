@@ -5,11 +5,12 @@ import type postgres from "postgres";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { cleanComment, cleanHandle, couponIdOf, parseSharedDeal, replyParent, reportLimitReached, validEmail } from "@/lib/community";
+import { cleanComment, cleanHandle, couponIdOf, flagOf, parseSharedDeal, replyParent, reportLimitReached, validEmail } from "@/lib/community";
 import {
   COMMENT_COOLDOWN_MESSAGE, PARENT_GONE_MESSAGE, SHARE_LIMIT_PER_DAY, SHARE_LIMIT_SKIPS, commentInputError, expiryLimitMessage, REPORT_INACTIVE_MESSAGE, savedRequest,
   shareLimitMessage, storeIdFor, voteRequest,
 } from "@/lib/community-rules";
+import { setDateAlert } from "@/lib/date-alert-subs";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, missingEmailConfig, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
@@ -253,4 +254,14 @@ export async function reportExpired(_prev: FormState & { done?: boolean }, f: Fo
   if (limited) return { error: expiryLimitMessage };
   refresh();
   return { done: true };
+}
+
+// "Avísame antes de cada fecha" on /calendario. `on` is the state the button asks for (1 create, 0 remove).
+export async function toggleDateAlert(f: FormData): Promise<void> {
+  const reader = await getReader();
+  if (!reader) redirect("/entrar?next=/calendario");
+  const on = flagOf(str(f, "on"));
+  if (on === null) return;
+  await setDateAlert(reader.id, on === 1);
+  refresh();
 }

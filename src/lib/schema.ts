@@ -272,7 +272,20 @@ ALTER TABLE expiry_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS image_checked_at timestamptz;
 -- why an editor rejected a shared deal (one of REJECT_REASONS, '' = none), shown to the reader on /cuenta
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS review_reason text NOT NULL DEFAULT '';
+-- "Avísame antes de cada fecha" (/calendario): who is subscribed, and which date each reader was already emailed about
+CREATE TABLE IF NOT EXISTS date_alert_subs (
+  reader_id int PRIMARY KEY REFERENCES readers(id) ON DELETE CASCADE,
+  at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE date_alert_subs ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS date_alert_sends (
+  reader_id int REFERENCES readers(id) ON DELETE CASCADE,
+  event_key text,
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_id, event_key)
+);
+ALTER TABLE date_alert_sends ENABLE ROW LEVEL SECURITY;
 `;
 
-// "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals and expiry reports go too); panel users, settings and our own network accounts stay
-export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comment_votes, comments, saved_deals, expiry_reports, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;
+// "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
+export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comment_votes, comments, saved_deals, expiry_reports, date_alert_subs, date_alert_sends, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;

@@ -183,8 +183,9 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .rail { display: grid; gap: 16px; }
 .cl .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; }
 .cl .panel h2 { font-size: 1.05rem; }
-.cl .panel > a { font-size: .85rem; font-weight: 600; text-decoration: none; }
-.cl .panel > a:hover { text-decoration: underline; }
+.cl .panel > a:not(.btn) { font-size: .85rem; font-weight: 600; text-decoration: none; }
+.cl .panel > a:not(.btn):hover { text-decoration: underline; }
+.cl .alert-form { display: grid; gap: 12px; }
 .cl .panel > a.small { font-size: .8rem; font-weight: 400; color: var(--ink-3); text-decoration: underline; }
 .cl .stores { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .cl .stores a { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 6px; text-decoration: none; color: var(--ink); font-weight: 600; font-size: .92rem; }
