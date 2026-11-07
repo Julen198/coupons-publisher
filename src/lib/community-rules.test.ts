@@ -10,6 +10,8 @@ import {
   moderationId,
   publishedActivity,
   readerBlockChange,
+  REJECT_REASONS,
+  rejectReasonOf,
   REPORT_INACTIVE_MESSAGE,
   savedRequest,
   shareLimitMessage,
@@ -81,4 +83,12 @@ test("readerBlockChange: blocking revokes sessions, unblocking does not", () => 
 test("publishedActivity names the reader, or a generic one", () => {
   assert.equal(publishedActivity("ana", "20% en Nike"), "Publicado el chollo compartido por @ana: 20% en Nike");
   assert.equal(publishedActivity(null, "20% en Nike"), "Publicado el chollo compartido por @lector: 20% en Nike");
+});
+
+test("rejectReasonOf only accepts the preset reasons", () => {
+  assert.deepEqual(REJECT_REASONS, ["ya estaba publicado", "ha caducado", "no es un chollo", "el enlace no funciona", "falta información"]);
+  for (const r of REJECT_REASONS) assert.equal(rejectReasonOf(r), r);
+  assert.throws(() => rejectReasonOf(""), /Elige un motivo/);
+  assert.throws(() => rejectReasonOf("spam <b>"), /Elige un motivo/);
+  assert.throws(() => rejectReasonOf("Ha caducado"), /Elige un motivo/);
 });

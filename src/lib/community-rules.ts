@@ -55,6 +55,16 @@ export function sharedReviewPatch(action: "publish" | "reject"): { archived?: 0;
   return action === "publish" ? { archived: 0, review: "", verified: 1 } : { review: "rejected" };
 }
 
+// The reasons an editor can give when rejecting a shared deal; the reader sees it on /cuenta ("Rechazado: …")
+export const REJECT_REASONS = ["ya estaba publicado", "ha caducado", "no es un chollo", "el enlace no funciona", "falta información"] as const;
+export type RejectReason = (typeof REJECT_REASONS)[number];
+
+export function rejectReasonOf(raw: string): RejectReason {
+  const found = REJECT_REASONS.find((r) => r === raw);
+  if (!found) throw new Error("Elige un motivo de la lista");
+  return found;
+}
+
 // Blocking also bumps session_version, so the reader's cookie stops working right away
 export function readerBlockChange(blocked: 0 | 1): { status: "active" | "blocked"; sessionBump: 0 | 1 } {
   return blocked ? { status: "blocked", sessionBump: 1 } : { status: "active", sessionBump: 0 };

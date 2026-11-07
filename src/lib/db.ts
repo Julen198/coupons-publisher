@@ -52,6 +52,7 @@ export type Coupon = {
   publisher_id: string; // Awin: publisher id of our account that imported it ("" = manual or a client's own account)
   shared_by: number | null; // reader who shared it
   review: "" | "pending" | "rejected"; // moderation of shared coupons
+  review_reason?: string; // why an editor rejected it ('' = none given); optional until the column exists
   about: string; // "Sobre este chollo" text
   about_status: "" | "draft" | "approved"; // public only when approved
 };

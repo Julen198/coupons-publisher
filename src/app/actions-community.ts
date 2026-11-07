@@ -6,7 +6,8 @@ import { fillProductImages } from "@/lib/fill-product-images";
 import { sql } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
 import { requireEditor } from "@/lib/auth";
-import { moderationFlag, moderationId, publishedActivity, readerBlockChange, sharedReviewPatch } from "@/lib/community-rules";
+import { moderationFlag, moderationId, publishedActivity, readerBlockChange, rejectReasonOf, sharedReviewPatch } from "@/lib/community-rules";
+import { isMissingSchema } from "@/lib/schema-guard";
 import { errorMessage, str } from "@/lib/form";
 import { generateDealAbout } from "@/lib/ai-content";
 import { AiBudgetError } from "@/lib/ai-budget";
@@ -37,10 +38,20 @@ export async function publishShared(f: FormData) {
   refresh();
 }
 
+// The reason must be one of REJECT_REASONS; the reader sees it on /cuenta. Before the review_reason column
+// exists (SCHEMA_SQL not run yet) the deal is still rejected, just without the reason.
 export async function rejectShared(f: FormData) {
   await requireEditor();
   const id = idOf(f);
-  await sql()`UPDATE coupons SET ${sql()(sharedReviewPatch("reject"))} WHERE id = ${id} AND shared_by IS NOT NULL AND review = 'pending'`;
+  const reason = rejectReasonOf(str(f, "reason"));
+  const patch = sharedReviewPatch("reject");
+  try {
+    await sql()`UPDATE coupons SET ${sql()({ ...patch, review_reason: reason })} WHERE id = ${id} AND shared_by IS NOT NULL AND review = 'pending'`;
+  } catch (e) {
+    if (!isMissingSchema(e)) throw e;
+    console.error("[rejectShared] coupons.review_reason missing, run SCHEMA_SQL", e);
+    await sql()`UPDATE coupons SET ${sql()(patch)} WHERE id = ${id} AND shared_by IS NOT NULL AND review = 'pending'`;
+  }
   refresh();
 }
 

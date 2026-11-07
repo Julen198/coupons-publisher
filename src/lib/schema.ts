@@ -270,6 +270,8 @@ CREATE INDEX IF NOT EXISTS expiry_reports_coupon_idx ON expiry_reports(coupon_id
 ALTER TABLE expiry_reports ENABLE ROW LEVEL SECURITY;
 -- when we last looked for a product photo on the deal's landing page (og:image): tried once, again after 30 days if none
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS image_checked_at timestamptz;
+-- why an editor rejected a shared deal (one of REJECT_REASONS, '' = none), shown to the reader on /cuenta
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS review_reason text NOT NULL DEFAULT '';
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals and expiry reports go too); panel users, settings and our own network accounts stay

@@ -16,9 +16,13 @@ export const accountHref = (tab: AccountTab): string => (tab === "compartidos" ?
 export type SharedStatus = { label: string; badge: "b-ok" | "b-exp" | "b-low" };
 
 // A deal the reader shared: pending review, rejected, published, or taken down later by an editor
-export function sharedStatus(c: { review: string; archived: number }): SharedStatus {
+// (review_reason is optional: rows read before the column exists don't have it)
+export function sharedStatus(c: { review: string; archived: number; review_reason?: string }): SharedStatus {
   if (c.review === "pending") return { label: "En revisión", badge: "b-exp" };
-  if (c.review === "rejected") return { label: "Rechazado", badge: "b-low" };
+  if (c.review === "rejected") {
+    const reason = c.review_reason?.trim();
+    return { label: reason ? `Rechazado: ${reason}` : "Rechazado", badge: "b-low" };
+  }
   return c.archived ? { label: "Retirado", badge: "b-exp" } : { label: "Publicado", badge: "b-ok" };
 }
 

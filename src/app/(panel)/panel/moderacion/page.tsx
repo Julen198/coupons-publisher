@@ -1,5 +1,6 @@
 import { dismissExpiryReports, publishShared, rejectShared, retireReported, setCommentHidden, setReaderBlocked } from "@/app/actions-community";
-import { btnCls, btnSecondaryCls, cardCls, fmtDateTime, PageHeader } from "@/app/ui";
+import { btnCls, btnSecondaryCls, cardCls, fmtDateTime, inputCls, PageHeader } from "@/app/ui";
+import { REJECT_REASONS } from "@/lib/community-rules";
 import { requireEditor } from "@/lib/auth";
 import { io } from "next/cache";
 import { sql } from "@/lib/db";
@@ -83,13 +84,19 @@ export default async function ModerationPage() {
                 Código {d.code || "sin código"} · Descuento {d.discount || "sin indicar"}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-start gap-2">
               <form action={publishShared}>
                 <input type="hidden" name="id" value={d.id} />
                 <button className={btnCls}>Publicar</button>
               </form>
-              <form action={rejectShared}>
+              {/* the reader sees the reason on /cuenta; rejectShared accepts only these */}
+              <form action={rejectShared} className="flex flex-wrap gap-2">
                 <input type="hidden" name="id" value={d.id} />
+                <label className="sr-only" htmlFor={`reason-${d.id}`}>Motivo del rechazo</label>
+                <select id={`reason-${d.id}`} name="reason" required defaultValue="" className={`${inputCls} w-auto`}>
+                  <option value="" disabled>Motivo del rechazo</option>
+                  {REJECT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
                 <button className={btnSecondaryCls}>Rechazar</button>
               </form>
             </div>

@@ -23,6 +23,12 @@ test("sharedStatus reads review first, then archived", () => {
   assert.deepEqual(sharedStatus({ review: "", archived: 1 }), { label: "Retirado", badge: "b-exp" });
 });
 
+test("sharedStatus names the rejection reason when there is one", () => {
+  assert.deepEqual(sharedStatus({ review: "rejected", archived: 1, review_reason: "ya estaba publicado" }), { label: "Rechazado: ya estaba publicado", badge: "b-low" });
+  assert.deepEqual(sharedStatus({ review: "rejected", archived: 1, review_reason: "" }), { label: "Rechazado", badge: "b-low" });
+  assert.deepEqual(sharedStatus({ review: "rejected", archived: 1, review_reason: "  " }), { label: "Rechazado", badge: "b-low" });
+});
+
 test("liveFirst puts live deals first and keeps the given order inside each group", () => {
   const rows = [{ id: 1, live: false }, { id: 2, live: true }, { id: 3, live: false }, { id: 4, live: true }];
   assert.deepEqual(liveFirst(rows).map((r) => r.id), [2, 4, 1, 3]);

@@ -303,6 +303,7 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .acct-list b a { color: var(--ink); text-decoration: none; }
 .cl .acct-list b a:hover { text-decoration: underline; }
 .cl .acct-list small { display: block; color: var(--ink-3); }
+.cl .acct-list .badge { white-space: nowrap; }
 .cl .acct-body { display: block; margin-top: 4px; font-size: .88rem; color: var(--ink-2); white-space: pre-line; overflow-wrap: anywhere; }
 .cl .top-actions a.handle { color: var(--ink-2); text-decoration: none; }
 .cl .top-actions a.handle:hover { text-decoration: underline; }
