@@ -7,7 +7,7 @@ import { longDate, madridToday, siteUrl } from "@/lib/site-text";
 import { isTracked, trackedLinkOf } from "@/lib/tracked-link";
 import { SITE_CLIENT_SLUG, accountsFor, clientLinks } from "@/lib/link-accounts";
 import { recordClick } from "@/lib/clicks";
-import { clickSource, isBot, refPath, uaHash, type ClickKind } from "@/lib/click-signals";
+import { clickSource, countsAsReader, isBot, refPath, uaHash, type ClickKind } from "@/lib/click-signals";
 
 type Target = { client: Client; coupon: Coupon; store: Store };
 
@@ -34,7 +34,7 @@ async function load(ctx: RouteContext<"/go/[client]/[coupon]">): Promise<Target 
 // Never block the reader over a lost count
 async function count(t: Target, kind: ClickKind, req: Request, ref: string, source: string) {
   const ua = req.headers.get("user-agent");
-  if (isBot(ua)) return;
+  if (isBot(ua) || !countsAsReader(kind, req.headers.get("referer"))) return;
   try {
     await recordClick({ clientId: t.client.id, storeId: t.store.id, couponId: t.coupon.id, kind, ref, source, uaHash: uaHash(ua ?? "", madridToday().iso) });
   } catch (e) {

@@ -10,6 +10,12 @@ const BOT_UA = /bot|crawl|spider|slurp|preview|facebookexternalhit|embedly|headl
 // An empty user agent is a script, not a browser
 export const isBot = (ua: string | null): boolean => !ua?.trim() || BOT_UA.test(ua);
 
+// A reader clicking a button sends the page it was on (same site: the path; another site: at least its origin). A hit
+// on /go with no Referer at all is a link checker or a crawler that doesn't say it's a bot (the 8-9 Nov 2026 test data:
+// one client, a click every hour or so, all day). ponytail: also drops the rare reader whose browser strips the
+// Referer entirely; count them apart if that ever matters. "Copiar código" posts its page in the beacon body.
+export const countsAsReader = (kind: ClickKind, referer: string | null): boolean => kind === "copy" || !!referer?.trim();
+
 // sha256 of user agent + Madrid day, first 16 hex chars: enough to tell repeats apart within a day, useless to identify
 // anyone (no IP, nothing kept raw, changes every day)
 export function uaHash(ua: string, day: string): string {

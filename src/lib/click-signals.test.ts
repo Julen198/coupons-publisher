@@ -60,3 +60,12 @@ test("withSource and pageSource", () => {
   assert.equal(pageSource({ utm_source: ["a", "b"] }, "chollo"), "chollo");
   assert.equal(pageSource({}, "portada"), "portada");
 });
+
+test("countsAsReader: a jump to a store needs the page it came from; copies carry it in the beacon", async () => {
+  const { countsAsReader } = await import("./click-signals.ts");
+  assert.equal(countsAsReader("go", "https://www.cuponlab.com/"), true);
+  assert.equal(countsAsReader("untracked", "https://diario.example/ofertas"), true);
+  assert.equal(countsAsReader("go", null), false); // straight hits on /go: link checkers and crawlers that hide
+  assert.equal(countsAsReader("go", "  "), false);
+  assert.equal(countsAsReader("copy", null), true);
+});
