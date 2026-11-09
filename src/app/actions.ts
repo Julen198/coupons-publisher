@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { attemptKeys, blockedFor, clientIp, LOGIN_LIMITS } from "@/lib/login-limit";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { fillStoreIcons } from "@/lib/fill-store-icons";
@@ -35,15 +36,47 @@ export type { FormState } from "@/lib/form";
 
 const FAILED_LOGIN_DELAY_MS = 600;
 
+// Failed logins in the window for this account and this IP. ponytail: fails open (logs) if the table is missing, so a
+// skipped db:setup never locks everyone out
+async function recentFailures(keys: { account: string; ip: string }): Promise<{ account: number; ip: number }> {
+  try {
+    const [row] = await sql()<{ account: number; ip: number }[]>`
+      SELECT count(*) FILTER (WHERE key = ${keys.account})::int AS account, count(*) FILTER (WHERE key = ${keys.ip})::int AS ip
+      FROM login_attempts WHERE key IN (${keys.account}, ${keys.ip}) AND at > now() - ${LOGIN_LIMITS.windowMinutes} * interval '1 minute'`;
+    return row ?? { account: 0, ip: 0 };
+  } catch (e) {
+    console.error("[login] attempts read failed", e);
+    return { account: 0, ip: 0 };
+  }
+}
+
+async function recordFailure(keys: { account: string; ip: string }) {
+  try {
+    await sql()`INSERT INTO login_attempts (key) VALUES (${keys.account}), (${keys.ip})`;
+    await sql()`DELETE FROM login_attempts WHERE at < now() - interval '1 day'`;
+  } catch (e) {
+    console.error("[login] attempts write failed", e);
+  }
+}
+
 export async function login(_prev: FormState, f: FormData): Promise<FormState> {
   const email = str(f, "email").toLowerCase();
+  const h = await headers();
+  const keys = attemptKeys(email, clientIp(h.get("x-forwarded-for"), h.get("x-real-ip")));
+  // checked before the password, and the same answer whether the account exists or not
+  if (blockedFor(await recentFailures(keys))) {
+    await new Promise((r) => setTimeout(r, FAILED_LOGIN_DELAY_MS));
+    return { error: `Demasiados intentos fallidos. Espera ${LOGIN_LIMITS.windowMinutes} minutos y vuelve a probar, o entra con un enlace por email.` };
+  }
   const [user] = await sql()<{ id: number; password_hash: string | null; status: string; session_version: number }[]>`
     SELECT id, password_hash, status, session_version FROM users WHERE email = ${email}`;
   // same message and delay whether the email exists or not, so it can't be used to probe accounts
   if (!user || user.status !== "active" || !(await verifyPassword(str(f, "password"), user.password_hash))) {
+    await recordFailure(keys);
     await new Promise((r) => setTimeout(r, FAILED_LOGIN_DELAY_MS));
     return { error: "Email o contraseña incorrectos." };
   }
+  await sql()`DELETE FROM login_attempts WHERE key = ${keys.account}`.catch((e) => console.error("[login] attempts clear failed", e));
   await startSession(user.id, user.session_version);
   redirect(safeNext(str(f, "next")));
 }

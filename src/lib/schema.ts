@@ -343,6 +343,13 @@ CREATE TABLE IF NOT EXISTS store_guides (
 ALTER TABLE store_guides ENABLE ROW LEVEL SECURITY;
 -- a rewrite of a published guide waits here, so the live one stays on the page until the new one goes out
 ALTER TABLE store_guides ADD COLUMN IF NOT EXISTS draft jsonb;
+-- failed panel logins (login-limit.ts): key = hashed account or IP, never the email or IP itself; rows older than a day go
+CREATE TABLE IF NOT EXISTS login_attempts (
+  key text NOT NULL,
+  at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS login_attempts_key_idx ON login_attempts(key, at);
+ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
