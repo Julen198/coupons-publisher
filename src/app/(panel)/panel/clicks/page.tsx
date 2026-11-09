@@ -3,13 +3,14 @@ import { Combobox } from "@/app/combobox";
 import { clickStats, type ClickRow } from "@/lib/clicks";
 import { onlyVisible, requireUser, visibleClientIds } from "@/lib/auth";
 import { listClients } from "@/lib/db";
+import { SOURCE_LABEL } from "@/lib/click-signals";
 import { btnSecondaryCls, cardCls, ClearFilters, PageHeader } from "@/app/ui";
 import { DailyChart } from "./daily-chart";
 
 const RANGES = [7, 30] as const;
 
 // Magnitude per row: one hue, bar length relative to the top row, value in text ink
-function BreakdownTable({ title, rows, hrefFor }: { title: string; rows: ClickRow[]; hrefFor: (r: ClickRow) => string }) {
+function BreakdownTable({ title, rows, hrefFor }: { title: string; rows: ClickRow[]; hrefFor?: (r: ClickRow) => string }) {
   const top = Math.max(1, ...rows.map((r) => r.clicks));
   return (
     <section aria-labelledby={`bd-${title}`} className="min-w-0 flex-[1_1_320px] overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
@@ -19,7 +20,7 @@ function BreakdownTable({ title, rows, hrefFor }: { title: string; rows: ClickRo
         <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
           {rows.map((r) => (
             <tr key={r.id}>
-              <th scope="row" className="w-2/5 px-5 py-2.5 text-left font-medium"><Link href={hrefFor(r)} className="hover:underline">{r.name}</Link></th>
+              <th scope="row" className="w-2/5 px-5 py-2.5 text-left font-medium">{hrefFor ? <Link href={hrefFor(r)} className="hover:underline">{r.name}</Link> : r.name}</th>
               <td className="py-2.5 pr-5">
                 <span className="flex items-center gap-3">
                   <span className="h-2 flex-1 rounded-full bg-neutral-100 dark:bg-neutral-800">
@@ -47,6 +48,8 @@ export default async function ClicksPage({ searchParams }: PageProps<"/panel/cli
 
   const change = stats.previous ? Math.round(((stats.total - stats.previous) / stats.previous) * 100) : null;
   const filters = { ...(client && { client: client.slug }) };
+  // origins with a label of their own ("Ficha de chollo"); a campaign's own word (?o=seo, utm_source=newsletter) as written
+  const bySource: ClickRow[] = stats.bySource.map((r, i) => ({ id: i, slug: r.source, name: SOURCE_LABEL[r.source] ?? r.source, clicks: r.clicks }));
 
   const kpis = [
     { label: `Clics (${days} días)`, value: stats.total.toLocaleString("es-ES"), note: client ? client.name : "Todos los medios" },
@@ -124,6 +127,7 @@ export default async function ClicksPage({ searchParams }: PageProps<"/panel/cli
       <div className="flex flex-wrap items-start gap-6">
         {!client && <BreakdownTable title="Por medio" rows={stats.byClient} hrefFor={(r) => `/panel/clicks?days=${days}&client=${r.slug}`} />}
         <BreakdownTable title="Por tienda" rows={stats.byStore} hrefFor={(r) => `/panel/stores/${r.slug}`} />
+        <BreakdownTable title="Por origen" rows={bySource} />
       </div>
 
       <section aria-labelledby="top" className="overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
@@ -151,6 +155,8 @@ export default async function ClicksPage({ searchParams }: PageProps<"/panel/cli
         Cada clic se registra al pasar por <code className="font-mono">/go/…</code> antes de ir a la red. No cuenta bots ni vistas previas de enlaces,
         y el mismo navegador en el mismo cupón cuenta una vez cada 30 segundos. «Copiar código» se cuenta aparte y no suma en el total.
         Si un enlace deja de llevar tracking, el lector va igualmente a la tienda y el clic sale como sin tracking.
+        El origen es la página o campaña donde se hizo el clic (portada, página de tienda, ficha, página del medio, widget,
+        o el <code className="font-mono">utm_source</code> / <code className="font-mono">?o=</code> del enlace) y va también al final del clickref de la red.
       </p>
     </div>
   );

@@ -7,7 +7,7 @@ const WIDGET = `(function () {
   if (!client || !store) return;
   var origin = new URL(s.src).origin;
   var f = document.createElement('iframe');
-  f.src = origin + '/p/' + encodeURIComponent(client) + '/' + encodeURIComponent(store);
+  f.src = origin + '/p/' + encodeURIComponent(client) + '/' + encodeURIComponent(store) + '?o=widget';
   f.title = 'Cupones ' + store;
   f.loading = 'lazy';
   f.style.cssText = 'width:100%;border:0;display:block;min-height:480px';

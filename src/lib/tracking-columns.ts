@@ -32,6 +32,9 @@ export function columnGuard(names: RegExp): ColumnGuard {
 
 export const altDomainsColumn = columnGuard(/\balt_domains\b/);
 export const clickColumns = columnGuard(/\b(kind|ref|ua_hash)\b/);
+// clicks.source (the click's origin) came later than kind/ref/ua_hash: its own guard, so a database that has those but
+// not this one still records them
+export const clickSourceColumn = columnGuard(/\bsource\b/);
 
 // For SELECTs on stores aliased `alias`
 export const altDomainsSql = (present: boolean, alias: string, as = "store_alt_domains"): string =>

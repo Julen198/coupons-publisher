@@ -1,9 +1,10 @@
 import { io } from "next/cache";
 import { sql } from "./db";
-import { clickColumns } from "./tracking-columns.ts";
+import { clickColumns, clickSourceColumn } from "./tracking-columns.ts";
 import { CLICK_RETENTION_DAYS, DEDUPE_SECONDS, retentionDays, type ClickKind } from "./click-signals.ts";
 
 export interface ClickRow { id: number; name: string; slug: string; clicks: number }
+export interface SourceClickRow { source: string; clicks: number }
 export interface CouponClickRow { id: number; title: string; code: string; store_name: string; clicks: number }
 
 export interface ClickStats {
@@ -13,6 +14,7 @@ export interface ClickStats {
   byDay: { day: string; clicks: number }[]; // every day in range, zero-filled
   byClient: ClickRow[];
   byStore: ClickRow[];
+  bySource: SourceClickRow[]; // where the clicks were made (clicks.source; "" = unknown); empty until the column exists
   topCoupons: CouponClickRow[];
 }
 
@@ -34,37 +36,45 @@ export async function purgeOldClicks(): Promise<number> {
   return res.count;
 }
 
-export interface ClickEvent { clientId: number; storeId: number; couponId: number; kind: ClickKind; ref: string; uaHash: string }
+export interface ClickEvent { clientId: number; storeId: number; couponId: number; kind: ClickKind; ref: string; source: string; uaHash: string }
 
 // One click row, unless the same browser (ua hash) already counted this coupon and kind in the last DEDUPE_SECONDS.
 // Until the migration adds kind/ref/ua_hash, the old row (who, which store and coupon) without dedupe; copies and
 // untracked clicks are not recorded then (they would read as tracked clicks).
+// Until clicks.source exists, the row goes in without its origin.
 export async function recordClick(e: ClickEvent): Promise<"recorded" | "duplicate" | "skipped"> {
-  return clickColumns.run(async (present) => {
+  return clickSourceColumn.run((withSource) => clickColumns.run(async (present) => {
     if (!present) {
       if (e.kind !== "go") return "skipped";
       await sql()`INSERT INTO clicks (client_id, store_id, coupon_id) VALUES (${e.clientId}, ${e.storeId}, ${e.couponId})`;
       return "recorded";
     }
-    const rows = await sql()`
-      INSERT INTO clicks (client_id, store_id, coupon_id, kind, ref, ua_hash)
+    const s = sql();
+    const rows = await s`
+      INSERT INTO clicks (client_id, store_id, coupon_id, kind, ref, ua_hash ${withSource ? s`, source` : s``})
       SELECT ${e.clientId}::int, ${e.storeId}::int, ${e.couponId}::int, ${e.kind}::text, ${e.ref}::text, ${e.uaHash}::text
+        ${withSource ? s`, ${e.source}::text` : s``}
       WHERE NOT EXISTS (
         SELECT 1 FROM clicks WHERE coupon_id = ${e.couponId}::int AND ua_hash = ${e.uaHash}::text AND kind = ${e.kind}::text
           AND at > now() - ${DEDUPE_SECONDS} * interval '1 second')
       RETURNING id`;
     return rows.length ? "recorded" : "duplicate";
-  });
+  }));
 }
 
 // Click stats for the last `days` full days + today, optionally for one client.
 // `allowed` = client ids the viewer may see (null = all). Days are Madrid calendar days.
 export async function clickStats(days: number, clientId?: number, allowed: number[] | null = null): Promise<ClickStats> {
   await io();
-  return clickColumns.run((present) => statsQuery(present, days, clientId, allowed));
+  const [stats, bySource] = await Promise.all([
+    clickColumns.run((present) => statsQuery(present, days, clientId, allowed)),
+    clickSourceColumn.run((present) => (present ? sourceQuery(days, clientId, allowed) : Promise.resolve([]))),
+  ]);
+  return { ...stats, bySource };
 }
 
-async function statsQuery(present: boolean, days: number, clientId: number | undefined, allowed: number[] | null): Promise<ClickStats> {
+// The period's start (Madrid day) and the client filter, shared by the stats queries
+function rangeOf(days: number, clientId: number | undefined, allowed: number[] | null) {
   const s = sql();
   const since = s`date_trunc('day', now() AT TIME ZONE 'Europe/Madrid') - ${days - 1} * interval '1 day'`;
   const forClient = clientId
@@ -72,6 +82,21 @@ async function statsQuery(present: boolean, days: number, clientId: number | und
     : allowed
       ? s`AND k.client_id = ANY(${allowed.length ? allowed : [0]}::int[])`
       : s``;
+  return { s, since, forClient };
+}
+
+// Clicks out to a store in the period by origin, most first (copies apart, as in the total)
+async function sourceQuery(days: number, clientId: number | undefined, allowed: number[] | null): Promise<SourceClickRow[]> {
+  const { s, since, forClient } = rangeOf(days, clientId, allowed);
+  const rows = await s<SourceClickRow[]>`
+    SELECT k.source, count(*)::int AS clicks FROM clicks k
+    WHERE (k.at AT TIME ZONE 'Europe/Madrid') >= ${since} ${forClient} AND k.kind <> 'copy'
+    GROUP BY k.source ORDER BY clicks DESC`;
+  return rows.map((r) => ({ source: r.source, clicks: r.clicks }));
+}
+
+async function statsQuery(present: boolean, days: number, clientId: number | undefined, allowed: number[] | null): Promise<Omit<ClickStats, "bySource">> {
+  const { s, since, forClient } = rangeOf(days, clientId, allowed);
   // clicks out to a store: copies are their own count
   const out = present ? s`AND k.kind <> 'copy'` : s``;
   const inRange = s`(k.at AT TIME ZONE 'Europe/Madrid') >= ${since} ${forClient} ${out}`;

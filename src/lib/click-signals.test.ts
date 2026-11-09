@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isBot, refPath, retentionDays, uaHash } from "./click-signals.ts";
+import { clickSource, isBot, pageSource, refPath, retentionDays, uaHash, withSource } from "./click-signals.ts";
 
 test("retentionDays: 400 days by default and never fewer; all = keep everything", () => {
   assert.equal(retentionDays(undefined), 400);
@@ -37,4 +37,26 @@ test("refPath keeps only the path, without query strings or fragments", () => {
   assert.equal(refPath("/<script>"), "/script");
   assert.equal(refPath(`/${"a".repeat(300)}`).length, 200);
   assert.equal(refPath(null), "");
+});
+
+test("clickSource: the link's ?o= wins, else the page path tells, else unknown", () => {
+  assert.equal(clickSource("telegram", "/chollos/42-x"), "telegram");
+  assert.equal(clickSource(" SEO ", ""), "seo");
+  assert.equal(clickSource("<script>", "/tiendas/fnac"), "script"); // cleaned to letters/digits
+  assert.equal(clickSource("123", "/tiendas/fnac"), "tienda"); // a source starts with a letter
+  assert.equal(clickSource(null, "/chollos/42-x"), "chollo");
+  assert.equal(clickSource(null, "/"), "portada");
+  assert.equal(clickSource(null, "/p/medio/fnac"), "pagina");
+  assert.equal(clickSource(null, "ext:www.medio.es"), "externo");
+  assert.equal(clickSource(null, "/calendario"), "web");
+  assert.equal(clickSource(null, ""), "");
+});
+
+test("withSource and pageSource", () => {
+  assert.equal(withSource("/go/x/1", "tienda"), "/go/x/1?o=tienda");
+  assert.equal(withSource("/go/x/1?a=1", "widget"), "/go/x/1?a=1&o=widget");
+  assert.equal(withSource("/go/x/1", ""), "/go/x/1");
+  assert.equal(pageSource({ utm_source: "telegram" }, "chollo"), "telegram");
+  assert.equal(pageSource({ utm_source: ["a", "b"] }, "chollo"), "chollo");
+  assert.equal(pageSource({}, "portada"), "portada");
 });

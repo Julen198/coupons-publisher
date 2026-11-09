@@ -46,3 +46,56 @@ export function retentionDays(setting: string | undefined): number | null {
   const n = Number(setting);
   return Number.isFinite(n) && n > CLICK_RETENTION_DAYS ? Math.trunc(n) : CLICK_RETENTION_DAYS;
 }
+
+// ---- origin (clicks.source): where the click was made, so clicks can be counted per origin
+
+// A source is a short lowercase word that starts with a letter ("portada", "tienda", "chollo", "pagina", "widget",
+// "telegram", "seo"…): no hyphen, so it can close the network clickref ("<client>-<store>-<coupon>-<source>") and still
+// be read back from it.
+export const SOURCE_RE = /^[a-z][a-z0-9]{0,15}$/;
+
+// What a link or campaign says about its origin (?o=, utm_source), cleaned to a source; "" when it isn't one
+export function sourceParam(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16);
+  return SOURCE_RE.test(s) ? s : "";
+}
+
+// The origin a click is stored with: what the link says (?o=), else what the page path it came from tells
+// (see refPath), else "" (unknown: an old link, a stripped referrer)
+export function clickSource(param: string | null | undefined, ref: string): string {
+  const explicit = sourceParam(param);
+  if (explicit) return explicit;
+  if (!ref) return "";
+  if (ref.startsWith("ext:")) return "externo";
+  if (ref.startsWith("/chollos/")) return "chollo";
+  if (ref.startsWith("/tiendas/")) return "tienda";
+  if (ref.startsWith("/p/")) return "pagina";
+  if (ref === "/") return "portada";
+  return "web";
+}
+
+// "/go/x/1" + "tienda" → "/go/x/1?o=tienda"; an empty or invalid source leaves the address as it is
+export function withSource(href: string, source: string): string {
+  const s = sourceParam(source);
+  return s ? `${href}${href.includes("?") ? "&" : "?"}o=${s}` : href;
+}
+
+// Panel labels for the sources CuponLab puts on its own links; any other source shows as written
+export const SOURCE_LABEL: Record<string, string> = {
+  "": "Sin origen",
+  portada: "Portada de CuponLab",
+  tienda: "Página de tienda",
+  chollo: "Ficha de chollo",
+  web: "Otras páginas de CuponLab",
+  pagina: "Página del medio",
+  widget: "Widget",
+  telegram: "Telegram",
+  externo: "Otra web",
+};
+
+// The origin of the clicks on one of our pages: the campaign it was reached from (?utm_source=telegram, seo…) when
+// there is one, else the kind of page (`fallback`: "portada", "tienda", "chollo")
+export function pageSource(sp: Record<string, string | string[] | undefined>, fallback: string): string {
+  const utm = sp.utm_source;
+  return sourceParam(typeof utm === "string" ? utm : "") || fallback;
+}

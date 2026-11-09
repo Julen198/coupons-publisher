@@ -2,6 +2,7 @@ import type { Client, Coupon, Store } from "./db";
 import { pageTitle, parseFaqs } from "./affiliate.ts";
 import { destinationOf, isTracked, trackedLinkOf, type LinkCoupon, type LinkStore } from "./tracked-link.ts";
 import { discountBadge } from "./discount.ts";
+import { withSource } from "./click-signals.ts";
 
 const badge = (c: Pick<Coupon, "discount">) => discountBadge(c.discount) || "Oferta";
 // "2026-10-31" → "31/10/2026"
@@ -28,8 +29,9 @@ export function couponAffiliateUrl(
   c: LinkCoupon,
   clientTemplate = "", // the client's own account's link for this store (client_tracking), wins over ours
   awinPublishers?: ReadonlySet<string>,
+  source = "", // where the click is made (see clickSource): closes the clickref
 ) {
-  const link = trackedLinkOf(c, store, { client, clientTemplate, awinPublishers });
+  const link = trackedLinkOf(c, store, { client, clientTemplate, awinPublishers }, source);
   return isTracked(link) ? link.url : untrackedUrl(c, store);
 }
 
@@ -40,12 +42,13 @@ export const untrackedUrl = (c: Pick<LinkCoupon, "target_url">, store: Pick<Link
 // Standalone HTML the client pastes into their CMS or serves as-is.
 // With trackBase (absolute origin), buttons go through /go so the click is counted before redirecting to Awin.
 // With logoBase (our absolute origin), each card shows the store's icon from /store-logo/<slug>.
-export function renderPage(client: Client, store: Store, coupons: Coupon[], now: Date, trackBase?: string, logoBase?: string): string {
+// source = the origin its clicks are counted under ("pagina" for the client's page, "widget" inside the widget).
+export function renderPage(client: Client, store: Store, coupons: Coupon[], now: Date, trackBase?: string, logoBase?: string, source = "pagina"): string {
   const title = pageTitle(store.name, coupons.map((c) => c.discount), now);
   const faqs = parseFaqs(store.faqs);
   const updated = now.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" });
   const link = (c: Coupon) =>
-    trackBase ? `${trackBase}/go/${encodeURIComponent(client.slug)}/${c.id}` : couponAffiliateUrl(client, store, c);
+    trackBase ? withSource(`${trackBase}/go/${encodeURIComponent(client.slug)}/${c.id}`, source) : couponAffiliateUrl(client, store, c, "", undefined, source);
   const logo =
     store.has_logo && logoBase
       ? `<img class="cp-logo" src="${esc(`${logoBase}/store-logo/${encodeURIComponent(store.slug)}`)}" alt="${esc(store.name)}" loading="lazy" onerror="this.remove()">`

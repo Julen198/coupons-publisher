@@ -4,13 +4,15 @@ import { discountBadge } from "./discount.ts";
 // when either side is missing an ID, so pages still work before Awin is set up.
 export function affiliateUrl(
   targetUrl: string,
-  opts: { affiliateId: string; merchantId: string; clickref: string },
+  opts: { affiliateId: string; merchantId: string; clickref: string; clickref2?: string },
 ) {
   if (!opts.affiliateId || !opts.merchantId) return targetUrl;
   const params = new URLSearchParams({
     awinmid: opts.merchantId,
     awinaffid: opts.affiliateId,
     clickref: opts.clickref,
+    // the click's origin on its own, so Awin's reports can group by it (clickref still ends with it)
+    ...(opts.clickref2 ? { clickref2: opts.clickref2 } : {}),
     ued: targetUrl,
   });
   return `https://www.awin1.com/cread.php?${params}`;

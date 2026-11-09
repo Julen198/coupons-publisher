@@ -8,7 +8,8 @@ import { accountsFor, clientLinks } from "./link-accounts";
 
 // The reader-facing coupon page for one client × store: only live coupons whose link is tracked (see trackedLinkOf).
 // trackBase = our absolute origin; omitted for unsaved previews (no client row to attribute clicks to).
-export async function publicPageHtml(client: Client, store: Store, trackBase?: string): Promise<string> {
+// source = the origin its clicks count under: "pagina", or "widget" when the widget embeds it.
+export async function publicPageHtml(client: Client, store: Store, trackBase?: string, source = "pagina"): Promise<string> {
   const now = new Date();
   const [all, unverified, links] = await Promise.all([listCoupons(store.id), publishUnverified(), clientLinks(client)]);
   const accounts = accountsFor(links, store);
@@ -16,5 +17,5 @@ export async function publicPageHtml(client: Client, store: Store, trackBase?: s
   const coupons = all
     .filter((c) => isPublic(c, today(now), unverified) && isTracked(trackedLinkOf(c, store, accounts)))
     .map((c) => ({ ...c, ...publicText(c) }));
-  return renderPage(client, store, coupons, now, client.id > 0 ? trackBase : undefined, trackBase);
+  return renderPage(client, store, coupons, now, client.id > 0 ? trackBase : undefined, trackBase, source);
 }
