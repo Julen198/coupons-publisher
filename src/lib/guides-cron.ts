@@ -3,9 +3,9 @@
 // them, tell the admin chat. People only step in to cancel (/panel/guias).
 import { sql } from "./db";
 import { generateStoreGuide } from "./ai-guide";
-import { GUIDE_DEFAULTS, guideProblems, guideSimilarity, MAX_SIMILARITY, pickCandidates, settingsOf, type Candidate, type GuideSettings, type StoreSignals } from "./guide-rules.ts";
+import { GUIDE_DEFAULTS, guideProblems, guideSimilarity, lasts, MAX_SIMILARITY, pickCandidates, settingsOf, type Candidate, type GuideSettings, type StoreSignals } from "./guide-rules.ts";
 import { siteCoupons, siteStore, type SiteCoupon } from "./public-site";
-import { siteUrl } from "./site-text";
+import { madridToday, siteUrl } from "./site-text";
 import { guideSlugs, storeGuide, type StoreGuide } from "./store-guides.ts";
 import { tg, telegramConfig } from "./telegram";
 import { categoryOf } from "./catalog";
@@ -57,11 +57,16 @@ export async function storeSignals(coupons?: SiteCoupon[]): Promise<StoreSignals
     searchByStore(),
   ]);
   const clicksOf = new Map(clicks.map((c) => [c.store_id, c.n]));
+  const today = madridToday().iso;
   return stores.map((s) => {
     const mine = live.filter((c) => c.store_id === s.id);
+    const codes = mine.filter((c) => c.kind === "code" && c.code);
+    const deals = mine.filter((c) => !(c.kind === "code" && c.code));
     const rows = search.get(s.slug) ?? [];
     return {
-      storeId: s.id, slug: s.slug, name: s.name, country: s.country, live: mine.length, codes: mine.filter((c) => c.kind === "code" && c.code).length,
+      storeId: s.id, slug: s.slug, name: s.name, country: s.country, live: mine.length,
+      codes: codes.length, lastingCodes: codes.filter((c) => lasts(c.expires_at, today)).length,
+      deals: deals.length, lastingDeals: deals.filter((c) => lasts(c.expires_at, today)).length,
       clicks30: clicksOf.get(s.id) ?? 0, impressions: rows.reduce((n, r) => n + r.impressions, 0), position: meanPosition(rows),
     };
   });

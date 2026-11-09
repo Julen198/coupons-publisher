@@ -32,6 +32,7 @@ const SYSTEM = [
   "- No afirmes políticas de envío, devoluciones ni plazos salvo que vengan en «Datos de la tienda».",
   "- Las cifras concretas (importe de un código, fecha de caducidad) cambian: remite a la lista de arriba en vez de repetirlas.",
   "- No escribas ningún código descuento.",
+  "- La guía tiene que seguir siendo verdad dentro de meses: no la construyas sobre campañas con fecha (Black Friday, rebajas, un «Black Month»…) ni las pongas en títulos o en la entradilla; descríbelas como tipos de descuento que la tienda suele tener.",
   "- Una sección explica cómo aplicar un código en la tienda, con pasos. Otra, qué hacer si un código no funciona.",
   "- Tono claro y útil, sin exclamaciones, sin superlativos vacíos, sin rayas (—).",
   "- Mayúscula solo al principio de frase y en nombres propios.",

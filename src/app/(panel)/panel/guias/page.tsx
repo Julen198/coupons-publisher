@@ -81,18 +81,18 @@ export default async function GuidesPage() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Próximas candidatas</h2>
-        <p className="text-sm text-neutral-500">Puntuación = cupones activos + 3 × códigos + 2 × clics de 30 días + impresiones en Google ÷ 20, y +15 si Google ya la muestra entre la posición 8 y la 30. Solo tiendas de España sin guía.</p>
+        <p className="text-sm text-neutral-500">Solo tiendas de España sin guía, con al menos un código y contenido que siga vivo en 14 días. Puntuación: 5 por código que dura (máx. 5), 2 por código que caduca pronto (máx. 3), 1 por oferta que dura (máx. 8), 2 por clic de 30 días (máx. 15), impresiones en Google ÷ 20 (máx. 40), +15 si Google la muestra entre la posición 8 y la 30, −20 si con 100+ impresiones sigue por detrás de la 40.</p>
         {candidates.length === 0 && <p className="text-sm text-neutral-500">Ninguna tienda llega al mínimo ahora mismo.</p>}
         {candidates.length > 0 && (
           <table className="w-full text-sm">
             <thead className="text-left text-neutral-500">
-              <tr><th className="py-2">Tienda</th><th>Cupones</th><th>Códigos</th><th>Clics 30 d</th><th>Impresiones</th><th>Posición</th><th>Puntuación</th><th /></tr>
+              <tr><th className="py-2">Tienda</th><th>Códigos (duran)</th><th>Ofertas (duran)</th><th>Clics 30 d</th><th>Impresiones</th><th>Posición</th><th>Puntuación</th><th /></tr>
             </thead>
             <tbody>
               {candidates.map((c) => (
                 <tr key={c.storeId} className="border-t border-neutral-200 dark:border-neutral-800">
                   <td className="py-2"><Link href={`/tiendas/${c.slug}`} className="underline">{c.name}</Link></td>
-                  <td>{c.live}</td><td>{c.codes}</td><td>{c.clicks30}</td><td>{c.impressions ?? 0}</td><td>{c.position == null ? "—" : c.position.toFixed(1)}</td><td className="font-semibold">{c.score}</td>
+                  <td>{c.codes} ({c.lastingCodes})</td><td>{c.deals} ({c.lastingDeals})</td><td>{c.clicks30}</td><td>{c.impressions ?? 0}</td><td>{c.position == null ? "—" : c.position.toFixed(1)}</td><td className="font-semibold">{c.score}</td>
                   <td className="py-1 text-right"><StoreButton action={writeGuideNow} id={c.storeId} label="Escribir ahora" secondary /></td>
                 </tr>
               ))}
