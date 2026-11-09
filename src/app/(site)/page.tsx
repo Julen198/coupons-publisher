@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { sortDeals } from "@/lib/community";
 import { categoryOf, emptyFeedText, hasStoreGuide, homeHref, ordenOf, type HomeFilters } from "@/lib/catalog";
 import { currentVotes, siteClient, siteCoupons, storeGuides } from "@/lib/public-site";
+import { publishedGuides } from "@/lib/guide-index";
 import { getReader } from "@/lib/reader";
 import { guideLabels } from "@/lib/store-list";
 import { badgeInSentence } from "@/lib/deal-text";
@@ -82,6 +83,8 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
     .sort((a, b) => (byStore.get(b.id)?.count ?? 0) - (byStore.get(a.id)?.count ?? 0))
     .slice(0, 3);
 
+  // every published store guide, newest first: linked from the home page the moment it goes out
+  const seoGuides = (await publishedGuides()).slice(0, 8);
   const allStores = new Set(all.map((c) => c.store_id)).size;
   const codes = scope.filter((c) => c.kind === "code").length;
   const verified = scope.filter((c) => c.verified).length;
@@ -225,6 +228,18 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
           </section>
 
           <aside className="rail">
+            {seoGuides.length > 0 && (
+              <section className="panel" data-seo="Enlazado interno a guías">
+                <h2>Guías de ahorro</h2>
+                <ul className="stores">
+                  {seoGuides.map((g) => (
+                    <li key={g.slug}>
+                      <Link href={`/tiendas/${g.slug}`}>{g.keyword.charAt(0).toUpperCase() + g.keyword.slice(1)}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             {topStores.length > 0 && (
               <section className="panel" data-seo="Enlazado interno a tiendas">
                 <h2>Tiendas con más cupones</h2>

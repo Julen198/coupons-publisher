@@ -18,7 +18,7 @@ function allowed(txt: string, path: string): boolean {
 const txt = robotsTxt("https://cuponlab.es");
 
 test("robotsTxt: every page the sitemap lists, and what those pages load, is crawlable", () => {
-  for (const p of ["/", "/tiendas", "/tiendas/nike", "/calendario", "/metodologia", "/aviso-de-afiliacion", "/contacto", "/chollos/42-15-extra", "/chollos/42-x/opengraph-image", "/_next/static/chunks/a.js", "/_next/image?url=x", "/store-logo/nike", "/icon.svg", "/sitemap.xml"]) {
+  for (const p of ["/", "/tiendas", "/tiendas/nike", "/calendario", "/metodologia", "/aviso-de-afiliacion", "/contacto", "/chollos/42-15-extra", "/chollos/42-x/opengraph-image", "/_next/static/chunks/a.js", "/_next/image?url=x", "/store-logo/nike", "/icon.svg", "/sitemap.xml", "/llms.txt", "/indexnow.txt"]) {
     assert.equal(allowed(txt, p), true, p);
   }
 });

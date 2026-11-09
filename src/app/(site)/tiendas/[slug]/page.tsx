@@ -10,6 +10,8 @@ import { currentVotes, siteClient, siteCoupons, siteStore } from "@/lib/public-s
 import { longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { storeGuide } from "@/lib/store-guides";
 import { publishedGuide } from "@/lib/store-guides-db";
+import { publishedGuides } from "@/lib/guide-index";
+import { relatedGuides } from "@/lib/seo-auto";
 import { MarkHeaderCategory } from "../../site-header";
 import { StoreBrand } from "../../store-logo-img";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
@@ -65,6 +67,10 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   const base = siteUrl();
   // hand-written (store-guides.ts) first, else the automatic one once published (guides-cron.ts)
   const guide = storeGuide(store.slug) ?? (await publishedGuide(store.id));
+  // links between guides (automatic for every published one): same category first, then the freshest
+  const guides = guide ? await publishedGuides() : [];
+  const guideMeta = guides.find((g) => g.slug === store.slug);
+  const moreGuides = guide ? relatedGuides(guides, store.slug, store.category, 4) : [];
   // the store's own FAQs (panel) win; a store with none borrows its guide's
   const ownFaqs = parseFaqs(store.faqs);
   const faqs = ownFaqs.length ? ownFaqs : (guide?.faqs ?? []);
@@ -101,6 +107,21 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
         />
       )}
       {faqs.length > 0 && <JsonLd data={faqLd(faqs)} />}
+      {guide && (
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: `Cómo conseguir un ${guide.keyword}`,
+            description: guide.description,
+            ...(guideMeta?.updatedAt ? { dateModified: guideMeta.updatedAt.toISOString() } : {}),
+            mainEntityOfPage: `${base}/tiendas/${store.slug}`,
+            about: { "@type": "Organization", name: store.name, url: store.website },
+            author: { "@type": "Organization", name: "CuponLab", url: base },
+            publisher: { "@type": "Organization", name: "CuponLab", url: base },
+          }}
+        />
+      )}
 
       <div className="wrap">
         {cat && <MarkHeaderCategory slug={cat.slug} />}
@@ -237,8 +258,19 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
                     </section>
                   ))}
                   <p className="small">
+                    {guideMeta?.updatedAt && <>Guía actualizada el {guideMeta.updatedAt.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid" })}. </>}
                     Cómo comprobamos cada código: <Link href="/metodologia">metodología de CuponLab</Link>.
                   </p>
+                  {moreGuides.length > 0 && (
+                    <nav aria-label="Más guías de ahorro" data-seo="Enlazado interno entre guías">
+                      <h3>Más guías de ahorro</h3>
+                      <ul>
+                        {moreGuides.map((g) => (
+                          <li key={g.slug}><Link href={`/tiendas/${g.slug}`}>{g.keyword.charAt(0).toUpperCase() + g.keyword.slice(1)}</Link></li>
+                        ))}
+                      </ul>
+                    </nav>
+                  )}
                 </div>
               </section>
             )}

@@ -7,7 +7,7 @@ import { orNullAfter } from "@/lib/with-timeout";
 // The public deals site: indexable, open to everyone
 const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado)$/, /^\/sitemap\.xml$/];
 // Reachable without signing in: the public site, login, accepting an invitation, and what publishers embed on their sites
-const PUBLIC = [...SITE, /^\/login$/, /^\/login\/magic$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//,
+const PUBLIC = [...SITE, /^\/login$/, /^\/login\/magic$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/llms\.txt$/, /^\/indexnow\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//,
   // Telegram webhook and its daily cron: each checks its own secret header instead of a session
   /^\/api\/telegram(\/cron)?$/,
   // date alerts: the cron checks CRON_SECRET, the unsubscribe link carries its own signed token

@@ -9,6 +9,7 @@ import { madridToday, siteUrl } from "./site-text";
 import { guideSlugs, storeGuide, type StoreGuide } from "./store-guides.ts";
 import { tg, telegramConfig } from "./telegram";
 import { categoryOf } from "./catalog";
+import { pingIndexNow } from "./guide-index";
 import { dateRange, googleConfigured, meanPosition, searchAnalytics, storeSlugOf, type SearchRow } from "./google-api.ts";
 
 // status: scheduled (new, goes out at publish_at), published, rejected (cancelled, or the AI couldn't write a valid
@@ -140,12 +141,14 @@ async function recordFailure(storeId: number, guide: StoreGuide, signals: GuideS
 }
 
 async function publishDue(): Promise<string[]> {
-  const fresh = await sql()<{ name: string }[]>`
+  const fresh = await sql()<{ name: string; slug: string }[]>`
     UPDATE store_guides g SET status = 'published', published_at = now() FROM stores s
-    WHERE s.id = g.store_id AND g.status = 'scheduled' AND g.publish_at <= now() RETURNING s.name`;
-  const rewritten = await sql()<{ name: string }[]>`
+    WHERE s.id = g.store_id AND g.status = 'scheduled' AND g.publish_at <= now() RETURNING s.name, s.slug`;
+  const rewritten = await sql()<{ name: string; slug: string }[]>`
     UPDATE store_guides g SET content = g.draft, draft = NULL, published_at = now(), rewritten_at = now() FROM stores s
-    WHERE s.id = g.store_id AND g.status = 'published' AND g.draft IS NOT NULL AND g.publish_at <= now() RETURNING s.name`;
+    WHERE s.id = g.store_id AND g.status = 'published' AND g.draft IS NOT NULL AND g.publish_at <= now() RETURNING s.name, s.slug`;
+  // the new guide's page, and the home page and /llms.txt that now link to it
+  if (fresh.length || rewritten.length) await pingIndexNow([...[...fresh, ...rewritten].map((r) => `/tiendas/${r.slug}`), "/", "/llms.txt"]);
   return [...fresh.map((r) => r.name), ...rewritten.map((r) => `${r.name} (reescrita)`)];
 }
 

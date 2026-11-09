@@ -6,6 +6,7 @@ import { logActivity } from "@/lib/activity";
 import { requireAdmin, requireEditor } from "@/lib/auth";
 import { guideSettings, scheduleGuide, storeSignals, writeGuide } from "@/lib/guides-cron";
 import { scoreOf } from "@/lib/guide-rules";
+import { pingIndexNow } from "@/lib/guide-index";
 
 const storeIdOf = (f: FormData) => {
   const id = Number(f.get("store_id"));
@@ -38,7 +39,10 @@ export async function publishGuideNow(f: FormData) {
       rewritten_at = CASE WHEN g.draft IS NOT NULL THEN now() ELSE g.rewritten_at END
     FROM stores s
     WHERE s.id = g.store_id AND g.store_id = ${id} AND (g.status = 'scheduled' OR g.draft IS NOT NULL) RETURNING s.name, s.slug`;
-  if (row) revalidatePath(`/tiendas/${row.slug}`);
+  if (row) {
+    revalidatePath(`/tiendas/${row.slug}`);
+    await pingIndexNow([`/tiendas/${row.slug}`, "/", "/llms.txt"]);
+  }
   await done(`Guía SEO publicada a mano: ${row?.name ?? id}`);
 }
 
