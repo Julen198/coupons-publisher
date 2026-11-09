@@ -28,7 +28,7 @@ export default async function PagesPage({ searchParams }: PageProps<"/panel/page
     <div className="flex flex-col gap-6">
       <PageHeader eyebrow={`${pages.length} páginas de ${clients.length} clientes`} title="Páginas" />
       <p className="max-w-2xl text-sm text-neutral-600 dark:text-neutral-400">
-        Cada página es una tienda publicada en un medio. Para añadir una, entra en el cliente y pulsa «Añadir tienda», o usa la tabla de cobertura del Resumen.
+        Cada página es una tienda activa en un medio. Para activar o bloquear tiendas, entra en la ficha del cliente.
       </p>
 
       <div className="flex flex-wrap items-end gap-3">

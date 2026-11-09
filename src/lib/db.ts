@@ -74,7 +74,7 @@ export type Delivery = "html" | "widget";
 export type Page = {
   client_id: number;
   store_id: number;
-  status: "draft" | "published";
+  status: "draft" | "published" | "blocked";
   delivery: Delivery;
   published_at: Date | null;
 };

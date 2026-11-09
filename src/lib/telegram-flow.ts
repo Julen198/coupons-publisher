@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { askPanel } from "./panel-assistant";
 import { sql } from "./db";
 import { siteCoupon, siteCoupons } from "./public-site";
+import { SITE_CLIENT_SLUG } from "./link-accounts";
 import { dealPath, siteUrl } from "./site-text";
 import { dealMessage, editPrompt, parseCallback, promptCouponId, reviewKeyboard, tg, type DealFields, type TelegramConfig } from "./telegram";
 
@@ -174,4 +175,27 @@ export async function handleUpdate(cfg: TelegramConfig, u: TelegramUpdate | null
   if (u?.callback_query && fromAdmin(u.callback_query.from.id)) await onButton(cfg, u.callback_query);
   else if (u?.message && fromAdmin(u.message.chat.id)) await onMessage(cfg, u.message);
   // anyone else is ignored
+}
+
+// Monday notice: per client, stores that arrived in the last 7 days with live coupons and that nobody has activated,
+// left inactive or blocked yet (no pages row). The public site's own client is left out. "" = nothing to tell.
+export async function newStoresSummary(): Promise<string> {
+  const [rows, live] = await Promise.all([
+    sql()<{ client: string; slug: string; store_id: number; store: string }[]>`
+      SELECT c.name AS client, c.slug, s.id AS store_id, s.name AS store FROM clients c CROSS JOIN stores s
+      WHERE s.created_at > now() - interval '7 days' AND c.slug <> ${SITE_CLIENT_SLUG}
+        AND NOT EXISTS (SELECT 1 FROM pages p WHERE p.client_id = c.id AND p.store_id = s.id)
+      ORDER BY c.name, s.name`,
+    siteCoupons(),
+  ]);
+  const withLive = new Set(live.map((c) => c.store_id));
+  const byClient = new Map<string, { name: string; stores: string[] }>();
+  for (const r of rows.filter((r) => withLive.has(r.store_id))) {
+    const e = byClient.get(r.slug) ?? { name: r.client, stores: [] };
+    byClient.set(r.slug, { ...e, stores: [...e.stores, r.store] });
+  }
+  if (!byClient.size) return "";
+  const lines = [...byClient].map(([slug, c]) =>
+    `• ${c.name}: ${c.stores.length} sin revisar (${c.stores.slice(0, 5).join(", ")}${c.stores.length > 5 ? "…" : ""})\n  ${siteUrl()}/panel/clients/${slug}?estado=nuevas`);
+  return ["🆕 Tiendas nuevas esta semana, inactivas hasta que las actives o bloquees:", ...lines].join("\n");
 }

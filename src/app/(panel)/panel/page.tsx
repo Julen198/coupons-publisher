@@ -55,7 +55,7 @@ export default async function DashboardPage() {
     { done: clients.length > 0, title: "Crea tu primer cliente", detail: "El medio que publicará los cupones: su dominio, su ID de Awin y el estilo de su web.", href: "/panel/clients/new", cta: "Nuevo cliente" },
     { done: stores.length > 0, title: "Añade una tienda", detail: "El anunciante (adidas, Decathlon…) con su web y su merchant ID de Awin.", href: "/panel/stores", cta: "Nueva tienda" },
     { done: coupons.length > 0, title: "Añade cupones", detail: "Códigos y ofertas de esa tienda; a mano, desde Awin o importando un CSV.", href: stores[0] ? `/panel/stores/${stores[0].slug}?tab=cupones&new` : "/panel/coupons", cta: "Añadir cupón" },
-    { done: pages.length > 0, title: "Asigna la tienda al cliente", detail: "En la ficha del cliente, «Añadir tienda» crea su página.", href: clients[0] ? `/panel/clients/${clients[0].slug}` : "/panel/clients", cta: "Ir al cliente" },
+    { done: pages.some((p) => p.status === "published"), title: "Activa tiendas para el cliente", detail: "En la ficha del cliente, pulsa «Activar» en sus tiendas (o «Activar todas»).", href: clients[0] ? `/panel/clients/${clients[0].slug}` : "/panel/clients", cta: "Ir al cliente" },
     { done: false, title: "Publica la página", detail: "Elige cómo le llega al medio (subdominio, widget o HTML) y publícala.", href: firstPage ? `/panel/pages/${firstPage.client_slug}/${firstPage.store_slug}` : "/panel/pages", cta: "Abrir generador" },
   ] : null;
 

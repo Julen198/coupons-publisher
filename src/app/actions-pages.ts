@@ -8,6 +8,8 @@ import { faqsToText, generateStoreContent } from "@/lib/ai-content";
 import { errorMessage, required, str } from "@/lib/form";
 import { DELIVERY_LABEL } from "@/lib/page-status";
 import { canSeeClient, requireEditor } from "@/lib/auth";
+import { siteCoupons } from "@/lib/public-site";
+import { bulkTargets, nextStatus, stateOf, STATE_LABEL, type PageStatus, type StoreAction } from "@/lib/store-states";
 
 // Access control: the proxy only checks the cookie signature; every action below re-checks the user and role.
 
@@ -23,19 +25,12 @@ async function pair(f: FormData) {
   return { client, store };
 }
 
-// "Añadir tienda" on a client: creates the draft page and opens the generator
-export async function addPage(f: FormData) {
-  const { client, store } = await pair(f);
-  await sql()`INSERT INTO pages (client_id, store_id) VALUES (${client.id}, ${store.id}) ON CONFLICT DO NOTHING`;
-  // ?nueva: the generator writes the store's FAQs on arrival if it has none yet
-  redirect(`/panel/pages/${client.slug}/${store.slug}?nueva=1&desde=cliente`);
-}
-
 // Generator form: save as draft or publish, with the chosen delivery method
 export async function savePage(f: FormData) {
   const { client, store } = await pair(f);
   const delivery = DELIVERIES.find((d) => d === str(f, "delivery")) ?? "widget";
   const publish = str(f, "intent") === "publish";
+  if ((await storePageStatus(client.id, store.id)) === "blocked") throw new Error("Esta tienda está bloqueada para este cliente: desbloquéala en su ficha");
   await sql()`
     INSERT INTO pages (client_id, store_id, status, delivery, published_at)
     VALUES (${client.id}, ${store.id}, ${publish ? "published" : "draft"}, ${delivery}, ${publish ? sql()`now()` : null})
@@ -51,6 +46,55 @@ export async function removePage(f: FormData) {
   await sql()`DELETE FROM pages WHERE client_id = ${client.id} AND store_id = ${store.id}`;
   await logActivity(`Página ${store.name} retirada de ${client.name}`);
   redirect(`/panel/clients/${client.slug}`);
+}
+
+// ---------- Tiendas of a client: Activa / Inactiva / Bloqueada ----------
+
+const STORE_ACTIONS: StoreAction[] = ["activate", "deactivate", "block", "unblock"];
+
+async function storePageStatus(clientId: number, storeId: number): Promise<PageStatus | undefined> {
+  const [row] = await sql()<{ status: PageStatus }[]>`SELECT status FROM pages WHERE client_id = ${clientId} AND store_id = ${storeId}`;
+  return row?.status;
+}
+
+async function writeStatus(clientId: number, storeId: number, status: PageStatus) {
+  await sql()`
+    INSERT INTO pages (client_id, store_id, status, published_at)
+    VALUES (${clientId}, ${storeId}, ${status}, ${status === "published" ? sql()`now()` : null})
+    ON CONFLICT (client_id, store_id) DO UPDATE SET status = EXCLUDED.status,
+      published_at = CASE WHEN EXCLUDED.status = 'published' THEN coalesce(pages.published_at, now()) ELSE NULL END`;
+}
+
+// One button on a store row of the client's Tiendas list
+export async function setStoreState(f: FormData) {
+  const { client, store } = await pair(f);
+  const action = STORE_ACTIONS.find((a) => a === str(f, "action"));
+  if (!action) throw new Error("Acción no válida");
+  const status = nextStatus(stateOf(await storePageStatus(client.id, store.id)), action);
+  if (!status) throw new Error(action === "activate" ? "Está bloqueada: desbloquéala primero" : "Esa acción no aplica a esta tienda");
+  await writeStatus(client.id, store.id, status);
+  await logActivity(`${store.name} en ${client.name}: ${STATE_LABEL[stateOf(status)]}`);
+  revalidatePath(`/panel/clients/${client.slug}`);
+}
+
+// «Activar todas» (new and inactive stores with live coupons, never blocked ones) / «Desactivar todas»
+export async function bulkStoreState(f: FormData) {
+  const user = await requireEditor();
+  const [client] = await sql()<Client[]>`SELECT * FROM clients WHERE slug = ${required(f, "client")}`;
+  if (!client || !canSeeClient(user, client.id)) throw new Error("No tienes acceso a este cliente");
+  const action = str(f, "action") === "deactivate" ? "deactivate" : "activate";
+  const [stores, pages, live] = await Promise.all([
+    sql()<{ id: number; slug: string }[]>`SELECT id, slug FROM stores`,
+    sql()<{ store_id: number; status: PageStatus }[]>`SELECT store_id, status FROM pages WHERE client_id = ${client.id}`,
+    siteCoupons(),
+  ]);
+  const statusOf = new Map(pages.map((p) => [p.store_id, p.status]));
+  const liveOf = live.reduce((m, c) => m.set(c.store_id, (m.get(c.store_id) ?? 0) + 1), new Map<number, number>());
+  const rows = stores.map((s) => ({ storeId: s.id, slug: s.slug, state: stateOf(statusOf.get(s.id)), live: liveOf.get(s.id) ?? 0 }));
+  const targets = bulkTargets(rows, action);
+  for (const t of targets) await writeStatus(client.id, t.storeId, action === "activate" ? "published" : "draft");
+  await logActivity(`${client.name}: ${targets.length} tiendas ${action === "activate" ? "activadas" : "desactivadas"} de golpe`);
+  revalidatePath(`/panel/clients/${client.slug}`);
 }
 
 // ---------- AI content ----------

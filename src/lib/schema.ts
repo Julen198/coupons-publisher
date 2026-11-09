@@ -89,6 +89,9 @@ UPDATE pages SET delivery = 'widget' WHERE delivery = 'subdomain';
 ALTER TABLE pages ALTER COLUMN delivery SET DEFAULT 'widget';
 ALTER TABLE pages DROP CONSTRAINT IF EXISTS pages_delivery_check;
 ALTER TABLE pages ADD CONSTRAINT pages_delivery_check CHECK (delivery IN ('html', 'widget'));
+-- a client's store can be blocked (a competitor): never shown, not switched on by «Activar todas» (store-states.ts)
+ALTER TABLE pages DROP CONSTRAINT IF EXISTS pages_status_check;
+ALTER TABLE pages ADD CONSTRAINT pages_status_check CHECK (status IN ('draft', 'published', 'blocked'));
 ALTER TABLE activity ENABLE ROW LEVEL SECURITY;
 
 -- panel users. client_ids = clients an editor/viewer can see (admins see all).
