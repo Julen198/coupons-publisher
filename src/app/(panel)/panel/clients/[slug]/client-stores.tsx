@@ -99,7 +99,7 @@ export function ClientStores({ client, rows, filter, onlyLive, q, editable }: {
           <li key={r.storeId} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2.5 text-sm">
             <span className="w-44 font-medium">{r.name}</span>
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${BADGE[r.state]}`}>{STATE_LABEL[r.state]}</span>
-            <span className="w-24 text-neutral-500 tabular-nums">{r.live ? `${r.live} cupones` : "sin cupones"}</span>
+            <span className="w-24 text-neutral-500 tabular-nums">{r.live === 1 ? "1 cupón" : r.live ? `${r.live} cupones` : "sin cupones"}</span>
             {r.state === "active" && (
               <span className="flex gap-3">
                 <Link href={`/panel/pages/${client.slug}/${r.slug}?desde=cliente`} className="text-blue-700 hover:underline dark:text-blue-300">Generador</Link>
