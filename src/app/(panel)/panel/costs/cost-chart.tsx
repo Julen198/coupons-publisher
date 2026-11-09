@@ -7,6 +7,7 @@ export const SERIES: Record<AiFeature, string> = {
   style: "bg-[#1baf7a] dark:bg-[#199e70]",
   stores: "bg-[#eda100] dark:bg-[#c98500]",
   translate: "bg-[#8a5cd6] dark:bg-[#9b72e6]",
+  guides: "bg-[#d6457a] dark:bg-[#e5588c]",
 };
 
 export function Swatch({ feature }: { feature: AiFeature }) {

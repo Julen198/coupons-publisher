@@ -9,7 +9,7 @@ import { MODEL } from "./ai-model.ts";
 
 // Every AI call goes through here so "Costes de IA" sees it: tokens, web searches and cost from the Gateway.
 // ponytail: a failed call is logged at 0 although the model may have billed tokens (e.g. output that didn't fit the schema)
-async function track<T extends { steps: Parameters<typeof usageOf>[0] }>(feature: AiFeature, about: string, call: () => Promise<T>): Promise<T> {
+export async function track<T extends { steps: Parameters<typeof usageOf>[0] }>(feature: AiFeature, about: string, call: () => Promise<T>): Promise<T> {
   try {
     const result = await call();
     await record(feature, about, usageOf(result.steps), true);

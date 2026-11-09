@@ -4,6 +4,7 @@
     { "path": "/api/telegram/cron", "schedule": "0 8 * * *" },
     { "path": "/api/date-alerts/cron", "schedule": "0 7 * * *" },
     { "path": "/api/networks/cron", "schedule": "15 */6 * * *" },
-    { "path": "/api/clicks/cron", "schedule": "30 3 * * *" }
+    { "path": "/api/clicks/cron", "schedule": "30 3 * * *" },
+    { "path": "/api/guides/cron", "schedule": "0 9 * * *" }
   ]
 }

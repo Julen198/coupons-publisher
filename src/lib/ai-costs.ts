@@ -2,7 +2,7 @@
 // cost = what the Gateway bills (web searches; tokens go to our own Anthropic key, BYOK)
 // marketCost = full list price of the call (tokens + searches) → what we report as "gasto"
 
-export const AI_FEATURES = ["search", "content", "style", "stores", "translate"] as const;
+export const AI_FEATURES = ["search", "content", "style", "stores", "translate", "guides"] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 
 export const FEATURE_INFO: Record<AiFeature, { label: string; what: string }> = {
@@ -11,6 +11,7 @@ export const FEATURE_INFO: Record<AiFeature, { label: string; what: string }> = 
   style: { label: "Estilo de la demo", what: "Claude Haiku: lee la web del cliente" },
   stores: { label: "Lista de tiendas", what: "Claude Haiku: convierte lo que pegas en tiendas" },
   translate: { label: "Traducciones", what: "Claude Haiku: títulos y condiciones de cupones en otros idiomas" },
+  guides: { label: "Guías SEO automáticas", what: "Claude Sonnet: la guía de cada tienda elegida por el cron" },
 };
 
 // The monthly limits set in Costes de IA (settings ai_budget, ai_alert and ai_pause_search), with their defaults
@@ -71,7 +72,7 @@ export function byFeature(rows: UsageRow[]) {
 }
 
 export function dailyByFeature(rows: UsageRow[], days: string[]) {
-  const map = new Map(days.map((day) => [day, { day, search: 0, content: 0, style: 0, stores: 0, translate: 0 }]));
+  const map = new Map(days.map((day) => [day, { day, search: 0, content: 0, style: 0, stores: 0, translate: 0, guides: 0 }]));
   for (const r of rows) {
     const d = map.get(madridDay(r.at));
     if (d) d[r.feature] += r.cost_total;

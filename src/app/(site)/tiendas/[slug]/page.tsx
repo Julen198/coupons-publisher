@@ -9,6 +9,7 @@ import { badgeInSentence, storeH1, storeHeading } from "@/lib/deal-text";
 import { currentVotes, siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { storeGuide } from "@/lib/store-guides";
+import { publishedGuide } from "@/lib/store-guides-db";
 import { MarkHeaderCategory } from "../../site-header";
 import { StoreBrand } from "../../store-logo-img";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: PageProps<"/tiendas/[slug]">)
   if (!found) return { title: "Tienda no encontrada", robots: { index: false } };
   const { store, coupons } = found;
   const codes = coupons.filter((c) => c.kind === "code" && c.code).length;
-  const guide = storeGuide(store.slug);
+  const guide = storeGuide(store.slug) ?? (await publishedGuide(store.id));
   return {
     title: { absolute: `${storeHeading(store.name, coupons, new Date())} | CuponLab` },
     description:
@@ -62,7 +63,8 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   const { iso: today } = madridToday(now);
   const time = now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
   const base = siteUrl();
-  const guide = storeGuide(store.slug);
+  // hand-written (store-guides.ts) first, else the automatic one once published (guides-cron.ts)
+  const guide = storeGuide(store.slug) ?? (await publishedGuide(store.id));
   // the store's own FAQs (panel) win; a store with none borrows its guide's
   const ownFaqs = parseFaqs(store.faqs);
   const faqs = ownFaqs.length ? ownFaqs : (guide?.faqs ?? []);
