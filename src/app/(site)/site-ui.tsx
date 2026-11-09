@@ -60,11 +60,11 @@ export function StatusBadges({ c, today, live = true }: { c: SiteCoupon; today: 
   );
 }
 
-// Affiliate links: sponsored for search engines, new tab for readers. source = the page or campaign the button is on,
-// so the click is counted under that origin (see clickSource)
+// Affiliate links: sponsored for search engines, new tab for readers; the data- attributes name the click in Google Analytics.
+// source = the page or campaign the button is on, so the click is counted under that origin (see clickSource)
 export function GoButton({ client, c, label, source }: { client: Client | undefined; c: SiteCoupon; label?: string; source?: string }) {
   return (
-    <a className="btn btn-primary go-btn" href={goHref(client, c, source)} target="_blank" rel="sponsored nofollow noopener">
+    <a className="btn btn-primary go-btn" href={goHref(client, c, source)} target="_blank" rel="sponsored nofollow noopener" data-store={c.store_slug} data-coupon={c.id}>
       {label ?? `Ir a ${c.store_name}`}
       <ArrowIcon />
     </a>
