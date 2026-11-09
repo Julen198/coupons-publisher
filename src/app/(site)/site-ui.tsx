@@ -60,10 +60,10 @@ export function StatusBadges({ c, today, live = true }: { c: SiteCoupon; today: 
   );
 }
 
-// Affiliate links: sponsored for search engines, new tab for readers
+// Affiliate links: sponsored for search engines, new tab for readers; the data- attributes name the click in Google Analytics
 export function GoButton({ client, c, label }: { client: Client | undefined; c: SiteCoupon; label?: string }) {
   return (
-    <a className="btn btn-primary go-btn" href={goHref(client, c)} target="_blank" rel="sponsored nofollow noopener">
+    <a className="btn btn-primary go-btn" href={goHref(client, c)} target="_blank" rel="sponsored nofollow noopener" data-store={c.store_slug} data-coupon={c.id}>
       {label ?? `Ir a ${c.store_name}`}
       <ArrowIcon />
     </a>
