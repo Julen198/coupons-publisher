@@ -1,19 +1,27 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { accountHref, accountTabOf, liveFirst, sharedStatus } from "./account.ts";
+import { accountHref, accountTabOf, accountTabs, liveFirst, sharedStatus } from "./account.ts";
 
-test("accountTabOf reads the three tabs and falls back to Compartidos", () => {
-  assert.equal(accountTabOf("guardados"), "guardados");
-  assert.equal(accountTabOf("comentarios"), "comentarios");
-  assert.equal(accountTabOf("compartidos"), "compartidos");
-  assert.equal(accountTabOf("alertas"), "compartidos");
-  assert.equal(accountTabOf(undefined), "compartidos");
-  assert.equal(accountTabOf(["guardados"]), "compartidos");
+test("accountTabOf reads the three tabs and falls back to Compartidos (sharing on)", () => {
+  assert.equal(accountTabOf("guardados", true), "guardados");
+  assert.equal(accountTabOf("comentarios", true), "comentarios");
+  assert.equal(accountTabOf("compartidos", true), "compartidos");
+  assert.equal(accountTabOf("alertas", true), "compartidos");
+  assert.equal(accountTabOf(undefined, true), "compartidos");
+  assert.equal(accountTabOf(["guardados"], true), "compartidos");
 });
 
-test("accountHref keeps Compartidos at the bare URL", () => {
-  assert.equal(accountHref("compartidos"), "/cuenta");
-  assert.equal(accountHref("guardados"), "/cuenta?tab=guardados");
+test("accountHref keeps the first tab at the bare URL (sharing on)", () => {
+  assert.equal(accountHref("compartidos", true), "/cuenta");
+  assert.equal(accountHref("guardados", true), "/cuenta?tab=guardados");
+});
+
+test("sharing off: no Compartidos tab, the account opens on Guardados", () => {
+  assert.deepEqual(accountTabs(false).map((t) => t.slug), ["guardados", "comentarios"]);
+  assert.equal(accountTabOf("compartidos", false), "guardados");
+  assert.equal(accountTabOf(undefined, false), "guardados");
+  assert.equal(accountHref("guardados", false), "/cuenta");
+  assert.equal(accountHref("comentarios", false), "/cuenta?tab=comentarios");
 });
 
 test("sharedStatus reads review first, then archived", () => {

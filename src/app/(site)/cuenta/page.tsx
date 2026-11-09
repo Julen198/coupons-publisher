@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ACCOUNT_TABS, accountHref, accountTabOf, liveFirst, sharedStatus } from "@/lib/account";
 import { timeAgo } from "@/lib/community";
-import { SHARE_LIMIT_NOTE } from "@/lib/community-rules";
+import { SHARE_LIMIT_NOTE, SHARING_ENABLED } from "@/lib/community-rules";
 import { readerComments, readerSavedDeals, readerSharedDeals, readerStats, type AccountCoupon } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
 import { dealPath } from "@/lib/site-text";
@@ -103,7 +103,7 @@ export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">)
       <section className="panel acct" aria-labelledby="cuenta-h1">
         <h1 id="cuenta-h1">@{reader.handle}</h1>
         <div className="acct-stats">
-          <span><b>{stats.shared.toLocaleString("es-ES")}</b>{stats.shared === 1 ? "chollo compartido" : "chollos compartidos"}</span>
+          {SHARING_ENABLED && <span><b>{stats.shared.toLocaleString("es-ES")}</b>{stats.shared === 1 ? "chollo compartido" : "chollos compartidos"}</span>}
           <span><b>{signed(stats.votes)}</b>{stats.votes === 1 || stats.votes === -1 ? "voto recibido" : "votos recibidos"}</span>
           <span><b>{stats.comments.toLocaleString("es-ES")}</b>{stats.comments === 1 ? "comentario" : "comentarios"}</span>
         </div>

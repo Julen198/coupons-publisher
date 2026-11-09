@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { SHARING_ENABLED } from "@/lib/community-rules";
 import { redirect } from "next/navigation";
 import { siteStoreOptions } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
@@ -7,6 +9,7 @@ import { ShareForm } from "./share-form";
 export const metadata: Metadata = { title: "Comparte un chollo", robots: { index: false } };
 
 export default async function CompartirPage() {
+  if (!SHARING_ENABLED) notFound(); // sharing is off for now (community-rules.ts)
   const reader = await getReader();
   if (!reader) redirect("/entrar?next=/compartir");
   if (!reader.handle) redirect("/entrar/nombre?next=/compartir");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { SHARING_ENABLED } from "@/lib/community-rules";
 import { RESEND_SECONDS, resendLabel } from "@/lib/reader-entry";
 import { requestReaderLink } from "../actions-reader";
 import { ArrowIcon, BookmarkIcon, ChatIcon, LockIcon, MailIcon, PlusIcon, TicketIcon, UpIcon } from "./icons";
@@ -72,11 +73,11 @@ function FormView({ email, setEmail, next, heading: H, id, action, pending, erro
           <li><span><UpIcon /></span>Votas chollos</li>
           <li><span><ChatIcon /></span>Comentas</li>
           <li><span><BookmarkIcon /></span>Guardas para luego</li>
-          <li><span><PlusIcon /></span>Compartes los tuyos</li>
+          {SHARING_ENABLED && <li><span><PlusIcon /></span>Compartes los tuyos</li>}
         </ul>
         <p className="entry-muted">Eliges un nombre público como <span className="entry-handle">@tu_nombre</span>.</p>
       </div>
-      <p className="entry-muted entry-perks-line">Con tu cuenta votas, comentas, guardas y compartes chollos.</p>
+      <p className="entry-muted entry-perks-line">{SHARING_ENABLED ? "Con tu cuenta votas, comentas, guardas y compartes chollos." : "Con tu cuenta votas, comentas y guardas chollos."}</p>
     </>
   );
 }

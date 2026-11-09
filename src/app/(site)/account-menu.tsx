@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SHARING_ENABLED } from "@/lib/community-rules";
 import { useRef } from "react";
 import { accountHref } from "@/lib/account";
 import { signOutReader } from "./actions-reader";
@@ -24,7 +25,7 @@ export function AccountMenu({ handle }: { handle: string | null }) {
           <b>{name}</b>
         </p>
         <nav aria-label="Tu cuenta">
-          <Link href={accountHref("compartidos")} onClick={close}>Mis chollos compartidos</Link>
+          {SHARING_ENABLED && <Link href={accountHref("compartidos")} onClick={close}>Mis chollos compartidos</Link>}
           <Link href={accountHref("guardados")} onClick={close}>Guardados</Link>
           <Link href={accountHref("comentarios")} onClick={close}>Comentarios</Link>
         </nav>

@@ -8,8 +8,7 @@ import { sql } from "@/lib/db";
 import { cleanComment, cleanHandle, couponIdOf, flagOf, parseSharedDeal, replyParent, reportLimitReached, validEmail } from "@/lib/community";
 import {
   COMMENT_COOLDOWN_MESSAGE, PARENT_GONE_MESSAGE, SHARE_LIMIT_PER_DAY, SHARE_LIMIT_SKIPS, commentInputError, expiryLimitMessage, REPORT_INACTIVE_MESSAGE, savedRequest,
-  shareLimitMessage, storeIdFor, voteRequest,
-} from "@/lib/community-rules";
+  shareLimitMessage, storeIdFor, voteRequest, SHARING_ENABLED } from "@/lib/community-rules";
 import { setDateAlert } from "@/lib/date-alert-subs";
 import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, missingEmailConfig, readerLinkEmail, sendEmail } from "@/lib/email";
 import { str, type FormState } from "@/lib/form";
@@ -218,6 +217,7 @@ export async function toggleHelpful(f: FormData): Promise<void> {
 // Stored hidden (archived + pending) until an editor publishes it. Rejected shares don't count toward the daily
 // limit (SHARE_LIMIT_SKIPS); the count and the insert are one statement under the reader's lock, so it stays atomic.
 export async function shareDeal(_prev: FormState, f: FormData): Promise<FormState & { done?: boolean }> {
+  if (!SHARING_ENABLED) return { error: "Compartir chollos no está disponible ahora mismo." };
   const reader = await getReader();
   if (!reader) return { error: "Entra para compartir un chollo" };
   if (!reader.handle) redirect("/entrar/nombre?next=/compartir");

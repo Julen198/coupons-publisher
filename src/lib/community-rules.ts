@@ -2,6 +2,10 @@
 // changes they make and what they answer. Pure, so it tests without a database (the actions keep the queries).
 import { couponIdOf, flagOf, EXPIRY_REPORT_LIMIT_PER_DAY } from "./community.ts";
 
+// Readers sharing their own deals («Compartir chollo»): off for now. false hides the header button, the /compartir page,
+// the account's Compartidos tab and the menu link, and the action refuses; true brings it all back.
+export const SHARING_ENABLED = false;
+
 // --- readers (src/app/(site)/actions-reader.ts)
 
 export function voteRequest(rawCoupon: string, rawValue: string): { couponId: number; pressed: -1 | 1 } | null {
