@@ -307,7 +307,7 @@ ALTER TABLE coupons ADD CONSTRAINT coupons_translation_status_check CHECK (trans
 CREATE INDEX IF NOT EXISTS coupons_translation_auto_idx ON coupons(id) WHERE translation_status = 'auto';
 -- their cost has its own line in Costes de IA
 ALTER TABLE ai_usage DROP CONSTRAINT IF EXISTS ai_usage_feature_check;
-ALTER TABLE ai_usage ADD CONSTRAINT ai_usage_feature_check CHECK (feature IN ('search', 'content', 'style', 'stores', 'translate'));
+ALTER TABLE ai_usage ADD CONSTRAINT ai_usage_feature_check CHECK (feature IN ('search', 'content', 'style', 'stores', 'translate', 'guides'));
 -- tracking launch gate: other domains a store sells on (comma-separated registrable domains, see storeDomains), so a deep
 -- link there keeps its page instead of falling back to the store's home
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS alt_domains text NOT NULL DEFAULT '';
@@ -328,6 +328,21 @@ ALTER TABLE network_accounts ADD COLUMN IF NOT EXISTS last_success_at timestampt
 -- an editor corrected a synced coupon's text (title, code, discount, description) in the panel: the network sync keeps
 -- their version instead of overwriting it with the feed's
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS text_locked boolean NOT NULL DEFAULT false;
+-- automatic SEO guides (guides-cron.ts): one per store, written by the AI, published at publish_at unless rejected.
+-- content = a StoreGuide (store-guides.ts); signals = what the store looked like when it was picked
+CREATE TABLE IF NOT EXISTS store_guides (
+  store_id int PRIMARY KEY REFERENCES stores(id) ON DELETE CASCADE,
+  status text NOT NULL CHECK (status IN ('scheduled', 'published', 'rejected')),
+  content jsonb NOT NULL,
+  signals jsonb NOT NULL DEFAULT '{}',
+  publish_at timestamptz NOT NULL,
+  published_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  rewritten_at timestamptz
+);
+ALTER TABLE store_guides ENABLE ROW LEVEL SECURITY;
+-- a rewrite of a published guide waits here, so the live one stays on the page until the new one goes out
+ALTER TABLE store_guides ADD COLUMN IF NOT EXISTS draft jsonb;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay

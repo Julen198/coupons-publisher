@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 /data
+
+# Google service account keys (never commit)
+cuponlab-seo-*.json
+*service-account*.json
