@@ -2,7 +2,7 @@
 // and copies (clicks table) and the automatic guides / AI costs. Each Google part fails on its own: the page still
 // shows the rest and says what is missing.
 import { sql } from "./db";
-import { dateRange, ga4Report, googleConfigured, meanPosition, searchAnalytics, storeSlugOf, type SearchRow } from "./google-api.ts";
+import { dateRange, ga4Report, googleConfigured, googleKeyProblem, meanPosition, searchAnalytics, storeSlugOf, type SearchRow } from "./google-api.ts";
 
 export const STATS_RANGES = [7, 28, 90] as const;
 export type StatsRange = (typeof STATS_RANGES)[number];
@@ -40,7 +40,7 @@ type Google = { search?: { cur: SearchRow[]; prev: SearchRow[]; queries: SearchR
 
 async function google(r: ReturnType<typeof dateRange>): Promise<Google> {
   const out: Google = { errors: {} };
-  if (!googleConfigured()) return { errors: { search: "sin credenciales", ga4: "sin credenciales" } };
+  if (!googleConfigured()) return { errors: { search: googleKeyProblem(), ga4: googleKeyProblem() } };
   const [search, ga4] = await Promise.allSettled([
     Promise.all([
       searchAnalytics(r.start, r.end, ["date"]),
@@ -129,7 +129,8 @@ export async function loadStats(d: StatsRange): Promise<Stats> {
   }).filter((s) => s.impressions || s.visits || s.clicks || s.guide !== "none")
     .sort((a, b) => b.impressions - a.impressions || b.clicks - a.clicks).slice(0, 15);
   const next = guides.filter((x) => x.status === "scheduled" || x.draft).sort((a, b) => +a.publish_at - +b.publish_at)[0];
-  const note = (ok: boolean, err?: string) => (ok ? "conectado" : err === "sin credenciales" ? "sin credenciales" : "error al leer");
+  // the reason shown on the pill: no key, a broken key, or what Google answered (permissions, API not enabled…)
+  const note = (ok: boolean, err?: string) => (ok ? "conectado" : err === "sin credenciales" || err?.startsWith("clave no válida") ? err : `error: ${(err ?? "desconocido").slice(0, 80)}`);
   return {
     range: r, days: d,
     sources: { search: { ok: !!g.search, note: note(!!g.search, g.errors.search) }, ga4: { ok: !!g.ga4, note: note(!!g.ga4, g.errors.ga4) } },

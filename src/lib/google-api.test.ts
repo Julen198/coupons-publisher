@@ -50,3 +50,10 @@ test("storeSlugOf and meanPosition ", async () => {
   assert.equal(meanPosition([{ keys: [], clicks: 0, impressions: 100, position: 10 }, { keys: [], clicks: 0, impressions: 300, position: 20 }]), 17.5);
   assert.equal(meanPosition([]), null);
 });
+
+test("googleKeyProblem tells a missing key from a broken one", async () => {
+  const { googleKeyProblem } = await import("./google-api.ts");
+  assert.equal(googleKeyProblem(""), "sin credenciales");
+  assert.equal(googleKeyProblem("{"), "clave no válida (1 caracteres)");
+  assert.equal(googleKeyProblem(JSON.stringify({ client_email: "a@b", private_key: "k" })), "");
+});

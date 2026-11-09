@@ -29,6 +29,10 @@ export function signedJwt(sa: ServiceAccount, scopes: string[], now = Math.floor
 
 export const googleConfigured = (): boolean => parseServiceAccount(process.env.GOOGLE_SERVICE_ACCOUNT_KEY) !== null;
 
+// Why Google can't be read: no key at all, or a value that isn't the key JSON (e.g. cut at its first line)
+export const googleKeyProblem = (raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY): string =>
+  !raw?.trim() ? "sin credenciales" : parseServiceAccount(raw) ? "" : `clave no válida (${raw.trim().length} caracteres)`;
+
 // ponytail: one token per warm instance, renewed 5 min before it expires
 let token: { value: string; until: number } | null = null;
 
