@@ -80,8 +80,9 @@ export type TelegramConfig ={ token: string; channelId: string; adminChatId: str
 // null = Telegram not set up (routes answer 503 instead of crashing)
 export function telegramConfig(): TelegramConfig | null {
   const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID, TELEGRAM_ADMIN_CHAT_ID, TELEGRAM_WEBHOOK_SECRET } = process.env;
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHANNEL_ID || !TELEGRAM_ADMIN_CHAT_ID || !TELEGRAM_WEBHOOK_SECRET) return null;
-  return { token: TELEGRAM_BOT_TOKEN, channelId: TELEGRAM_CHANNEL_ID, adminChatId: TELEGRAM_ADMIN_CHAT_ID, webhookSecret: TELEGRAM_WEBHOOK_SECRET };
+  // the public channel is optional: without it the admin chat still works (assistant, guide notices), only posting deals is off
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_ADMIN_CHAT_ID || !TELEGRAM_WEBHOOK_SECRET) return null;
+  return { token: TELEGRAM_BOT_TOKEN, channelId: TELEGRAM_CHANNEL_ID ?? "", adminChatId: TELEGRAM_ADMIN_CHAT_ID, webhookSecret: TELEGRAM_WEBHOOK_SECRET };
 }
 
 // The daily cron's Authorization header (Vercel sends Bearer CRON_SECRET). Fails closed when no secret is set.

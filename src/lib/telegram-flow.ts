@@ -40,6 +40,7 @@ function dealPost(cfg: TelegramConfig, c: PostableDeal, title?: string) {
 
 // Claims up to BATCH new live coupons and sends each to the admin chat with Publicar / Editar / Descartar
 export async function sendQueue(cfg: TelegramConfig): Promise<{ sent: number; left: number }> {
+  if (!cfg.channelId) return { sent: 0, left: 0 }; // nothing to review deals for until the public channel exists
   const since = Date.now() - FRESH_DAYS * 86_400_000;
   const fresh = (await siteCoupons()).filter((c) => new Date(c.created_at).getTime() >= since);
   if (!fresh.length) return { sent: 0, left: 0 };
@@ -70,6 +71,7 @@ export const queueSummary = ({ sent, left }: { sent: number; left: number }) =>
 type Outcome = { ok: boolean; note: string };
 
 export async function publish(cfg: TelegramConfig, id: number, title?: string): Promise<Outcome> {
+  if (!cfg.channelId) return { ok: false, note: "Falta el canal público (TELEGRAM_CHANNEL_ID)" };
   const found = await siteCoupon(id);
   if (!found?.live) return { ok: false, note: "Ya no está activo en la web" };
   const [claimed] = await sql()`UPDATE coupons SET telegram_status = 'published' WHERE id = ${id} AND telegram_status IN ('', 'review') RETURNING id`;
@@ -96,6 +98,7 @@ async function discard(id: number): Promise<Outcome> {
 
 // Channel posts of coupons no longer live get their button swapped for "❌ Caducado"
 export async function markExpired(cfg: TelegramConfig): Promise<number> {
+  if (!cfg.channelId) return 0;
   const posted = await sql()<{ id: number; telegram_message_id: number }[]>`
     SELECT id, telegram_message_id FROM coupons WHERE telegram_status = 'published' AND telegram_message_id IS NOT NULL`;
   if (!posted.length) return 0;
