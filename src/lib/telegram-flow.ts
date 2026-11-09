@@ -38,9 +38,9 @@ function dealPost(cfg: TelegramConfig, c: PostableDeal, title?: string) {
   };
 }
 
-// Claims up to BATCH new live coupons and sends each to the admin chat with Publicar / Editar / Descartar
+// Claims up to BATCH new live coupons and sends each to the admin chat with Publicar / Editar / Descartar (or, with no
+// public channel yet, just a link to the deal)
 export async function sendQueue(cfg: TelegramConfig): Promise<{ sent: number; left: number }> {
-  if (!cfg.channelId) return { sent: 0, left: 0 }; // nothing to review deals for until the public channel exists
   const since = Date.now() - FRESH_DAYS * 86_400_000;
   const fresh = (await siteCoupons()).filter((c) => new Date(c.created_at).getTime() >= since);
   if (!fresh.length) return { sent: 0, left: 0 };
@@ -54,7 +54,10 @@ export async function sendQueue(cfg: TelegramConfig): Promise<{ sent: number; le
   let sent = 0;
   for (const { id } of claimed) {
     try {
-      await tg(cfg, "sendMessage", { chat_id: cfg.adminChatId, ...dealPost(cfg, byId.get(id)!).body, reply_markup: reviewKeyboard(id) });
+      const post = dealPost(cfg, byId.get(id)!);
+      // without the public channel there is nothing to publish to: the deal arrives as a notice with its link
+      const keyboard = cfg.channelId ? reviewKeyboard(id) : { inline_keyboard: [[{ text: "👉 Ver chollo", url: post.url }]] };
+      await tg(cfg, "sendMessage", { chat_id: cfg.adminChatId, ...post.body, reply_markup: keyboard });
       sent++;
     } catch (e) {
       console.error("telegram: review message failed", id, e);
@@ -66,7 +69,7 @@ export async function sendQueue(cfg: TelegramConfig): Promise<{ sent: number; le
 }
 
 export const queueSummary = ({ sent, left }: { sent: number; left: number }) =>
-  sent ? `📬 ${sent} chollo(s) por revisar${left ? `. Quedan ${left}: /pendientes` : ""}` : "No hay chollos nuevos por revisar";
+  sent ? `📬 ${sent} chollo(s) nuevo(s)${left ? `. Quedan ${left}: /pendientes` : ""}` : "No hay chollos nuevos por revisar";
 
 type Outcome = { ok: boolean; note: string };
 
