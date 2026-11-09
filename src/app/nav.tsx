@@ -9,7 +9,7 @@ const MAIN = [
   { href: "/panel/clients", label: "Clientes" },
   { href: "/panel/stores", label: "Tiendas" },
   { href: "/panel/coupons", label: "Cupones" },
-  { href: "/panel/moderacion", label: "Moderación" },
+  { href: "/panel/moderacion", label: "Revisión" },
   { href: "/panel/guias", label: "Guías SEO" },
   { href: "/panel/pages", label: "Páginas" },
 ];

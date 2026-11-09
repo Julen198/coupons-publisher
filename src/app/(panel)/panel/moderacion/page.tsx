@@ -85,7 +85,7 @@ export default async function ModerationPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Moderación" eyebrow="Lo que aportan los lectores" />
+      <PageHeader title="Revisión" eyebrow="Lo que aportan los lectores y la IA, antes de publicarse" />
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Chollos compartidos</h2>
