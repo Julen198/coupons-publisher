@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { guideProblems, guideSimilarity, guideWords, pickCandidates, settingsOf, type StoreSignals } from "./guide-rules.ts";
+import { guideProblems, guideSimilarity, guideWords, pickCandidates, scoreOf, settingsOf, type StoreSignals } from "./guide-rules.ts";
 import type { StoreGuide } from "./store-guides.ts";
 
 const guide = (over: Partial<StoreGuide> = {}): StoreGuide => ({
@@ -62,4 +62,12 @@ test("guideSimilarity is 1 for the same text, low for different stores' guides",
   const b = only("zapatillas de atmosfera", "las zapatillas de running de atmosfera sport tienen outlet por marca y deporte con descuentos de temporada");
   assert.equal(guideSimilarity(a, a), 1);
   assert.ok(guideSimilarity(a, b) < 0.2);
+});
+
+test("scoreOf adds Google impressions and a bonus for pages close to the first page", () => {
+  const base = signals({ live: 5 });
+  assert.equal(scoreOf(base), 5);
+  assert.equal(scoreOf({ ...base, impressions: 400, position: 45 }), 5 + 20); // 400 / 20
+  assert.equal(scoreOf({ ...base, impressions: 400, position: 14 }), 5 + 20 + 15); // in reach: 8–30
+  assert.equal(scoreOf({ ...base, impressions: 0, position: 14 }), 5); // no impressions, no position bonus
 });

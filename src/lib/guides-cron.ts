@@ -9,6 +9,7 @@ import { siteUrl } from "./site-text";
 import { guideSlugs, storeGuide, type StoreGuide } from "./store-guides.ts";
 import { tg, telegramConfig } from "./telegram";
 import { categoryOf } from "./catalog";
+import { dateRange, googleConfigured, meanPosition, searchAnalytics, storeSlugOf, type SearchRow } from "./google-api.ts";
 
 // status: scheduled (new, goes out at publish_at), published, rejected (cancelled, or the AI couldn't write a valid
 // one). A rewrite of a published guide waits in `draft` until publish_at, so the live one stays on the page meanwhile.
@@ -31,17 +32,38 @@ export async function guideRows(): Promise<GuideRow[]> {
   return rows.map((r) => ({ ...r }));
 }
 
-// Every store on the public site with its live coupons, codes and last-30-day clicks
+// Search Console rows per store page, last 28 days; empty without credentials or when Google fails (the cron goes on)
+async function searchByStore(): Promise<Map<string, SearchRow[]>> {
+  const out = new Map<string, SearchRow[]>();
+  if (!googleConfigured()) return out;
+  try {
+    const r = dateRange(28);
+    for (const row of await searchAnalytics(r.start, r.end, ["page"], 1000)) {
+      const slug = storeSlugOf(row.keys[0]);
+      if (slug) out.set(slug, [...(out.get(slug) ?? []), row]);
+    }
+  } catch (e) {
+    console.error("guides: Search Console read failed", e);
+  }
+  return out;
+}
+
+// Every store on the public site with its live coupons, codes, last-30-day clicks and Google impressions
 export async function storeSignals(coupons?: SiteCoupon[]): Promise<StoreSignals[]> {
-  const [live, stores, clicks] = await Promise.all([
+  const [live, stores, clicks, search] = await Promise.all([
     coupons ?? siteCoupons(),
     sql()<{ id: number; slug: string; name: string; country: string }[]>`SELECT id, slug, name, country FROM stores`,
     sql()<{ store_id: number; n: number }[]>`SELECT store_id, count(*)::int AS n FROM clicks WHERE at > now() - interval '30 days' GROUP BY store_id`,
+    searchByStore(),
   ]);
   const clicksOf = new Map(clicks.map((c) => [c.store_id, c.n]));
   return stores.map((s) => {
     const mine = live.filter((c) => c.store_id === s.id);
-    return { storeId: s.id, slug: s.slug, name: s.name, country: s.country, live: mine.length, codes: mine.filter((c) => c.kind === "code" && c.code).length, clicks30: clicksOf.get(s.id) ?? 0 };
+    const rows = search.get(s.slug) ?? [];
+    return {
+      storeId: s.id, slug: s.slug, name: s.name, country: s.country, live: mine.length, codes: mine.filter((c) => c.kind === "code" && c.code).length,
+      clicks30: clicksOf.get(s.id) ?? 0, impressions: rows.reduce((n, r) => n + r.impressions, 0), position: meanPosition(rows),
+    };
   });
 }
 

@@ -23,11 +23,19 @@ export function settingsOf(v: Record<string, string | undefined>): GuideSettings
   };
 }
 
-// What we know of one store on the public site: its live coupons and codes, and its clicks in the last 30 days
-export interface StoreSignals { storeId: number; slug: string; name: string; country: string; live: number; codes: number; clicks30: number }
+// What we know of one store on the public site: its live coupons and codes, its clicks in the last 30 days and, when
+// Search Console is connected, its page's impressions and mean position in the last 28 days
+export interface StoreSignals {
+  storeId: number; slug: string; name: string; country: string; live: number; codes: number; clicks30: number;
+  impressions?: number; position?: number | null;
+}
 export type Candidate = StoreSignals & { score: number };
 
-export const scoreOf = (s: StoreSignals): number => s.live + 3 * s.codes + 2 * s.clicks30;
+// Google already shows the page between 8 and 30: a guide has the best odds of lifting it to the first page
+const IN_REACH = (p: number | null | undefined) => p != null && p >= 8 && p <= 30;
+
+export const scoreOf = (s: StoreSignals): number =>
+  s.live + 3 * s.codes + 2 * s.clicks30 + Math.round((s.impressions ?? 0) / 20) + (s.impressions && IN_REACH(s.position) ? 15 : 0);
 
 // Stores that should get a guide, best first: Spanish (or unknown) market, enough live coupons, none yet.
 // `taken` = slugs that already have one (hand-written, scheduled, published or rejected).
