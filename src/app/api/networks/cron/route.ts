@@ -9,6 +9,7 @@ import { runScheduledSync, syncOrder } from "@/lib/sync-cron";
 import { fillStoreIcons } from "@/lib/fill-store-icons";
 import { fillProductImages } from "@/lib/fill-product-images";
 import { translatePending } from "@/lib/translate-pending";
+import { syncCommissions } from "@/lib/commissions";
 
 // Vercel Pro allows up to 800 s; runScheduledSync stops starting accounts at 760 s
 export const maxDuration = 800;
@@ -37,7 +38,8 @@ export async function GET(req: Request) {
       },
     });
     for (const r of results) if (r.status !== "ok") console.error("network cron", r.network, r.id, r.error);
-    after(() => Promise.all([fillStoreIcons(newStores), fillProductImages(), translatePending()]));
+    // after the feeds: Awin's transactions, so Estadísticas shows what each store and origin earned
+    after(() => Promise.all([fillStoreIcons(newStores), fillProductImages(), translatePending(), syncCommissions().then((c) => c.errors.forEach((e) => console.error("commissions", e)))]));
     revalidatePath("/", "layout");
     // ids, networks and outcomes only: no credentials or account refs
     return Response.json({

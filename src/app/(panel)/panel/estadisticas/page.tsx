@@ -7,6 +7,7 @@ import { loadStats, rangeOf, STATS_RANGES, type SourceState, type Stats, type To
 import { ClicksTab } from "./clicks-tab";
 
 const n = (v: number) => Math.round(v).toLocaleString("es-ES");
+const eur = (v: number) => v.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 const pct = (v: number) => `${(v * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`;
 const pos = (v: number | null) => (v == null ? "—" : v.toLocaleString("es-ES", { maximumFractionDigits: 1 }));
 const fmtDay = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -38,13 +39,13 @@ function SourcePill({ label, s }: { label: string; s: SourceState }) {
   );
 }
 
-function Funnel({ cur }: { cur: Totals }) {
+function Funnel({ cur, awin }: { cur: Totals; awin: boolean }) {
   const steps: { label: string; value: number | null; note: string; orange?: boolean }[] = [
     { label: "Te ven en Google", value: cur.impressions || null, note: cur.impressions ? `${pct(cur.gClicks / cur.impressions)} entra (CTR)` : "Sin datos de Search Console" },
     { label: "Entran desde Google", value: cur.impressions ? cur.gClicks : null, note: cur.visits ? `${pct(cur.gClicks / cur.visits)} de las visitas viene de Google` : "" },
     { label: "Visitas totales", value: cur.visits, note: "Google, Telegram, directo…" },
     { label: "Van a la tienda", value: cur.clicks, note: cur.visits ? `${pct(cur.clicks / cur.visits)} de las visitas` : "", orange: true },
-    { label: "Compran (Awin)", value: null, note: "Pendiente de la API de informes de Awin" },
+    { label: "Compran (Awin)", value: awin ? cur.sales : null, note: awin ? `${eur(cur.earned)} de comisión${cur.clicks ? ` · ${pct(cur.sales / cur.clicks)} de los clics` : ""}` : "Sin cuenta de Awin conectada" },
   ];
   return (
     <ol className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
@@ -142,7 +143,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
         <SourcePill label="Search Console" s={s.sources.search} />
         <SourcePill label="Google Analytics 4" s={s.sources.ga4} />
         <SourcePill label="Clics propios" s={{ ok: true, note: "en directo" }} />
-        <SourcePill label="Informes de Awin" s={{ ok: false, note: "pendiente" }} />
+        <SourcePill label="Comisiones de Awin" s={s.sources.awin} />
       </div>
 
       <section aria-label="Indicadores" className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
@@ -152,11 +153,12 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
         <Kpi label="Visitas a la web" value={s.cur.visits == null ? "—" : n(s.cur.visits)} cur={s.cur.visits} prev={s.prev.visits} src="GA4" />
         <Kpi label="Clics a tiendas" value={n(s.cur.clicks)} cur={s.cur.clicks} prev={s.prev.clicks} src="/go/…" />
         <Kpi label="Códigos copiados" value={n(s.cur.copies)} cur={s.cur.copies} prev={s.prev.copies} src="Copiar código" />
+        <Kpi label="Comisiones" value={eur(s.cur.earned)} cur={s.cur.earned} prev={s.prev.earned} src="Awin" />
       </section>
 
       <section className={`${cardCls} space-y-4`} aria-labelledby="funnel">
         <h2 id="funnel" className="font-semibold">Del buscador a la tienda</h2>
-        <Funnel cur={s.cur} />
+        <Funnel cur={s.cur} awin={s.sources.awin.ok} />
       </section>
 
       <section className={`${cardCls} space-y-4`} aria-labelledby="daily">
@@ -222,7 +224,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-neutral-50 text-left text-xs text-neutral-500 dark:bg-neutral-900">
-                <tr><th className={`${th} pl-5`}>Tienda</th><th className={th}>Guía SEO</th><th className={`${th} text-right`}>Impresiones</th><th className={`${th} text-right`}>Posición</th><th className={`${th} text-right`}>Visitas</th><th className={`${th} text-right`}>Clics a tienda</th><th className={`${th} pr-5 text-right`}>% de visitas</th></tr>
+                <tr><th className={`${th} pl-5`}>Tienda</th><th className={th}>Guía SEO</th><th className={`${th} text-right`}>Impresiones</th><th className={`${th} text-right`}>Posición</th><th className={`${th} text-right`}>Visitas</th><th className={`${th} text-right`}>Clics a tienda</th><th className={`${th} text-right`}>% de visitas</th><th className={`${th} pr-5 text-right`}>Comisión</th></tr>
               </thead>
               <tbody>
                 {s.stores.map((r) => (
@@ -230,7 +232,8 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
                     <td className="px-3 py-2 pl-5 font-medium"><Link href={`/tiendas/${r.slug}`} className="hover:underline">{r.name}</Link></td>
                     <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${GUIDE[r.guide][1]}`}>{GUIDE[r.guide][0]}</span></td>
                     <td className={td}>{n(r.impressions)}</td><td className={td}>{pos(r.position)}</td><td className={td}>{n(r.visits)}</td><td className={td}>{n(r.clicks)}</td>
-                    <td className={`${td} pr-5 text-neutral-500`}>{r.visits ? pct(r.clicks / r.visits) : "—"}</td>
+                    <td className={`${td} text-neutral-500`}>{r.visits ? pct(r.clicks / r.visits) : "—"}</td>
+                    <td className={`${td} pr-5 font-semibold`}>{r.earned ? eur(r.earned) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -251,10 +254,10 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
         <section className={`${cardCls} space-y-3`} aria-labelledby="money">
           <h2 id="money" className="font-semibold">Ingresos y costes</h2>
           <div className="grid grid-cols-2 gap-3">
-            <div><p className="text-2xl font-bold text-neutral-400">—</p><p className="text-sm text-neutral-500">Comisiones (Awin)</p></div>
+            <div><p className="text-2xl font-bold tabular-nums">{eur(s.cur.earned)}</p><p className="text-sm text-neutral-500">Comisiones (Awin) · {eur(s.approved)} aprobadas</p></div>
             <div><p className="text-2xl font-bold tabular-nums">{s.aiCost.toLocaleString("es-ES", { style: "currency", currency: "USD" })}</p><p className="text-sm text-neutral-500">Coste de IA en el periodo</p></div>
           </div>
-          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">Las comisiones aparecerán al conectar la API de informes de Awin, cruzadas por el clickref <code>cuponlab-…</code>.</p>
+          <p className="text-sm text-neutral-500">Solo cuentan las ventas cuyo clickref es nuestro (<code>cuponlab-…</code> o el de un cliente): las de Runnea en la misma cuenta no se suman. Incluye las pendientes; las rechazadas no. Se actualiza cada 6 horas.</p>
         </section>
       </div>
 

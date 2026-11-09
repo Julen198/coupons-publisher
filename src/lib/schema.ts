@@ -353,7 +353,28 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 );
 CREATE INDEX IF NOT EXISTS login_attempts_key_idx ON login_attempts(key, at);
 ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
+-- network commissions (commissions.ts): one row per transaction whose clickref is one of our clients' (never another
+-- publisher's sale on a shared account); status moves pending → approved / declined, so rows are re-read and updated
+CREATE TABLE IF NOT EXISTS commissions (
+  id text PRIMARY KEY,
+  network text NOT NULL,
+  publisher_id text NOT NULL DEFAULT '',
+  merchant_id text NOT NULL DEFAULT '',
+  store_id int REFERENCES stores(id) ON DELETE SET NULL,
+  client_slug text NOT NULL DEFAULT '',
+  coupon_id int,
+  source text NOT NULL DEFAULT '',
+  clickref text NOT NULL DEFAULT '',
+  amount numeric NOT NULL DEFAULT 0,
+  currency text NOT NULL DEFAULT 'EUR',
+  sale_amount numeric NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT '',
+  at timestamptz NOT NULL,
+  synced_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS commissions_at_idx ON commissions(at);
+ALTER TABLE commissions ENABLE ROW LEVEL SECURITY;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
-export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE votes, comment_votes, comments, saved_deals, expiry_reports, date_alert_subs, date_alert_sends, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;
+export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE commissions, votes, comment_votes, comments, saved_deals, expiry_reports, date_alert_subs, date_alert_sends, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;
