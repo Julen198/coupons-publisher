@@ -31,9 +31,10 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/p
   const accounts = await usableAccounts(client.id);
   const editable = canEdit(user);
   const statusOf = new Map(allPages.filter((p) => p.client_id === client.id).map((p) => [p.store_id, p.status]));
-  // live = what the client's page would show (same rules as the public site); only stores of the Spanish market
+  // live = what the client's page would show (same rules as the public site); stores of the Spanish market, plus any
+  // other that already has a state for this client (so an old foreign page can still be switched off)
   const liveOf = coupons.reduce((m, c) => m.set(c.store_id, (m.get(c.store_id) ?? 0) + 1), new Map<number, number>());
-  const storeRows: ClientStoreRow[] = stores.filter(onSpanishSite).map((s) => ({ storeId: s.id, slug: s.slug, name: s.name, state: stateOf(statusOf.get(s.id)), live: liveOf.get(s.id) ?? 0 }));
+  const storeRows: ClientStoreRow[] = stores.filter((s) => onSpanishSite(s) || statusOf.has(s.id)).map((s) => ({ storeId: s.id, slug: s.slug, name: s.name, state: stateOf(statusOf.get(s.id)), live: liveOf.get(s.id) ?? 0 }));
   const stateFilter = STATE_FILTERS.find((f) => f.id === sp.estado)?.id ?? "todas";
 
   return (
