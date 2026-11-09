@@ -229,6 +229,7 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .prose { max-width: 68ch; display: grid; gap: 12px; color: var(--ink-2); }
 .cl .prose strong { color: var(--ink); }
 .cl .prose h2 { color: var(--ink); font-size: 1.15rem; margin-top: 8px; }
+.cl .prose h3 { color: var(--ink); font-size: 1.02rem; margin-top: 6px; }
 .cl .author { display: flex; gap: 14px; align-items: flex-start; border: 1px solid var(--line); border-radius: var(--r); padding: 16px; max-width: 80ch; }
 .cl .author .av { width: 44px; height: 44px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; font-weight: 800; flex: none; font-family: var(--f-display); }
 .cl .author p { color: var(--ink-2); font-size: .9rem; }

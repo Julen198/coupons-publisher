@@ -7,6 +7,7 @@ import { sortDeals } from "@/lib/community";
 import { badgeInSentence, storeH1, storeHeading } from "@/lib/deal-text";
 import { currentVotes, siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
+import { storeGuide } from "@/lib/store-guides";
 import { MarkHeaderCategory } from "../../site-header";
 import { StoreBrand } from "../../store-logo-img";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
@@ -23,9 +24,13 @@ export async function generateMetadata({ params }: PageProps<"/tiendas/[slug]">)
   if (!found) return { title: "Tienda no encontrada", robots: { index: false } };
   const { store, coupons } = found;
   const codes = coupons.filter((c) => c.kind === "code" && c.code).length;
+  const guide = storeGuide(store.slug);
   return {
     title: { absolute: `${storeHeading(store.name, coupons, new Date())} | CuponLab` },
-    description: `${coupons.length} cupones activos de ${store.name} (${codes} códigos descuento), con condiciones y fecha de caducidad.`,
+    description:
+      guide && coupons.length
+        ? guide.description
+        : `${coupons.length} cupones activos de ${store.name} (${codes} códigos descuento), con condiciones y fecha de caducidad.`,
     alternates: { canonical: `/tiendas/${store.slug}` },
     // a store with nothing live is a thin page: keep it reachable but out of the index
     robots: coupons.length ? undefined : { index: false, follow: true },
@@ -53,7 +58,10 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   const { iso: today } = madridToday(now);
   const time = now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
   const base = siteUrl();
-  const faqs = parseFaqs(store.faqs);
+  const guide = storeGuide(store.slug);
+  // the store's own FAQs (panel) win; a store with none borrows its guide's
+  const ownFaqs = parseFaqs(store.faqs);
+  const faqs = ownFaqs.length ? ownFaqs : (guide?.faqs ?? []);
   const codes = coupons.filter((c) => c.kind === "code" && c.code).length;
   const verified = coupons.filter((c) => c.verified).length;
   const best = [...coupons].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
@@ -188,7 +196,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
         </div>
       </div>
 
-      {(store.intro.trim() || faqs.length > 0) && (
+      {(store.intro.trim() || guide || faqs.length > 0) && (
         <div className="longform">
           <div className="wrap">
             {store.intro.trim() && (
@@ -197,6 +205,35 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
                   <h2>Lo que conviene saber de {store.name}</h2>
                 </div>
                 <p className="lead">{store.intro}</p>
+              </section>
+            )}
+            {guide && (
+              <section className="two" data-seo="Guía de la tienda">
+                <div className="section-head">
+                  <h2>Cómo conseguir un {guide.keyword}</h2>
+                  <p>Lo que conviene saber antes de usar un cupón de {store.name}.</p>
+                </div>
+                <div className="prose">
+                  {!store.intro.trim() && <p className="lead">{guide.lead}</p>}
+                  {guide.sections.map((s) => (
+                    <section key={s.heading} className="prose">
+                      <h3>{s.heading}</h3>
+                      {s.paragraphs.map((p, i) => (
+                        <p key={i}>{p}</p>
+                      ))}
+                      {s.steps && (
+                        <ol className="steps">
+                          {s.steps.map((step, i) => (
+                            <li key={i}>{step}</li>
+                          ))}
+                        </ol>
+                      )}
+                    </section>
+                  ))}
+                  <p className="small">
+                    Cómo comprobamos cada código: <Link href="/metodologia">metodología de CuponLab</Link>.
+                  </p>
+                </div>
               </section>
             )}
             {faqs.length > 0 && (
