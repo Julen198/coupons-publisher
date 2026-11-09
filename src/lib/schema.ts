@@ -320,6 +320,9 @@ ALTER TABLE clicks ADD CONSTRAINT clicks_kind_check CHECK (kind IN ('go', 'copy'
 ALTER TABLE clicks ADD COLUMN IF NOT EXISTS ref text NOT NULL DEFAULT '';
 ALTER TABLE clicks ADD COLUMN IF NOT EXISTS ua_hash text NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS clicks_dedupe_idx ON clicks(coupon_id, ua_hash, at);
+-- where a click was made (see clickSource): the ?o= of the link ("portada", "tienda", "chollo", "pagina", "widget",
+-- "telegram"…) or, without one, what the page it came from says; '' = unknown (clicks from before this column)
+ALTER TABLE clicks ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT '';
 -- the network sync cron: when each account last synced without error (last_sync_at / last_error say when it last tried)
 ALTER TABLE network_accounts ADD COLUMN IF NOT EXISTS last_success_at timestamptz;
 -- an editor corrected a synced coupon's text (title, code, discount, description) in the panel: the network sync keeps

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, factsOf } from "@/lib/catalog";
+import { pageSource } from "@/lib/click-signals";
 import { copyBeaconHref, currentVotes, dealComments, readerDealMarks, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
 import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
@@ -61,7 +62,10 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
     dealComments(c.id, reader?.id ?? null),
     readerDealMarks(reader?.id ?? null, c.id),
   ]);
-  const replyingTo = couponIdOf(String((await searchParams).responder ?? ""));
+  const sp = await searchParams;
+  const replyingTo = couponIdOf(String(sp.responder ?? ""));
+  // where its clicks count: the campaign that brought the reader (Telegram's utm_source) or this deal page
+  const source = pageSource(sp, "chollo");
   const threads = threadComments(comments);
   const now = new Date();
   const { iso: today } = madridToday();
@@ -271,8 +275,8 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
           </div>
           {live ? (
             <>
-              {hasCode && <CopyCode code={c.code} beacon={copyBeaconHref(client, c)} />}
-              <GoButton client={client} c={c} />
+              {hasCode && <CopyCode code={c.code} beacon={copyBeaconHref(client, c, source)} />}
+              <GoButton client={client} c={c} source={source} />
               <DealActions couponId={c.id} back={dealPath(c)} saved={marks.saved} reported={marks.reported} />
             </>
           ) : (
@@ -292,8 +296,8 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
       {live && (
         <div className="mbar">
           <span className={priceClass(c)}>{badge}</span>
-          {hasCode && <CopyCodeButton code={c.code} beacon={copyBeaconHref(client, c)} />}
-          <GoButton client={client} c={c} />
+          {hasCode && <CopyCodeButton code={c.code} beacon={copyBeaconHref(client, c, source)} />}
+          <GoButton client={client} c={c} source={source} />
         </div>
       )}
     </main>

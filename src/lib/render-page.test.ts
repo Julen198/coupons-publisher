@@ -7,9 +7,9 @@ const store = { id: 2, name: "adidas", slug: "adidas", website: "https://www.adi
 const coupon = { id: 9, store_id: 2, kind: "code" as const, title: "Cupón", code: "SAVE10", discount: "10€", description: "", target_url: "https://www.adidas.es/x", expires_at: "", verified: 1, archived: 0, source: "manual" as const, source_url: "", external_id: null, publisher_id: "", shared_by: null, review: "" as const, about: "", about_status: "" as const };
 const NOW = new Date(2026, 9, 24);
 
-test("with trackBase, buttons go through /go for click counting", () => {
+test("with trackBase, buttons go through /go for click counting, with the client's page as their origin", () => {
   const html = renderPage(client, store, [coupon], NOW, "https://demo.example");
-  assert.match(html, /href="https:\/\/demo\.example\/go\/diario-demo\/9"/);
+  assert.match(html, /href="https:\/\/demo\.example\/go\/diario-demo\/9\?o=pagina"/);
   assert.doesNotMatch(html, /awin1\.com/);
 });
 
@@ -69,4 +69,9 @@ test("a link that isn't tracked goes to the store's own page, never to another s
   const td = { ...store, network: "tradedoubler", tracking_url: "https://not-tradedoubler.example/?url={url}" };
   assert.equal(couponAffiliateUrl(client, td, coupon), "https://www.adidas.es/x");
   assert.equal(couponAffiliateUrl(client, td, { ...coupon, target_url: "https://www.otra-tienda.es/x" }), "https://www.adidas.es/");
+});
+
+test("inside the widget, buttons count their clicks as widget; without /go the origin closes the clickref", () => {
+  assert.match(renderPage(client, store, [coupon], NOW, "https://demo.example", undefined, "widget"), /\/go\/diario-demo\/9\?o=widget"/);
+  assert.match(renderPage(client, store, [coupon], NOW), /clickref=diario-demo-adidas-9-pagina&amp;clickref2=pagina/);
 });

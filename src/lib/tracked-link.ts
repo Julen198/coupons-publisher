@@ -111,17 +111,20 @@ const REF_LIMIT: Record<string, number> = { awin: 50, cj: 64, rakuten: 72 };
 const DEFAULT_REF_LIMIT = 50;
 const refPart = (s: string) => s.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
 
-// "<client-slug>-<store-slug>-<coupon id>", shortened to the network's limit: the store slug gives way first, then the
-// client's (never under 12), so the coupon id and the client stay readable in the network's reports
-export function clickrefFor(clientSlug: string, storeSlug: string, couponId: number, network: string): string {
+// "<client-slug>-<store-slug>-<coupon id>[-<source>]", shortened to the network's limit: the store slug gives way first,
+// then the client's (never under 12), so the coupon id, the origin and the client stay readable in the network's reports.
+// The source (see clickSource) never has a hyphen and starts with a letter, so a last part that isn't all digits is it.
+export function clickrefFor(clientSlug: string, storeSlug: string, couponId: number, network: string, source = ""): string {
   const limit = REF_LIMIT[network] ?? DEFAULT_REF_LIMIT;
   const id = String(couponId);
+  const src = /^[a-z][a-z0-9]*$/.test(source) ? source : "";
   let client = refPart(clientSlug);
   let store = refPart(storeSlug);
-  const len = () => [client, store, id].filter(Boolean).join("-").length;
+  const len = () => [client, store, id, src].filter(Boolean).join("-").length;
   if (len() > limit) store = store.slice(0, Math.max(0, store.length - (len() - limit))).replace(/-$/, "");
   if (len() > limit) client = client.slice(0, Math.max(12, client.length - (len() - limit))).replace(/-$/, "");
-  return [client, store, id].filter(Boolean).join("-").slice(0, limit);
+  const ref = [client, store, id].filter(Boolean).join("-");
+  return src && ref.length + 1 + src.length <= limit ? `${ref}-${src}` : ref.slice(0, limit);
 }
 
 // ---- what a tracked link of each network looks like
@@ -151,13 +154,14 @@ const SHAPES: Record<string, (u: URL, store: LinkStore) => boolean> = {
 
 const fail = (problem: LinkProblem): TrackedLink => ({ problem, message: PROBLEM_TEXT[problem] });
 
-// The link one client's button sends a reader to for this coupon, or why there is none we can trust
-export function trackedLinkOf(coupon: LinkCoupon, store: LinkStore, accounts: LinkAccounts): TrackedLink {
+// The link one client's button sends a reader to for this coupon, or why there is none we can trust.
+// source = where the click was made (see clickSource): it closes the clickref, and goes as clickref2 on Awin.
+export function trackedLinkOf(coupon: LinkCoupon, store: LinkStore, accounts: LinkAccounts, source = ""): TrackedLink {
   const shape = SHAPES[store.network];
   if (!shape) return fail("unknown-network");
   const dest = destinationOf(coupon, store);
   if (!dest) return fail("no-website");
-  const clickref = clickrefFor(accounts.client.slug, store.slug, coupon.id, store.network);
+  const clickref = clickrefFor(accounts.client.slug, store.slug, coupon.id, store.network, source);
   let url: string;
   if (store.network === "awin") {
     if (!store.merchant_id.trim()) return fail("no-merchant");
@@ -165,7 +169,7 @@ export function trackedLinkOf(coupon: LinkCoupon, store: LinkStore, accounts: Li
     if (!affiliateId) return fail("no-publisher");
     const known = accounts.awinPublishers;
     if (known?.size && affiliateId !== accounts.client.awin_affiliate_id && !known.has(affiliateId)) return fail("unknown-publisher");
-    url = affiliateUrl(dest.url, { affiliateId, merchantId: store.merchant_id.trim(), clickref });
+    url = affiliateUrl(dest.url, { affiliateId, merchantId: store.merchant_id.trim(), clickref, clickref2: clickref.endsWith(`-${source}`) ? source : "" });
   } else {
     const template = (accounts.clientTemplate || store.tracking_url).trim();
     if (!template) return fail("no-template");

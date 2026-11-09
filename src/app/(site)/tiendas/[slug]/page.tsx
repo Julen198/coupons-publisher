@@ -1,3 +1,4 @@
+import { pageSource } from "@/lib/click-signals";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -44,11 +45,14 @@ const sortHref = (slug: string, orden: Orden) => (orden === "destacados" ? `/tie
 
 export default async function StorePage({ params, searchParams }: PageProps<"/tiendas/[slug]">) {
   const found = await load((await params).slug);
-  const rawOrden = (await searchParams).orden;
+  const sp = await searchParams;
+  const rawOrden = sp.orden;
   const orden = ordenOf(typeof rawOrden === "string" ? rawOrden : "");
   if (!found) notFound();
   const { store, all, coupons } = found;
   const [client, mine] = await Promise.all([siteClient(), currentVotes()]);
+  // where its clicks count: a campaign's utm_source, or this store page (the SEO landing for "<store> códigos")
+  const source = pageSource(sp, "tienda");
   const now = new Date();
   const { iso: today } = madridToday(now);
   const time = now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
@@ -140,7 +144,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
             {sorted.length ? (
               <div className="feed">
                 {sorted.map((c) => (
-                  <DealCard key={c.id} c={c} client={client} today={today} now={now} mine={mine} next={sortHref(store.slug, orden)} hideStore />
+                  <DealCard key={c.id} c={c} client={client} today={today} now={now} mine={mine} next={sortHref(store.slug, orden)} hideStore source={source} />
                 ))}
               </div>
             ) : (

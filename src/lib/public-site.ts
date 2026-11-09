@@ -5,6 +5,7 @@ import { isPublic } from "./coupon-status.ts";
 import { dealVisibility } from "./site-routes.ts";
 import { publishUnverified } from "./settings.ts";
 import { couponAffiliateUrl } from "./render-page.ts";
+import { withSource } from "./click-signals.ts";
 import { isTracked, trackedLinkOf } from "./tracked-link.ts";
 import { accountsFor, siteLinks, SITE_CLIENT_SLUG, type ClientLinks } from "./link-accounts";
 import { altDomainsColumn, altDomainsSql } from "./tracking-columns.ts";
@@ -194,21 +195,21 @@ export const siteClient = cache(async (): Promise<Client | undefined> => {
   return row ? { ...row } : undefined;
 });
 
-// Where "Ir a la tienda" goes: through /go (counted) when the site client exists, else straight to the
-// affiliate link with our own publisher ids
-export function goHref(client: Client | undefined, c: SiteCoupon): string {
-  if (client) return `/go/${encodeURIComponent(client.slug)}/${c.id}`;
+// Where "Ir a la tienda" goes: through /go (counted, with source = the page or campaign it is on as ?o=) when the site
+// client exists, else straight to the affiliate link with our own publisher ids
+export function goHref(client: Client | undefined, c: SiteCoupon, source = ""): string {
+  if (client) return withSource(`/go/${encodeURIComponent(client.slug)}/${c.id}`, source);
   const ours = { slug: SITE_CLIENT_SLUG, awin_affiliate_id: "" };
   const store = {
     slug: c.store_slug, network: c.store_network, merchant_id: c.store_merchant_id, tracking_url: c.store_tracking_url,
     publisher_id: c.store_publisher_id, website: c.store_website, alt_domains: c.store_alt_domains,
   };
-  return couponAffiliateUrl(ours, store, c);
+  return couponAffiliateUrl(ours, store, c, "", undefined, source);
 }
 
 // Where "Copiar código" counts a copy (POST to the same /go address); none without the site client to count it for
-export const copyBeaconHref = (client: Client | undefined, c: Pick<SiteCoupon, "id">): string | undefined =>
-  client ? `/go/${encodeURIComponent(client.slug)}/${c.id}` : undefined;
+export const copyBeaconHref = (client: Client | undefined, c: Pick<SiteCoupon, "id">, source = ""): string | undefined =>
+  client ? withSource(`/go/${encodeURIComponent(client.slug)}/${c.id}`, source) : undefined;
 
 export type DealComment = {
   id: number; parent_id: number | null; reader_id: number; handle: string; body: string; created_at: Date; by_sharer: boolean;

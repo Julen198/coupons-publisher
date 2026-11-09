@@ -60,10 +60,11 @@ export function StatusBadges({ c, today, live = true }: { c: SiteCoupon; today: 
   );
 }
 
-// Affiliate links: sponsored for search engines, new tab for readers
-export function GoButton({ client, c, label }: { client: Client | undefined; c: SiteCoupon; label?: string }) {
+// Affiliate links: sponsored for search engines, new tab for readers. source = the page or campaign the button is on,
+// so the click is counted under that origin (see clickSource)
+export function GoButton({ client, c, label, source }: { client: Client | undefined; c: SiteCoupon; label?: string; source?: string }) {
   return (
-    <a className="btn btn-primary go-btn" href={goHref(client, c)} target="_blank" rel="sponsored nofollow noopener">
+    <a className="btn btn-primary go-btn" href={goHref(client, c, source)} target="_blank" rel="sponsored nofollow noopener">
       {label ?? `Ir a ${c.store_name}`}
       <ArrowIcon />
     </a>
@@ -101,15 +102,16 @@ export function VoteColumn({ couponId, score, mine, next, readOnly = false }: { 
   );
 }
 
-// hideStore: on the store's own page the card leaves out its logo and name; viewerHandle: the signed-in reader's @handle
-type CardProps = { c: SiteCoupon; client: Client | undefined; today: string; now: Date; mine: Map<number, -1 | 1>; next: string; hideStore?: boolean; viewerHandle?: string | null };
+// hideStore: on the store's own page the card leaves out its logo and name; viewerHandle: the signed-in reader's @handle;
+// source: the origin its clicks and copies count under
+type CardProps = { c: SiteCoupon; client: Client | undefined; today: string; now: Date; mine: Map<number, -1 | 1>; next: string; hideStore?: boolean; viewerHandle?: string | null; source?: string };
 
 // "@handle" in a card's foot: a link to the reader's own account when it is theirs (there are no public profiles)
 function SharedBy({ handle, viewerHandle }: { handle: string; viewerHandle?: string | null }) {
   return handle === viewerHandle ? <Link href="/cuenta">@{handle}</Link> : <>@{handle}</>;
 }
 
-export function DealCard({ c, client, today, now, mine, next, hideStore = false, viewerHandle }: CardProps) {
+export function DealCard({ c, client, today, now, mine, next, hideStore = false, viewerHandle, source }: CardProps) {
   const conds = conditionsOf(c.description, c.title).slice(0, 3);
   return (
     <article className="deal">
@@ -143,8 +145,8 @@ export function DealCard({ c, client, today, now, mine, next, hideStore = false,
             )}
           </div>
           <div className="cta">
-            {c.kind === "code" && c.code && <CopyCode code={c.code} beacon={copyBeaconHref(client, c)} />}
-            <GoButton client={client} c={c} />
+            {c.kind === "code" && c.code && <CopyCode code={c.code} beacon={copyBeaconHref(client, c, source)} />}
+            <GoButton client={client} c={c} source={source} />
           </div>
         </div>
       </div>

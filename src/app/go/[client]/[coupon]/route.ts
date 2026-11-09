@@ -7,7 +7,7 @@ import { longDate, madridToday, siteUrl } from "@/lib/site-text";
 import { isTracked, trackedLinkOf } from "@/lib/tracked-link";
 import { SITE_CLIENT_SLUG, accountsFor, clientLinks } from "@/lib/link-accounts";
 import { recordClick } from "@/lib/clicks";
-import { isBot, refPath, uaHash, type ClickKind } from "@/lib/click-signals";
+import { clickSource, isBot, refPath, uaHash, type ClickKind } from "@/lib/click-signals";
 
 type Target = { client: Client; coupon: Coupon; store: Store };
 
@@ -32,11 +32,11 @@ async function load(ctx: RouteContext<"/go/[client]/[coupon]">): Promise<Target 
 }
 
 // Never block the reader over a lost count
-async function count(t: Target, kind: ClickKind, req: Request, ref: string) {
+async function count(t: Target, kind: ClickKind, req: Request, ref: string, source: string) {
   const ua = req.headers.get("user-agent");
   if (isBot(ua)) return;
   try {
-    await recordClick({ clientId: t.client.id, storeId: t.store.id, couponId: t.coupon.id, kind, ref, uaHash: uaHash(ua ?? "", madridToday().iso) });
+    await recordClick({ clientId: t.client.id, storeId: t.store.id, couponId: t.coupon.id, kind, ref, source, uaHash: uaHash(ua ?? "", madridToday().iso) });
   } catch (e) {
     console.error("click insert failed", e);
   }
@@ -77,14 +77,16 @@ export async function GET(req: Request, ctx: RouteContext<"/go/[client]/[coupon]
     target = await load(ctx);
     if (!target) return NOT_FOUND();
     const { client, coupon, store } = target;
-    const link = trackedLinkOf(coupon, store, accountsFor(await clientLinks(client), store));
     const ref = refPath(req.headers.get("referer"), siteUrl());
+    // where the click was made: the link's ?o=, else what the page it came from says (see clickSource)
+    const source = clickSource(new URL(req.url).searchParams.get("o"), ref);
+    const link = trackedLinkOf(coupon, store, accountsFor(await clientLinks(client), store), source);
     if (isTracked(link)) {
-      await count(target, "go", req, ref);
+      await count(target, "go", req, ref, source);
       return toStore(target, link.url);
     }
     console.warn("untracked click", { client: client.slug, coupon: coupon.id, store: store.slug, problem: link.problem });
-    await count(target, "untracked", req, ref);
+    await count(target, "untracked", req, ref, source);
     return toStore(target, untrackedUrl(coupon, store));
   } catch (e) {
     console.error("go redirect failed", e);
@@ -92,12 +94,15 @@ export async function GET(req: Request, ctx: RouteContext<"/go/[client]/[coupon]
   }
 }
 
-// "Copiar código" (navigator.sendBeacon): counts a copy, body = the page path it was copied on. Always 204, so the
+// "Copiar código" (navigator.sendBeacon): counts a copy, body = the page path it was copied on, ?o= its origin. Always 204, so the
 // page never waits on or reacts to it.
 export async function POST(req: Request, ctx: RouteContext<"/go/[client]/[coupon]">) {
   try {
     const target = await load(ctx);
-    if (target) await count(target, "copy", req, refPath((await req.text()).slice(0, 300)));
+    if (target) {
+      const ref = refPath((await req.text()).slice(0, 300));
+      await count(target, "copy", req, ref, clickSource(new URL(req.url).searchParams.get("o"), ref));
+    }
   } catch (e) {
     console.error("copy beacon failed", e);
   }

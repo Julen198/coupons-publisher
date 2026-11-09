@@ -1,3 +1,4 @@
+import { pageSource } from "@/lib/click-signals";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -55,7 +56,10 @@ export default function HomePage(props: PageProps<"/">) {
 }
 
 async function HomeContent({ searchParams }: PageProps<"/">) {
-  const f = readFilters(await searchParams);
+  const sp = await searchParams;
+  const f = readFilters(sp);
+  // where its clicks count: a campaign's utm_source, or the home page
+  const source = pageSource(sp, "portada");
   const [all, client, mine, reader] = await Promise.all([siteCoupons(), siteClient(), currentVotes(), getReader()]);
   const now = new Date();
   const { iso: today, words: todayWords } = madridToday(now);
@@ -195,7 +199,7 @@ async function HomeContent({ searchParams }: PageProps<"/">) {
             {shown.length ? (
               <div className="feed">
                 {shown.map((c) => (
-                  <DealCard key={c.id} c={c} client={client} today={today} now={now} mine={mine} next={hrefWith(f, { pagina: f.pagina })} viewerHandle={reader?.handle} />
+                  <DealCard key={c.id} c={c} client={client} today={today} now={now} mine={mine} next={hrefWith(f, { pagina: f.pagina })} viewerHandle={reader?.handle} source={source} />
                 ))}
               </div>
             ) : (

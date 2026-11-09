@@ -2,6 +2,7 @@ import { getUser } from "@/lib/auth";
 import { IMPORT_COLUMNS } from "@/lib/coupon-import";
 import { toCsv } from "@/lib/csv";
 import { sql } from "@/lib/db";
+import { clickSourceColumn } from "@/lib/tracking-columns";
 
 // Admin-only CSV downloads. Fixed table → query map: the URL never reaches SQL.
 const QUERIES = {
@@ -14,9 +15,11 @@ const QUERIES = {
   pages: () => sql()`
     SELECT cl.slug AS cliente, s.slug AS tienda, p.status AS estado, p.delivery AS entrega, p.published_at AS publicada
     FROM pages p JOIN clients cl ON cl.id = p.client_id JOIN stores s ON s.id = p.store_id ORDER BY cl.slug, s.slug`,
-  clicks: () => sql()`
-    SELECT k.at AS fecha, cl.slug AS cliente, s.slug AS tienda, k.coupon_id AS cupon
-    FROM clicks k JOIN clients cl ON cl.id = k.client_id JOIN stores s ON s.id = k.store_id ORDER BY k.at DESC`,
+  // with the click's origin once clicks.source exists (see clickSourceColumn)
+  clicks: () =>
+    clickSourceColumn.run((present) => sql()`
+      SELECT k.at AS fecha, cl.slug AS cliente, s.slug AS tienda, k.coupon_id AS cupon ${present ? sql()`, k.source AS origen` : sql()``}
+      FROM clicks k JOIN clients cl ON cl.id = k.client_id JOIN stores s ON s.id = k.store_id ORDER BY k.at DESC`),
   "costes-ia": () => sql()`
     SELECT at AS fecha, feature AS funcion, about AS sobre, user_name AS usuario, input_tokens AS tokens_entrada, output_tokens AS tokens_salida,
            web_searches AS busquedas_web, cost_total AS coste_usd, cost_gateway AS cobrado_gateway_usd, ok, estimated AS estimado

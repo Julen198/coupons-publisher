@@ -140,3 +140,21 @@ test("altDomainsInput normalises a list to registrable domains", () => {
   assert.equal(altDomainsInput(""), "");
   assert.throws(() => altDomainsInput("no es un dominio"), /no es un dominio/);
 });
+
+test("clickrefFor closes with the click's origin, which the shortening never cuts", () => {
+  assert.equal(clickrefFor("cuponlab", "el-corte-ingles", 880, "awin", "telegram"), "cuponlab-el-corte-ingles-880-telegram");
+  assert.equal(clickrefFor("cuponlab", "fnac", 1, "awin", "no-valid"), "cuponlab-fnac-1"); // a hyphen would make it unreadable
+  const long = clickrefFor("el-periodico-de-catalunya-digital", "tienda-con-un-nombre-larguisimo-de-verdad", 123456, "awin", "widget");
+  assert.ok(long.length <= 50, long);
+  assert.ok(long.startsWith("el-periodico") && long.endsWith("-123456-widget"), long);
+});
+
+test("the origin goes on the clickref of every network and as clickref2 on Awin", () => {
+  const awin = url(trackedLinkOf({ id: 880, target_url: "https://www.elcorteingles.es/x", publisher_id: "222222" }, awinStore(), site, "tienda"));
+  assert.equal(awin.searchParams.get("clickref"), "cuponlab-el-corte-ingles-880-tienda");
+  assert.equal(awin.searchParams.get("clickref2"), "tienda");
+  const plain = url(trackedLinkOf({ id: 880, target_url: "https://www.elcorteingles.es/x", publisher_id: "222222" }, awinStore(), site));
+  assert.equal(plain.searchParams.get("clickref2"), null);
+  const wg: LinkStore = { slug: "shop", network: "webgains", merchant_id: "2", website: "https://shop.es", tracking_url: "https://track.webgains.com/click.html?wgcampaignid=1&wgprogramid=2&clickref={ref}&wgtarget={url}" };
+  assert.equal(url(trackedLinkOf({ id: 9, target_url: "https://shop.es/a" }, wg, site, "widget")).searchParams.get("clickref"), "cuponlab-shop-9-widget");
+});
