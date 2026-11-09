@@ -563,3 +563,9 @@ body:has(.cl) { background: #f3f5fa; }
 
 /* a wordmark drawn in white for a dark header (MediaMarkt, Barceló): its box turns dark so it stays visible */
 .cl :has(> img.wm-light) { background: #141a2b !important; border-color: #141a2b !important; }
+
+/* Cookie notice for Google Analytics: a bar at the bottom until the reader chooses */
+.cl .cookie-note { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 40; max-width: 640px; margin-inline: auto; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; box-shadow: 0 8px 24px rgba(0,0,0,.15); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: .88rem; }
+.cl .cookie-note p { margin: 0; flex: 1 1 280px; color: var(--ink-2); }
+.cl .cookie-actions { display: flex; gap: 8px; margin-left: auto; }
+.cl .link-btn { background: none; border: 0; padding: 0; font: inherit; color: var(--brand); text-underline-offset: 2px; text-decoration: underline; cursor: pointer; }

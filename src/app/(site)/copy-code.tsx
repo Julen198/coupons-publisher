@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { copiedMessage } from "@/lib/site-text";
 import { showToast } from "./toast";
+import { trackEvent } from "./analytics";
 
 // The toast and «Copiado» don't wait for the clipboard: a refused or slow copy (old browser, insecure origin) leaves the code visible and selectable.
 // beacon = the coupon's /go address: a copy is counted there (kind copy) with navigator.sendBeacon, fire and forget, so
@@ -10,6 +11,7 @@ import { showToast } from "./toast";
 function copyToClipboard(code: string, beacon?: string) {
   navigator.clipboard?.writeText(code).catch(() => {});
   showToast(copiedMessage(code));
+  trackEvent("copy_code");
   if (beacon) {
     try {
       navigator.sendBeacon?.(beacon, window.location.pathname);

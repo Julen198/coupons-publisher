@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
+import Script from "next/script";
 import { Suspense } from "react";
 import { contactEmail, siteUrl } from "@/lib/site-text";
+import { consentDefaultsScript, gaMeasurementId, googleSiteVerification } from "@/lib/analytics";
+import { Analytics, CookieSettingsLink } from "./analytics";
 import { LiveHeader } from "./live-header";
 import { SeoDrawer } from "./seo-panel";
 import { HeaderCategoryProvider, SiteHeader } from "./site-header";
@@ -20,9 +23,13 @@ export const metadata: Metadata = {
   description: "Chollos y códigos descuento de tiendas españolas, cada uno con su fecha de caducidad y si está comprobado.",
   robots: { index: true, follow: true },
   openGraph: { siteName: "CuponLab", locale: "es_ES", type: "website" },
+  // Search Console's "HTML tag" check (GOOGLE_SITE_VERIFICATION); left out when unset
+  ...(googleSiteVerification() ? { verification: { google: googleSiteVerification() } } : {}),
 };
 
 export default function SiteLayout({ children, modal }: LayoutProps<"/">) {
+  // Google Analytics 4 (GA_MEASUREMENT_ID): production only, so local and preview visits don't count
+  const gaId = process.env.NODE_ENV === "production" ? gaMeasurementId() : "";
   return (
     <div className={`cl ${archivo.variable} ${jetbrains.variable}`}>
       <HeaderCategoryProvider>
@@ -46,6 +53,11 @@ export default function SiteLayout({ children, modal }: LayoutProps<"/">) {
           <span>
             <Link href="/tiendas">Tiendas</Link> · <Link href="/calendario">Calendario de ofertas</Link> · <Link href="/metodologia">Metodología</Link> ·{" "}
             <Link href="/aviso-de-afiliacion">Aviso de afiliación</Link>
+            {gaId && (
+              <>
+                {" "}· <CookieSettingsLink />
+              </>
+            )}
             {contactEmail() && (
               <>
                 {" "}· <Link href="/contacto">Contacto</Link>
@@ -57,6 +69,14 @@ export default function SiteLayout({ children, modal }: LayoutProps<"/">) {
       {/* the sign-in modal when /entrar is opened from inside the site */}
       <Suspense fallback={null}>{modal}</Suspense>
       <Toaster />
+      {gaId && (
+        <>
+          {/* consent defaults before gtag.js: no analytics cookies until the reader accepts */}
+          <script dangerouslySetInnerHTML={{ __html: consentDefaultsScript(gaId) }} />
+          <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
+          <Analytics />
+        </>
+      )}
       {/* after the Toaster, so its listener is up when the sign-in flash fires */}
       <Suspense fallback={null}>
         <Flash />
