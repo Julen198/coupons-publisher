@@ -36,6 +36,9 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/p
   const liveOf = coupons.reduce((m, c) => m.set(c.store_id, (m.get(c.store_id) ?? 0) + 1), new Map<number, number>());
   const storeRows: ClientStoreRow[] = stores.filter((s) => onSpanishSite(s) || statusOf.has(s.id)).map((s) => ({ storeId: s.id, slug: s.slug, name: s.name, state: stateOf(statusOf.get(s.id)), live: liveOf.get(s.id) ?? 0 }));
   const stateFilter = STATE_FILTERS.find((f) => f.id === sp.estado)?.id ?? "todas";
+  const tab = editable && sp.tab === "config" ? "config" : "tiendas";
+  const active = storeRows.filter((r) => r.state === "active").length;
+  const fresh = storeRows.filter((r) => r.state === "new" && r.live > 0).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,7 +46,7 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/p
         <div role="status" className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-green-200 bg-green-50 px-5 py-4 dark:border-green-900 dark:bg-green-950">
           <div>
             <strong className="text-green-900 dark:text-green-200">{client.name} creado</strong>
-            <p className="text-sm text-green-800 dark:text-green-300">Su demo ya está lista en <span className="font-mono">/demo/{client.slug}</span>. Activa sus tiendas abajo.</p>
+            <p className="text-sm text-green-800 dark:text-green-300">Su demo ya está lista en <span className="font-mono">/demo/{client.slug}</span>. Activa sus tiendas abajo; el estilo y la afiliación están en Configuración.</p>
           </div>
           <div className="flex flex-wrap gap-2 text-sm">
             <a href={`/demo/${client.slug}`} target="_blank" className="flex min-h-11 items-center rounded-md bg-green-700 px-4 font-semibold text-white">Abrir demo ↗</a>
@@ -67,10 +70,22 @@ export default async function ClientPage({ params, searchParams }: PageProps<"/p
         </div>
       </div>
 
-      <ClientStores client={{ slug: client.slug, name: client.name }} rows={storeRows} filter={stateFilter} onlyLive={sp.cupones !== "todas"} q={typeof sp.q === "string" ? sp.q : ""} editable={editable} />
+      <nav aria-label="Secciones del cliente" className="flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
+        {[
+          { id: "tiendas", label: `Tiendas · ${active} activas${fresh ? ` · ${fresh} nuevas` : ""}`, show: true },
+          { id: "config", label: "Configuración", show: editable },
+        ].filter((t) => t.show).map((t) => (
+          <Link key={t.id} href={t.id === "tiendas" ? `/panel/clients/${client.slug}` : `/panel/clients/${client.slug}?tab=config`} aria-current={tab === t.id ? "page" : undefined}
+            className={`-mb-px flex min-h-11 items-center border-b-2 px-4 text-sm font-medium ${tab === t.id ? "border-blue-700 text-blue-800 dark:border-blue-400 dark:text-blue-300" : "border-transparent text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"}`}>
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+
+      {tab === "tiendas" && <ClientStores client={{ slug: client.slug, name: client.name }} rows={storeRows} filter={stateFilter} onlyLive={sp.cupones !== "todas"} q={typeof sp.q === "string" ? sp.q : ""} editable={editable} />}
 
       {/* side column: affiliate data + the style form; main column: the live preview of the demo */}
-      {editable && (
+      {tab === "config" && (
         <StyleForm
           key={[client.name, client.logo_url.length, client.brand_color, client.layout, client.font_family, client.font_style, client.nav_items].join("|")}
           slug={client.slug}

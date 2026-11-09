@@ -27,6 +27,8 @@ test("bulkTargets: «Activar todas» skips blocked stores and stores with nothin
   const rows = [row("amazon", "blocked", 30), row("kiwoko", "new", 7), row("aosom", "inactive", 5), row("vacia", "new", 0), row("nike", "active", 6)];
   assert.deepEqual(bulkTargets(rows, "activate").map((r) => r.slug), ["kiwoko", "aosom"]);
   assert.deepEqual(bulkTargets(rows, "deactivate").map((r) => r.slug), ["nike"]);
+  // «Marcar nuevas como revisadas»: every new store, with or without coupons, stays off but loses the «Nueva» tag
+  assert.deepEqual(bulkTargets(rows, "review").map((r) => r.slug), ["kiwoko", "vacia"]);
 });
 
 test("canServePage: the public widget page exists only when active; panel users can preview the rest", () => {

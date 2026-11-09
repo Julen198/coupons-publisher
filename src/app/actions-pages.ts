@@ -77,12 +77,14 @@ export async function setStoreState(f: FormData) {
   revalidatePath(`/panel/clients/${client.slug}`);
 }
 
-// «Activar todas» (new and inactive stores with live coupons, never blocked ones) / «Desactivar todas»
+// «Activar todas» (new and inactive stores with live coupons, never blocked ones) / «Desactivar todas» / «Marcar nuevas
+// como revisadas» (they stay off)
 export async function bulkStoreState(f: FormData) {
   const user = await requireEditor();
   const [client] = await sql()<Client[]>`SELECT * FROM clients WHERE slug = ${required(f, "client")}`;
   if (!client || !canSeeClient(user, client.id)) throw new Error("No tienes acceso a este cliente");
-  const action = str(f, "action") === "deactivate" ? "deactivate" : "activate";
+  const action = (["activate", "deactivate", "review"] as const).find((a) => a === str(f, "action"));
+  if (!action) throw new Error("Acción no válida");
   const [stores, pages, live] = await Promise.all([
     sql()<{ id: number; slug: string }[]>`SELECT id, slug FROM stores`,
     sql()<{ store_id: number; status: PageStatus }[]>`SELECT store_id, status FROM pages WHERE client_id = ${client.id}`,
@@ -93,7 +95,7 @@ export async function bulkStoreState(f: FormData) {
   const rows = stores.map((s) => ({ storeId: s.id, slug: s.slug, state: stateOf(statusOf.get(s.id)), live: liveOf.get(s.id) ?? 0 }));
   const targets = bulkTargets(rows, action);
   for (const t of targets) await writeStatus(client.id, t.storeId, action === "activate" ? "published" : "draft");
-  await logActivity(`${client.name}: ${targets.length} tiendas ${action === "activate" ? "activadas" : "desactivadas"} de golpe`);
+  await logActivity(`${client.name}: ${targets.length} tiendas ${action === "activate" ? "activadas" : action === "deactivate" ? "desactivadas" : "marcadas como revisadas"} de golpe`);
   revalidatePath(`/panel/clients/${client.slug}`);
 }
 

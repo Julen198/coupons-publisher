@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { bulkStoreState, setStoreState } from "@/app/actions-pages";
-import { bulkTargets, STATE_LABEL, type StoreAction, type StoreState } from "@/lib/store-states";
+import { bulkTargets, STATE_LABEL, type BulkAction, type StoreState } from "@/lib/store-states";
+import { StoreSwitch } from "./store-switch";
 
 export interface ClientStoreRow { storeId: number; slug: string; name: string; state: StoreState; live: number }
 export type StateFilter = "todas" | "activas" | "nuevas" | "inactivas" | "bloqueadas";
@@ -20,14 +21,6 @@ const BADGE: Record<StoreState, string> = {
   new: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
 };
 
-// The buttons each state offers: a blocked store only «Desbloquear» (activating it is a deliberate second step)
-const ACTIONS: Record<StoreState, { action: StoreAction; label: string; primary?: boolean }[]> = {
-  new: [{ action: "activate", label: "Activar", primary: true }, { action: "deactivate", label: "Dejar inactiva" }, { action: "block", label: "Bloquear" }],
-  inactive: [{ action: "activate", label: "Activar", primary: true }, { action: "block", label: "Bloquear" }],
-  active: [{ action: "deactivate", label: "Desactivar" }, { action: "block", label: "Bloquear" }],
-  blocked: [{ action: "unblock", label: "Desbloquear" }],
-};
-
 const btn = "min-h-9 rounded-md px-3 text-sm font-medium";
 const btnStyle = (primary?: boolean, danger?: boolean) =>
   primary ? `${btn} bg-blue-700 text-white hover:bg-blue-800 dark:bg-blue-600`
@@ -42,6 +35,7 @@ export function ClientStores({ client, rows, filter, onlyLive, q, editable }: {
   const count = (s: StoreState) => rows.filter((r) => r.state === s).length;
   const toActivate = bulkTargets(rows, "activate").length;
   const toDeactivate = bulkTargets(rows, "deactivate").length;
+  const toReview = bulkTargets(rows, "review").length;
   const wanted = STATE_FILTERS.find((f) => f.id === filter)?.state;
   const needle = q.trim().toLowerCase();
   const shown = rows
@@ -56,21 +50,18 @@ export function ClientStores({ client, rows, filter, onlyLive, q, editable }: {
           <div>
             <h2 id="stores-h" className="font-semibold">Tiendas · {count("active")} activas</h2>
             <p className="text-sm text-neutral-500">
-              Las tiendas nuevas entran inactivas. Bloquea las de la competencia: no se pueden activar por error ni con «Activar todas».
+              El interruptor activa o desactiva su página y su widget. Las tiendas nuevas entran apagadas. Bloquea las de la competencia: su interruptor queda deshabilitado y «Activar todas» se las salta.
             </p>
           </div>
           {editable && (
             <div className="flex flex-wrap gap-2">
-              <form action={bulkStoreState}>
-                <input type="hidden" name="client" value={client.slug} />
-                <input type="hidden" name="action" value="activate" />
-                <button className={btnStyle(true)} disabled={!toActivate}>Activar todas ({toActivate})</button>
-              </form>
-              <form action={bulkStoreState}>
-                <input type="hidden" name="client" value={client.slug} />
-                <input type="hidden" name="action" value="deactivate" />
-                <button className={btnStyle()} disabled={!toDeactivate}>Desactivar todas ({toDeactivate})</button>
-              </form>
+              {([["activate", `Activar todas (${toActivate})`, toActivate, true], ["deactivate", `Desactivar todas (${toDeactivate})`, toDeactivate, false], ["review", `Marcar nuevas como revisadas (${toReview})`, toReview, false]] as [BulkAction, string, number, boolean][]).map(([action, label, n, primary]) => (
+                <form key={action} action={bulkStoreState}>
+                  <input type="hidden" name="client" value={client.slug} />
+                  <input type="hidden" name="action" value={action} />
+                  <button className={btnStyle(primary)} disabled={!n}>{label}</button>
+                </form>
+              ))}
             </div>
           )}
         </div>
@@ -97,6 +88,9 @@ export function ClientStores({ client, rows, filter, onlyLive, q, editable }: {
       <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
         {shown.map((r) => (
           <li key={r.storeId} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2.5 text-sm">
+            {editable ? (
+              <StoreSwitch client={client.slug} store={r.slug} label={`${r.name} activa en ${client.name}`} on={r.state === "active"} blocked={r.state === "blocked"} />
+            ) : null}
             <span className="w-44 font-medium">{r.name}</span>
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${BADGE[r.state]}`}>{STATE_LABEL[r.state]}</span>
             <span className="w-24 text-neutral-500 tabular-nums">{r.live === 1 ? "1 cupón" : r.live ? `${r.live} cupones` : "sin cupones"}</span>
@@ -107,16 +101,15 @@ export function ClientStores({ client, rows, filter, onlyLive, q, editable }: {
               </span>
             )}
             {editable && (
-              <span className="ml-auto flex flex-wrap gap-2">
-                {ACTIONS[r.state].map((a) => (
-                  <form key={a.action} action={setStoreState}>
-                    <input type="hidden" name="client" value={client.slug} />
-                    <input type="hidden" name="store" value={r.slug} />
-                    <input type="hidden" name="action" value={a.action} />
-                    <button className={btnStyle(a.primary, a.action === "block")} aria-label={`${a.label} ${r.name} en ${client.name}`}>{a.label}</button>
-                  </form>
-                ))}
-              </span>
+              <form action={setStoreState} className="ml-auto">
+                <input type="hidden" name="client" value={client.slug} />
+                <input type="hidden" name="store" value={r.slug} />
+                <input type="hidden" name="action" value={r.state === "blocked" ? "unblock" : "block"} />
+                <button className={`min-h-9 rounded-md px-2 text-sm ${r.state === "blocked" ? "text-neutral-700 hover:underline dark:text-neutral-300" : "text-red-700 hover:underline dark:text-red-400"}`}
+                  aria-label={`${r.state === "blocked" ? "Desbloquear" : "Bloquear"} ${r.name} en ${client.name}`}>
+                  {r.state === "blocked" ? "Desbloquear" : "Bloquear"}
+                </button>
+              </form>
             )}
           </li>
         ))}

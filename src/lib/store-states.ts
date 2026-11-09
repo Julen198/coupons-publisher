@@ -24,12 +24,13 @@ export function nextStatus(state: StoreState, action: StoreAction): PageStatus |
 
 export interface StoreRow { storeId: number; slug: string; state: StoreState; live: number }
 
+export type BulkAction = "activate" | "deactivate" | "review";
+
 // «Activar todas»: every store not blocked and not already active, with something live to show.
-// «Desactivar todas»: the active ones.
-export function bulkTargets<T extends StoreRow>(rows: readonly T[], action: "activate" | "deactivate"): T[] {
-  return action === "activate"
-    ? rows.filter((r) => (r.state === "new" || r.state === "inactive") && r.live > 0)
-    : rows.filter((r) => r.state === "active");
+// «Desactivar todas»: the active ones. «Marcar nuevas como revisadas»: the new ones (they stay off).
+export function bulkTargets<T extends StoreRow>(rows: readonly T[], action: BulkAction): T[] {
+  if (action === "activate") return rows.filter((r) => (r.state === "new" || r.state === "inactive") && r.live > 0);
+  return rows.filter((r) => r.state === (action === "deactivate" ? "active" : "new"));
 }
 
 // /p/<client>/<store> (the widget's page): public only when active; signed-in panel users also see the others (preview)
