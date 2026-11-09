@@ -307,7 +307,7 @@ ALTER TABLE coupons ADD CONSTRAINT coupons_translation_status_check CHECK (trans
 CREATE INDEX IF NOT EXISTS coupons_translation_auto_idx ON coupons(id) WHERE translation_status = 'auto';
 -- their cost has its own line in Costes de IA
 ALTER TABLE ai_usage DROP CONSTRAINT IF EXISTS ai_usage_feature_check;
-ALTER TABLE ai_usage ADD CONSTRAINT ai_usage_feature_check CHECK (feature IN ('search', 'content', 'style', 'stores', 'translate', 'guides'));
+ALTER TABLE ai_usage ADD CONSTRAINT ai_usage_feature_check CHECK (feature IN ('search', 'content', 'style', 'stores', 'translate', 'guides', 'assistant'));
 -- tracking launch gate: other domains a store sells on (comma-separated registrable domains, see storeDomains), so a deep
 -- link there keeps its page instead of falling back to the store's home
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS alt_domains text NOT NULL DEFAULT '';

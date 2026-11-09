@@ -1,6 +1,8 @@
 // Deals reach the admin's private chat for review; approved ones are posted to the public channel.
 // coupons.telegram_status: '' = not sent yet, review = in the admin chat, published / discarded / expired.
 import { timingSafeEqual } from "node:crypto";
+import { after } from "next/server";
+import { askPanel } from "./panel-assistant";
 import { sql } from "./db";
 import { siteCoupon, siteCoupons } from "./public-site";
 import { dealPath, siteUrl } from "./site-text";
@@ -139,7 +141,26 @@ async function onMessage(cfg: TelegramConfig, m: NonNullable<TelegramUpdate["mes
   const editing = promptCouponId(m.reply_to_message?.text);
   if (editing && text) return say(cfg, (await publish(cfg, editing, text)).note);
   if (text.startsWith("/pendientes")) return say(cfg, queueSummary(await sendQueue(cfg)));
-  return say(cfg, "Comandos: /pendientes para revisar chollos nuevos. Para editar un título, pulsa ✏️ y responde al mensaje.");
+  if (!text || text.startsWith("/")) return say(cfg, HELP);
+  // the AI answer can take a while: answer Telegram's webhook now (or it retries the update) and reply when done
+  await tg(cfg, "sendChatAction", { chat_id: cfg.adminChatId, action: "typing" });
+  after(() => answer(cfg, text, m.reply_to_message?.text));
+}
+
+const HELP =
+  "Pregúntame lo que quieras del panel: «¿cuántos clics tuvo Kiwoko esta semana?», «¿qué guía se publica mañana?», «¿cuánto llevamos gastado en IA?». " +
+  "Solo consulto, no cambio nada.\n\nComandos: /pendientes para revisar chollos nuevos. Para editar un título, pulsa ✏️ y responde al mensaje.";
+
+async function answer(cfg: TelegramConfig, question: string, replyingTo?: string) {
+  let reply: string;
+  try {
+    reply = await askPanel(question, replyingTo);
+  } catch (e) {
+    console.error("panel assistant failed", e);
+    reply = e instanceof Error && e.name === "AiBudgetError" ? e.message : "No he podido responder ahora. Prueba otra vez en un momento.";
+  }
+  // plain text: the model's answer isn't escaped for Telegram HTML
+  await tg(cfg, "sendMessage", { chat_id: cfg.adminChatId, text: reply, link_preview_options: { is_disabled: true } });
 }
 
 export async function handleUpdate(cfg: TelegramConfig, u: TelegramUpdate | null): Promise<void> {

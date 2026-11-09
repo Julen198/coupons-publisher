@@ -1,6 +1,9 @@
 import { telegramConfig } from "@/lib/telegram";
 import { handleUpdate, validSecret, type TelegramUpdate } from "@/lib/telegram-flow";
 
+// The panel assistant answers after the response (after() in telegram-flow): room for its AI calls
+export const maxDuration = 120;
+
 // Telegram webhook: buttons and messages from the admin chat
 export async function POST(req: Request) {
   const cfg = telegramConfig();
