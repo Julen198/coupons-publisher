@@ -12,7 +12,6 @@ const MAIN = [
   { href: "/panel/moderacion", label: "Moderación" },
   { href: "/panel/guias", label: "Guías SEO" },
   { href: "/panel/pages", label: "Páginas" },
-  { href: "/panel/clicks", label: "Clics" },
 ];
 const SECONDARY = [
   { href: "/panel/networks", label: "Redes de afiliación" },

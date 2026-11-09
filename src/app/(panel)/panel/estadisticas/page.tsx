@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { io } from "next/cache";
 import { cardCls, PageHeader } from "@/app/ui";
-import { requireEditor } from "@/lib/auth";
+import { canEdit, requireUser } from "@/lib/auth";
 import { SOURCE_LABEL } from "@/lib/click-signals";
 import { loadStats, rangeOf, STATS_RANGES, type SourceState, type Stats, type Totals } from "@/lib/stats";
+import { ClicksTab } from "./clicks-tab";
 
 const n = (v: number) => Math.round(v).toLocaleString("es-ES");
 const pct = (v: number) => `${(v * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`;
@@ -90,10 +91,37 @@ const GUIDE: Record<string, [string, string]> = {
 const th = "px-3 py-2 font-semibold";
 const td = "px-3 py-2 text-right tabular-nums";
 
+// Two tabs: General (Google + our clicks + guides + AI cost, the team's view) and Clics por medio (scoped to the clients
+// the user can see). A viewer only gets the second.
+function Tabs({ tab, general }: { tab: "general" | "clics"; general: boolean }) {
+  const tabs = [{ id: "general", label: "General", href: "/panel/estadisticas", show: general }, { id: "clics", label: "Clics por medio", href: "/panel/estadisticas?tab=clics", show: true }];
+  return (
+    <nav aria-label="Secciones de estadísticas" className="flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
+      {tabs.filter((t) => t.show).map((t) => (
+        <Link key={t.id} href={t.href} aria-current={tab === t.id ? "page" : undefined}
+          className={`-mb-px flex min-h-11 items-center border-b-2 px-4 text-sm font-medium ${tab === t.id ? "border-blue-700 text-blue-800 dark:border-blue-400 dark:text-blue-300" : "border-transparent text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"}`}>
+          {t.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 export default async function StatsPage({ searchParams }: PageProps<"/panel/estadisticas">) {
-  await requireEditor();
+  const user = await requireUser();
   await io();
-  const days = rangeOf((await searchParams).dias);
+  const sp = await searchParams;
+  const general = canEdit(user);
+  if (!general || sp.tab === "clics") {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Estadísticas" eyebrow="Clics en los botones de cupón, por medio" />
+        <Tabs tab="clics" general={general} />
+        <ClicksTab user={user} sp={sp} />
+      </div>
+    );
+  }
+  const days = rangeOf(sp.dias);
   const s = await loadStats(days);
   const topOrigin = Math.max(1, ...s.origins.map((o) => o.clicks));
 
@@ -107,6 +135,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
           ))}
         </nav>
       </PageHeader>
+      <Tabs tab="general" general />
       <p className="text-sm text-neutral-500">Del {fmtDay(s.range.start)} al {fmtDay(s.range.end)}, comparado con los {days} días anteriores.</p>
 
       <div className="flex flex-wrap gap-2">

@@ -63,7 +63,7 @@ export default async function DashboardPage() {
     { label: "Clientes activos", value: activeClients, note: `de ${clients.length} con alguna página publicada` },
     { label: "Páginas publicadas", value: published, note: `de ${clients.length * stores.length} combinaciones cliente × tienda` },
     { label: "Cupones activos", value: coupons.filter((c) => matchesFilter(c, "all", t) && statusOf(c, t) !== "expired").length, note: `en ${stores.length} tiendas` },
-    { label: "Clics (30 días)", value: clicks.total.toLocaleString("es-ES"), note: clicks.previous ? `${clicks.total >= clicks.previous ? "▲" : "▼"} ${Math.abs(Math.round(((clicks.total - clicks.previous) / clicks.previous) * 100))}% frente a los 30 anteriores` : "Ver detalle en Clics", href: "/panel/clicks" },
+    { label: "Clics (30 días)", value: clicks.total.toLocaleString("es-ES"), note: clicks.previous ? `${clicks.total >= clicks.previous ? "▲" : "▼"} ${Math.abs(Math.round(((clicks.total - clicks.previous) / clicks.previous) * 100))}% frente a los 30 anteriores` : "Ver detalle en Estadísticas", href: "/panel/estadisticas?tab=clics" },
   ];
 
   return (
