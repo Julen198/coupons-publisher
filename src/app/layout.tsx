@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { THEME_SCRIPT } from "./theme-toggle";
 
@@ -29,7 +30,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       {/* extensions (e.g. ColorZilla's cz-shortcut-listen) add attributes to <body> before hydration */}
-      <body suppressHydrationWarning className="min-h-full">{children}</body>
+      <body suppressHydrationWarning className="min-h-full">
+        {children}
+        {/* Vercel Web Analytics: cookieless page views, alongside Google Analytics on the public site */}
+        <Analytics />
+      </body>
     </html>
   );
 }
