@@ -144,19 +144,21 @@ async function onButton(cfg: TelegramConfig, q: NonNullable<TelegramUpdate["call
 }
 
 async function onMessage(cfg: TelegramConfig, m: NonNullable<TelegramUpdate["message"]>) {
-  const text = m.text?.trim() ?? "";
+  // in a group commands arrive as /pendientes@cuponlab_panel_bot and questions as "@cuponlab_panel_bot …": drop the bot's name
+  const text = (m.text ?? "").replace(/@\w+bot\b/gi, "").trim();
   const editing = promptCouponId(m.reply_to_message?.text);
   if (editing && text) return say(cfg, (await publish(cfg, editing, text)).note);
   if (text.startsWith("/pendientes")) return say(cfg, queueSummary(await sendQueue(cfg)));
-  if (!text || text.startsWith("/")) return say(cfg, HELP);
+  const question = text.startsWith("/pregunta") ? text.slice("/pregunta".length).trim() : text;
+  if (!question || question.startsWith("/")) return say(cfg, HELP);
   // the AI answer can take a while: answer Telegram's webhook now (or it retries the update) and reply when done
   await tg(cfg, "sendChatAction", { chat_id: cfg.adminChatId, action: "typing" });
-  after(() => answer(cfg, text, m.reply_to_message?.text));
+  after(() => answer(cfg, question, m.reply_to_message?.text));
 }
 
 const HELP =
   "Pregúntame lo que quieras del panel: «¿cuántos clics tuvo Kiwoko esta semana?», «¿qué guía se publica mañana?», «¿cuánto llevamos gastado en IA?». " +
-  "Solo consulto, no cambio nada.\n\nComandos: /pendientes para revisar chollos nuevos. Para editar un título, pulsa ✏️ y responde al mensaje.";
+  "Solo consulto, no cambio nada.\n\nComandos:\n/pregunta <tu pregunta> — consulta el panel (en el grupo también vale mencionarme)\n/pendientes — revisar chollos nuevos\n/ayuda — este mensaje\n\nPara editar un título, pulsa ✏️ y responde al mensaje.";
 
 async function answer(cfg: TelegramConfig, question: string, replyingTo?: string) {
   let reply: string;
@@ -171,10 +173,12 @@ async function answer(cfg: TelegramConfig, question: string, replyingTo?: string
 }
 
 export async function handleUpdate(cfg: TelegramConfig, u: TelegramUpdate | null): Promise<void> {
+  // access = being in the admin chat: your private chat, or a private group whose members are the admins
   const fromAdmin = (id?: number) => id !== undefined && String(id) === cfg.adminChatId;
-  if (u?.callback_query && fromAdmin(u.callback_query.from.id)) await onButton(cfg, u.callback_query);
+  if (u?.callback_query && fromAdmin(u.callback_query.message?.chat.id)) await onButton(cfg, u.callback_query);
   else if (u?.message && fromAdmin(u.message.chat.id)) await onMessage(cfg, u.message);
-  // anyone else is ignored
+  // /id tells any chat its own id (to set up TELEGRAM_ADMIN_CHAT_ID); anything else from outside is ignored
+  else if (u?.message?.text?.startsWith("/id")) await tg(cfg, "sendMessage", { chat_id: u.message.chat.id, text: String(u.message.chat.id) });
 }
 
 // Monday notice: per client, stores that arrived in the last 7 days with live coupons and that nobody has activated,
