@@ -158,7 +158,7 @@ async function onMessage(cfg: TelegramConfig, m: NonNullable<TelegramUpdate["mes
 
 const HELP =
   "Pregúntame lo que quieras del panel: «¿cuántos clics tuvo Kiwoko esta semana?», «¿qué guía se publica mañana?», «¿cuánto llevamos gastado en IA?». " +
-  "Solo consulto, no cambio nada.\n\nComandos:\n/pregunta <tu pregunta> — consulta el panel (en el grupo también vale mencionarme)\n/pendientes — revisar chollos nuevos\n/ayuda — este mensaje\n\nPara editar un título, pulsa ✏️ y responde al mensaje.";
+  "Solo consulto, no cambio nada.\n\nComandos:\n/pregunta &lt;tu pregunta&gt; — consulta el panel (en el grupo también vale mencionarme)\n/pendientes — revisar chollos nuevos\n/ayuda — este mensaje\n\nPara editar un título, pulsa ✏️ y responde al mensaje.";
 
 async function answer(cfg: TelegramConfig, question: string, replyingTo?: string) {
   let reply: string;
