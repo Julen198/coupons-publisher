@@ -78,7 +78,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
   const badge = badgeOf(c);
   const hasCode = c.kind === "code" && !!c.code;
   const storeFaqs = parseFaqs(store?.faqs ?? "");
-  const cat = categoryOf(store?.category ?? "");
+  const cat = categoryOf(c.store_category); // the coupon's own category when it has one (coupons.category), else its store's
   const facts = factsOf(store?.facts ?? "");
   // "Envío | …" in the store's facts → the value, for the buy box
   const fact = (label: string) => facts.find((x) => x.label.toLowerCase().startsWith(label))?.value;
