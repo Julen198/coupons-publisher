@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { updateStore, type FormState } from "@/app/actions";
 import { generateContent } from "@/app/actions-pages";
 import { pageTitle, parseFaqs } from "@/lib/affiliate";
-import { CATEGORIES, factsOf } from "@/lib/catalog";
+import { CATEGORIES, factsOf, missingFacts, withFactTemplate } from "@/lib/catalog";
 import { COUNTRIES, countryLabel } from "@/lib/market";
 import { btnCls, btnSecondaryCls, cardCls, Field, inputCls } from "@/app/ui";
 import { NetworkFields } from "../network-fields";
@@ -122,8 +122,14 @@ export function StoreContentForm({ store, inferred, discounts }: StoreContentPro
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-neutral-600 dark:text-neutral-400">Datos de la tienda. Una línea por dato: Envío | Gratis desde 50 €</span>
           <textarea name="facts" rows={4} value={facts} onChange={(e) => setFacts(e.target.value)} className={`${inputCls} font-mono text-xs`} aria-describedby="facts-count" />
-          <span id="facts-count" className="text-xs text-neutral-600 dark:text-neutral-400">Datos válidos · {factsOf(facts).length}. Las líneas sin «|» no se muestran.</span>
+          <span id="facts-count" className="text-xs text-neutral-600 dark:text-neutral-400">Datos válidos · {factsOf(facts).length}. Las líneas sin «|» o sin valor no se muestran.</span>
         </label>
+        {missingFacts(facts).length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="text-amber-800 dark:text-amber-300">Faltan: {missingFacts(facts).join(", ")}. Cópialos de la web de la tienda, no los supongas.</span>
+            <button type="button" onClick={() => setFacts(withFactTemplate(facts))} className={btnSecondaryCls}>Añadir líneas que faltan</button>
+          </div>
+        )}
 
         {state.error && <p role="alert" className="text-sm text-red-800 dark:text-red-300">{state.error}</p>}
         <div className="flex items-center gap-3">

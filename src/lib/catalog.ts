@@ -25,6 +25,24 @@ export function factsOf(text: string): { label: string; value: string }[] {
   });
 }
 
+// The facts every store page should have (the deal page's «Condiciones» lists them in this order). Filled by hand from
+// the store's own website: never guessed.
+export const KEY_FACTS = ["Envío", "Devoluciones", "Códigos por pedido", "Formas de pago"] as const;
+
+// The key facts a store's text doesn't give yet (a line «Envío | …» with a value counts)
+export function missingFacts(text: string): string[] {
+  const have = factsOf(text).map((f) => f.label.toLowerCase());
+  return KEY_FACTS.filter((k) => !have.some((h) => h.startsWith(k.toLowerCase())));
+}
+
+// The text with an empty «Label | » line for each missing key fact, ready to fill in (empty lines are not shown)
+export function withFactTemplate(text: string): string {
+  const missing = missingFacts(text);
+  if (!missing.length) return text;
+  const base = text.trimEnd();
+  return [...(base ? [base] : []), ...missing.map((m) => `${m} | `)].join("\n");
+}
+
 // A store's category from a form field: a known slug, or "" (no category)
 export const storeCategory = (raw: string): CategorySlug | "" => categoryOf(raw.trim())?.slug ?? "";
 

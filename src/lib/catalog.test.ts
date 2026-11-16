@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CATEGORIES, categoryOf, emptyFeedText, factsOf, hasStoreGuide, homeHref, ordenOf, resetFiltersHref, storeCategory, type HomeFilters } from "./catalog.ts";
+import { CATEGORIES, categoryOf, missingFacts, withFactTemplate, emptyFeedText, factsOf, hasStoreGuide, homeHref, ordenOf, resetFiltersHref, storeCategory, type HomeFilters } from "./catalog.ts";
 
 test("categoryOf knows the six categories and nothing else", () => {
   assert.deepEqual(CATEGORIES.map((c) => c.slug), ["tecnologia", "zapatillas", "moda", "hogar", "deporte", "viajes"]);
@@ -87,4 +87,12 @@ test("emptyFeedText names what emptied the feed and links back to the full list"
     link: { href: "/", label: "Ver todos los chollos" },
   });
   assert.deepEqual(emptyFeedText(base, ""), { title: "No hay chollos ahora mismo", hint: "Publicamos cupones nuevos cada día.", link: null });
+});
+
+test("missingFacts and withFactTemplate: the key facts still to fill in, never guessed", () => {
+  assert.deepEqual(missingFacts(""), ["Envío", "Devoluciones", "Códigos por pedido", "Formas de pago"]);
+  assert.deepEqual(missingFacts("Envío | Gratis desde 50 €\nDevoluciones | \nCódigos por pedido | 1"), ["Devoluciones", "Formas de pago"]);
+  assert.equal(withFactTemplate("Envío | Gratis desde 50 €"), "Envío | Gratis desde 50 €\nDevoluciones | \nCódigos por pedido | \nFormas de pago | ");
+  // an empty line adds nothing to the page
+  assert.deepEqual(factsOf(withFactTemplate("")), []);
 });

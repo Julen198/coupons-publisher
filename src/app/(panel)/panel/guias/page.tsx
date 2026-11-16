@@ -3,7 +3,7 @@ import { io } from "next/cache";
 import { publishGuideNow, rejectGuide, saveGuideSettings, writeGuideNow } from "@/app/actions-guides";
 import { btnCls, btnSecondaryCls, cardCls, fmtDateTime, inputCls, PageHeader } from "@/app/ui";
 import { requireEditor } from "@/lib/auth";
-import { guideRows, guideSettings, nextCandidates, type GuideRow } from "@/lib/guides-cron";
+import { guideRows, guideSettings, nextCandidates, storesMissingFacts, type GuideRow } from "@/lib/guides-cron";
 import { guideWords } from "@/lib/guide-rules";
 import type { StoreGuide } from "@/lib/store-guides";
 
@@ -47,7 +47,7 @@ function StoreButton({ action, id, label, secondary }: { action: (f: FormData) =
 export default async function GuidesPage() {
   const user = await requireEditor();
   await io();
-  const [rows, settings, candidates] = await Promise.all([guideRows(), guideSettings(), nextCandidates(10)]);
+  const [rows, settings, candidates, noFacts] = await Promise.all([guideRows(), guideSettings(), nextCandidates(10), storesMissingFacts(15)]);
   // waiting: new guides, and rewrites of published ones (the live guide stays until then)
   const scheduled = rows.filter((r) => r.status === "scheduled" || r.draft).sort((a, b) => +a.publish_at - +b.publish_at);
   const rest = rows.filter((r) => r.status !== "scheduled");
@@ -94,6 +94,28 @@ export default async function GuidesPage() {
                   <td className="py-2"><Link href={`/tiendas/${c.slug}`} className="underline">{c.name}</Link></td>
                   <td>{c.codes} ({c.lastingCodes})</td><td>{c.deals} ({c.lastingDeals})</td><td>{c.clicks30}</td><td>{c.impressions ?? 0}</td><td>{c.position == null ? "—" : c.position.toFixed(1)}</td><td className="font-semibold">{c.score}</td>
                   <td className="py-1 text-right"><StoreButton action={writeGuideNow} id={c.storeId} label="Escribir ahora" secondary /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Datos de tienda por completar</h2>
+        <p className="text-sm text-neutral-500">De las 15 tiendas con más cupones activos, las que no dicen aún su envío, devoluciones, códigos por pedido o formas de pago. Salen en su página y en cada chollo; cópialos de la web de la tienda.</p>
+        {noFacts.length === 0 && <p className="text-sm text-neutral-500">Todas tienen sus datos.</p>}
+        {noFacts.length > 0 && (
+          <table className="w-full text-sm">
+            <thead className="text-left text-neutral-500">
+              <tr><th className="py-2">Tienda</th><th>Cupones activos</th><th>Faltan</th></tr>
+            </thead>
+            <tbody>
+              {noFacts.map((s) => (
+                <tr key={s.slug} className="border-t border-neutral-200 dark:border-neutral-800">
+                  <td className="py-2"><Link href={`/panel/stores/${s.slug}`} className="underline">{s.name}</Link></td>
+                  <td>{s.live}</td>
+                  <td>{s.missing.join(", ")}</td>
                 </tr>
               ))}
             </tbody>

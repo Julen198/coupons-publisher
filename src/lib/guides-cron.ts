@@ -3,12 +3,12 @@
 // them, tell the admin chat. People only step in to cancel (/panel/guias).
 import { sql, type Coupon, type Store } from "./db";
 import { generateStoreGuide } from "./ai-guide";
-import { GUIDE_DEFAULTS, guideProblems, guideSimilarity, lasts, MAX_SIMILARITY, pickCandidates, settingsOf, type Candidate, type GuideSettings, type StoreSignals } from "./guide-rules.ts";
-import { siteCoupons, siteStore, type SiteCoupon } from "./public-site";
+import { GUIDE_DEFAULTS, nearFirstPage, guideProblems, guideSimilarity, lasts, MAX_SIMILARITY, pickCandidates, settingsOf, type Candidate, type GuideSettings, type StoreSignals } from "./guide-rules.ts";
+import { NEAR_PAGES_KEY, siteCoupons, siteStore, type SiteCoupon } from "./public-site";
 import { madridToday, siteUrl } from "./site-text";
 import { guideSlugs, storeGuide, type StoreGuide } from "./store-guides.ts";
 import { tg, telegramConfig } from "./telegram";
-import { categoryOf } from "./catalog";
+import { categoryOf, missingFacts } from "./catalog";
 import { pingIndexNow } from "./guide-index";
 import { faqsToText, generateStoreContent } from "./ai-content";
 import { assertWithinBudget } from "./ai-budget";
@@ -223,15 +223,28 @@ export async function runGuidesCron(started = Date.now()): Promise<CronResult> {
   const result: CronResult = { published, scheduled: [], failed: [] };
   if (!settings.enabled) return { ...result, skipped: "desactivado en el panel" };
   const coupons = await siteCoupons();
+  const signals = await storeSignals(coupons);
+  await saveNearFirstPage(signals);
   const room = settings.perDay - (await writtenToday());
-  if (room > 0) await writeTodaysGuides(coupons, settings, room, result, started);
+  if (room > 0) await writeTodaysGuides(coupons, signals, settings, room, result, started);
   result.intros = await fillStoreIntros(coupons, started);
   if (result.intros.length) await notify([`✍️ Texto de presentación escrito para ${result.intros.join(", ")}. Puedes editarlo en la ficha de cada tienda.`]);
   return result;
 }
 
-async function writeTodaysGuides(coupons: SiteCoupon[], settings: GuideSettings, room: number, result: CronResult, started: number) {
-  const [signals, taken] = await Promise.all([storeSignals(coupons), takenSlugs()]);
+// The store pages near Google's first page, for the internal links (see nearFirstPageStores). Without Search Console
+// data the last saved list stays.
+async function saveNearFirstPage(signals: StoreSignals[]) {
+  if (!signals.some((s) => (s.impressions ?? 0) > 0)) return;
+  try {
+    await sql()`INSERT INTO settings (key, value) VALUES (${NEAR_PAGES_KEY}, ${JSON.stringify(nearFirstPage(signals))}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+  } catch (e) {
+    console.error("guides: near-first-page list not saved", e);
+  }
+}
+
+async function writeTodaysGuides(coupons: SiteCoupon[], signals: StoreSignals[], settings: GuideSettings, room: number, result: CronResult, started: number) {
+  const taken = await takenSlugs();
   // ponytail: no lock; Vercel fires this cron once a day, and a rare overlap only rewrites the same store twice
   for (const c of pickCandidates(signals, { minLive: settings.minLive, taken }).slice(0, room)) {
     if (Date.now() - started > TIME_BUDGET_MS) break;
@@ -252,4 +265,18 @@ async function writeTodaysGuides(coupons: SiteCoupon[], settings: GuideSettings,
     const f = result.failed.at(-1)!;
     await notify([`⚠️ No se pudo escribir la guía de ${f.name}: ${f.problems.join("; ")}. En el panel puedes pulsar «Reescribir».`]);
   }
+}
+
+// The stores with the most live coupons whose page still lacks key facts (envío, devoluciones…), for /panel/guias
+export async function storesMissingFacts(limit = 15): Promise<{ slug: string; name: string; live: number; missing: string[] }[]> {
+  const coupons = await siteCoupons();
+  const live = new Map<number, number>();
+  for (const c of coupons) live.set(c.store_id, (live.get(c.store_id) ?? 0) + 1);
+  if (!live.size) return [];
+  const rows = await sql()<{ id: number; slug: string; name: string; facts: string }[]>`SELECT id, slug, name, facts FROM stores WHERE id = ANY(${[...live.keys()]})`;
+  return rows
+    .map((r) => ({ slug: r.slug, name: r.name, live: live.get(r.id) ?? 0, missing: missingFacts(r.facts) }))
+    .sort((a, b) => b.live - a.live || a.name.localeCompare(b.name, "es"))
+    .slice(0, limit)
+    .filter((r) => r.missing.length);
 }

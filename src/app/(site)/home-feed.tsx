@@ -4,8 +4,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { sortDeals } from "@/lib/community";
 import { categoryOf, emptyFeedText, hasStoreGuide, homeHref, ordenOf, type HomeFilters } from "@/lib/catalog";
-import { currentVotes, siteClient, siteCoupons, storeGuides } from "@/lib/public-site";
+import { currentVotes, nearFirstPageStores, siteClient, siteCoupons, storeGuides } from "@/lib/public-site";
 import { publishedGuides } from "@/lib/guide-index";
+import { CATEGORY_CONTENT, indexableCategory } from "@/lib/category-pages";
 import { getReader } from "@/lib/reader";
 import { guideLabels } from "@/lib/store-list";
 import { badgeInSentence } from "@/lib/deal-text";
@@ -14,7 +15,8 @@ import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, o
 
 // The home page and the category pages (/categorias/<slug>) share this feed. A category page has its own title and
 // canonical; a search page stays out of the index.
-export function homeMetadata(f: Filters): Metadata {
+// catLive: the category's live deals, when known; a nearly empty category stays out of the index
+export function homeMetadata(f: Filters, catLive?: number): Metadata {
   const cat = categoryOf(f.cat);
   if (f.q) return { title: { absolute: `Chollos y códigos para «${f.q}» | CuponLab` }, robots: { index: false, follow: true } };
   if (cat)
@@ -22,6 +24,7 @@ export function homeMetadata(f: Filters): Metadata {
       title: { absolute: `Chollos de ${cat.label} verificados hoy | CuponLab` },
       description: `Los chollos y códigos descuento de ${cat.label} activos hoy en tiendas españolas, cada uno con su fecha de caducidad y si está comprobado.`,
       alternates: { canonical: `/categorias/${cat.slug}` },
+      ...(catLive !== undefined && !indexableCategory(catLive) ? { robots: { index: false, follow: true } } : {}),
     };
   return {
     title: { absolute: "Chollos y códigos descuento verificados hoy | CuponLab" },
@@ -88,6 +91,9 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
 
   // every published store guide, newest first: linked from the home page the moment it goes out
   const seoGuides = (await publishedGuides()).slice(0, 8);
+  // store pages close to Google's first page: a link from the home page (and its category pages) helps them up
+  const guideSlugSet = new Set(seoGuides.map((g) => g.slug));
+  const searched = f.q ? [] : (await nearFirstPageStores()).filter((st) => !guideSlugSet.has(st.slug)).slice(0, 6);
   const allStores = new Set(all.map((c) => c.store_id)).size;
   const codes = scope.filter((c) => c.kind === "code").length;
   const verified = scope.filter((c) => c.verified).length;
@@ -108,7 +114,8 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
   const empty = emptyFeedText(f, cat?.label ?? "");
 
   const bf = blackFriday(Number(today.slice(0, 4)));
-  const faqs = [
+  const catText = cat && !f.q ? CATEGORY_CONTENT[cat.slug] : undefined;
+  const faqs = catText ? catText.faqs : [
     { q: "¿Cómo sé si un código sigue activo?", a: "Cada cupón muestra su fecha de caducidad y si está comprobado. Los cupones caducados desaparecen de la portada en cuanto pasa su fecha." },
     { q: "¿Se pueden acumular dos códigos descuento?", a: "Casi nunca. La mayoría de tiendas admiten un solo código por pedido. Lo que sí suele acumularse es un código con productos que ya están rebajados, salvo que las condiciones del cupón digan lo contrario." },
     { q: "¿CuponLab cobra por usar los códigos?", a: "No. Algunos enlaces son de afiliado. Si compras, la tienda nos paga una comisión. Tu precio es el mismo y la comisión no cambia el orden de los chollos." },
@@ -246,6 +253,18 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
                 </ul>
               </section>
             )}
+            {searched.length > 0 && (
+              <section className="panel" data-seo="Enlazado interno a páginas cerca de la 1.ª página">
+                <h2>Códigos más buscados</h2>
+                <ul className="stores">
+                  {searched.map((st) => (
+                    <li key={st.slug}>
+                      <Link href={`/tiendas/${st.slug}`}>Códigos descuento {st.name}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             {topStores.length > 0 && (
               <section className="panel" data-seo="Enlazado interno a tiendas">
                 <h2>Tiendas con más cupones</h2>
@@ -290,6 +309,14 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
 
       <div className="longform">
         <div className="wrap">
+          {catText && cat && (
+            <section className="two" data-seo="Texto único por categoría">
+              <div className="section-head">
+                <h2>Sobre los chollos de {cat.label}</h2>
+              </div>
+              <p className="lead">{catText.intro}</p>
+            </section>
+          )}
           <section className="two" data-seo="Metodología (E-E-A-T)">
             <div className="section-head">
               <h2>Cómo comprobamos cada cupón</h2>
@@ -342,7 +369,7 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
 
           <section className="two">
             <div className="section-head">
-              <h2>Dudas sobre chollos y códigos</h2>
+              <h2>{catText && cat ? `Dudas sobre los chollos de ${cat.label}` : "Dudas sobre chollos y códigos"}</h2>
               <p>Si tu pregunta no está aquí, déjala en los comentarios de cualquier oferta y la respondemos.</p>
             </div>
             <Faqs items={faqs} />

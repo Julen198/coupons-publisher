@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { guideProblems, guideSimilarity, guideWords, pickCandidates, scoreOf, settingsOf, type StoreSignals } from "./guide-rules.ts";
+import { guideProblems, guideSimilarity, guideWords, nearFirstPage, pickCandidates, scoreOf, settingsOf, type StoreSignals } from "./guide-rules.ts";
 import type { StoreGuide } from "./store-guides.ts";
 
 const guide = (over: Partial<StoreGuide> = {}): StoreGuide => ({
@@ -135,4 +135,11 @@ test("lasts: no end date, or still valid 14 days from today", async () => {
   assert.equal(lasts("2026-11-22", "2026-11-09"), false);
   assert.equal(lasts("2027-01-03", "2026-12-20"), true); // across months and years
   assert.equal(lasts("2027-01-02", "2026-12-20"), false);
+});
+
+test("nearFirstPage: pages shown between 8 and 30 with enough impressions, most seen first", () => {
+  const sig = (slug: string, impressions: number, position: number | null) => ({ storeId: 1, slug, name: slug, country: "ES", live: 0, codes: 0, lastingCodes: 0, deals: 0, lastingDeals: 0, clicks30: 0, impressions, position });
+  const all = [sig("a", 50, 12), sig("b", 300, 9), sig("c", 10, 15), sig("d", 500, 5), sig("e", 80, 31), sig("f", 40, null), sig("g", 20, 30)];
+  assert.deepEqual(nearFirstPage(all), ["b", "a", "g"]);
+  assert.deepEqual(nearFirstPage(all, 1), ["b"]);
 });
