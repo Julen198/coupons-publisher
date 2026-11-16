@@ -88,9 +88,11 @@ const EXPIRED_VOTE_TITLE = "Este chollo ha caducado";
 export function VoteColumn({ couponId, score, mine, next, readOnly = false }: { couponId: number; score: number; mine: -1 | 0 | 1; next: string; readOnly?: boolean }) {
   const arrow = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
   return (
-    <form className="vote" action={vote} role="group" aria-label="Votos">
+    // the group role sits on an inner box: on the <form> itself it overrides the form's own role (Lighthouse flags it)
+    <form className="vote" action={vote}>
       <input type="hidden" name="coupon_id" value={couponId} />
       <input type="hidden" name="next" value={next} />
+      <div className="vote-group" role="group" aria-label="Votos">
       <button className="up" type="submit" name="value" value="1" aria-pressed={mine === 1} aria-label="Buen chollo" disabled={readOnly} title={readOnly ? EXPIRED_VOTE_TITLE : undefined}>
         <svg {...arrow}><path d="m6 15 6-6 6 6" /></svg>
       </button>
@@ -98,6 +100,7 @@ export function VoteColumn({ couponId, score, mine, next, readOnly = false }: { 
       <button className="down" type="submit" name="value" value="-1" aria-pressed={mine === -1} aria-label="No es chollo" disabled={readOnly} title={readOnly ? EXPIRED_VOTE_TITLE : undefined}>
         <svg {...arrow}><path d="m6 9 6 6 6-6" /></svg>
       </button>
+      </div>
     </form>
   );
 }
