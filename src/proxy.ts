@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 import { dealRoute, storeRoute } from "@/lib/route-lookup";
-import { fixedRouteVerdict, isDocumentRequest, type RouteVerdict } from "@/lib/site-routes";
+import { fixedRouteVerdict, isDocumentRequest, needsSignIn, type RouteVerdict } from "@/lib/site-routes";
 import { orNullAfter } from "@/lib/with-timeout";
 
 // The public deals site: indexable, open to everyone
-const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/tiendas\/[^/]+\/opengraph-image/, /^\/categorias\/[^/]+$/, /^\/ofertas\/[^/]+(\/[^/]+)?$/, /^\/ofertas\/[^/]+\/opengraph-image/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado)$/, /^\/sitemap\.xml$/];
+const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/tiendas\/[^/]+\/opengraph-image/, /^\/categorias\/[^/]+$/, /^\/categorias\/[^/]+\/opengraph-image/, /^\/opengraph-image/, /^\/ofertas\/[^/]+(\/[^/]+)?$/, /^\/ofertas\/[^/]+\/opengraph-image/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado)$/, /^\/sitemap\.xml$/];
 // Reachable without signing in: the public site, login, accepting an invitation, and what publishers embed on their sites
 const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/llms\.txt$/, /^\/indexnow\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//,
   // Telegram webhook and its daily cron: each checks its own secret header instead of a session
@@ -21,8 +21,28 @@ const STORE_PAGE = /^\/tiendas\/([^/]+)$/;
 const EVENT_STORE_PAGE = /^\/ofertas\/[^/]+\/([^/]+)$/;
 // Rendered by src/app/(site)/no-encontrado: a route that only calls notFound(), so it answers with a real 404
 const NOT_FOUND_PAGE = "/no-encontrado";
-// Past this the request goes on to the page, which runs the same checks itself
-const ROUTE_LOOKUP_TIMEOUT_MS = 1200;
+// Past this the request goes on to the page, which runs the same checks itself. Most lookups answer in a few ms; the
+// slow ones are a cold function opening its first connection, where waiting longer only delays the page (1.2 s was
+// timing out about forty times a week, each one a visitor kept waiting)
+const ROUTE_LOOKUP_TIMEOUT_MS = 600;
+// Verdicts already worked out by this instance, reused for a few minutes: a deal or store page that is shared or
+// crawled is looked up once, not on every hit
+const VERDICT_TTL_MS = 5 * 60_000;
+const VERDICT_CACHE_MAX = 500;
+const verdicts = new Map<string, { at: number; verdict: RouteVerdict }>();
+function remembered(key: string): RouteVerdict | undefined {
+  const hit = verdicts.get(key);
+  if (!hit) return undefined;
+  if (Date.now() - hit.at > VERDICT_TTL_MS) {
+    verdicts.delete(key);
+    return undefined;
+  }
+  return hit.verdict;
+}
+function remember(key: string, verdict: RouteVerdict) {
+  if (verdicts.size >= VERDICT_CACHE_MAX) verdicts.delete(verdicts.keys().next().value!);
+  verdicts.set(key, { at: Date.now(), verdict });
+}
 
 // Deal and store pages stream behind the site layout's Suspense, which fixes a 200 before the page can call notFound()
 // or permanentRedirect(). Deciding here keeps the HTTP status honest. Only HTML document requests need it: RSC
@@ -33,7 +53,7 @@ async function sitePageVerdict(req: NextRequest): Promise<RouteVerdict | null> {
   const { pathname } = req.nextUrl;
   const deal = DEAL_PAGE.exec(pathname);
   const eventStore = EVENT_STORE_PAGE.exec(pathname);
-  const store = deal ? null : (STORE_PAGE.exec(pathname) ?? (eventStore && eventStore[1] !== "opengraph-image" ? eventStore : null));
+  const store = deal ? null : (STORE_PAGE.exec(pathname) ?? (eventStore && !eventStore[1].startsWith("opengraph-image") ? eventStore : null));
   if (!deal && !store) return null;
   let slug = "";
   if (store) {
@@ -43,10 +63,14 @@ async function sitePageVerdict(req: NextRequest): Promise<RouteVerdict | null> {
       return { kind: "missing" }; // malformed %-escape: no store can have it
     }
   }
-  // A stalled pooler must not hold every deal and store page for postgres.js's 30 s connect timeout
-  return orNullAfter(deal ? dealRoute(deal[1]) : storeRoute(slug), ROUTE_LOOKUP_TIMEOUT_MS, (e) =>
-    console.error("[proxy] route lookup failed", pathname, e),
-  );
+  const key = deal ? `deal:${deal[1]}` : `store:${slug}`;
+  const known = remembered(key);
+  if (known) return known;
+  // A stalled pooler must not hold every deal and store page for postgres.js's 30 s connect timeout. A late answer is
+  // still remembered for the next request.
+  const lookup = deal ? dealRoute(deal[1]) : storeRoute(slug);
+  lookup.then((v) => remember(key, v), () => {});
+  return orNullAfter(lookup, ROUTE_LOOKUP_TIMEOUT_MS, (e) => console.error("[proxy] route lookup failed", pathname, e));
 }
 
 // First gate only (signature check, no DB). Pages and actions re-check the user, role and session version.
@@ -54,6 +78,8 @@ export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
   if (!PUBLIC.some((r) => r.test(pathname))) {
+    // neither public nor private: no such page (a mistyped or made-up URL), answered with the site's 404
+    if (!needsSignIn(pathname)) return NextResponse.rewrite(new URL(NOT_FOUND_PAGE, req.url));
     // fail closed: without SESSION_SECRET configured nobody gets in
     const session = await verifySession(process.env.SESSION_SECRET, req.cookies.get(SESSION_COOKIE)?.value);
     if (!session) {

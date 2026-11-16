@@ -57,7 +57,7 @@ export function MarkHeaderCategory({ slug }: { slug: string }) {
 // Pages with a feed of deals (home, categories, search, a store) skip straight to it; the rest to their content
 const hasFeed = (path: string) => path === "/" || /^\/(tiendas|categorias|ofertas)\//.test(path);
 
-function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: string; q: string; reader?: HeaderReader; pageCat?: string }) {
+function Shell({ path, cat, q, reader, pageCat = "", cats }: { path: string; cat: string; q: string; reader?: HeaderReader; pageCat?: string; cats?: readonly string[] }) {
   // the home page and a category page mark their category; a store page marks the store's
   const current = (slug: string) => (path === "/" || CATEGORY_PAGE.test(path) ? cat === slug : !!pageCat && path.startsWith("/tiendas/") && pageCat === slug);
   return (
@@ -105,7 +105,8 @@ function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: stri
       {!/^\/(compartir|cuenta)(\/|$)/.test(path) && (
       <nav className="cats" aria-label="Categorías">
         <div className="wrap">
-          {SECTIONS.map((s) => (
+          {/* «Todos», the categories with live coupons (cats; all of them while loading) and the one being shown */}
+          {SECTIONS.filter((s) => !s.slug || !cats || cats.includes(s.slug) || current(s.slug)).map((s) => (
             <Link key={s.href} href={s.href} aria-current={current(s.slug) ? "page" : undefined}>
               {s.label}
             </Link>
@@ -117,15 +118,15 @@ function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: stri
   );
 }
 
-function Live({ reader }: { reader: HeaderReader }) {
+function Live({ reader, cats }: { reader: HeaderReader; cats?: readonly string[] }) {
   const path = usePathname();
   const sp = useSearchParams();
   const cat = CATEGORY_PAGE.exec(path)?.[1] ?? sp.get("cat") ?? "";
   const { cat: pageCat } = useContext(PageCategory);
   // an unknown ?cat= shows everything, so "Todos" is the current tab
-  return <Shell path={path} cat={CATEGORIES.some((c) => c.slug === cat) ? cat : ""} q={sp.get("q") ?? ""} reader={reader} pageCat={pageCat} />;
+  return <Shell path={path} cat={CATEGORIES.some((c) => c.slug === cat) ? cat : ""} q={sp.get("q") ?? ""} reader={reader} pageCat={pageCat} cats={cats} />;
 }
 
-export function SiteHeader({ live = false, reader }: { live?: boolean; reader?: HeaderReader }) {
-  return live ? <Live reader={reader ?? null} /> : <Shell path="" cat="" q="" />;
+export function SiteHeader({ live = false, reader, cats }: { live?: boolean; reader?: HeaderReader; cats?: readonly string[] }) {
+  return live ? <Live reader={reader ?? null} cats={cats} /> : <Shell path="" cat="" q="" />;
 }

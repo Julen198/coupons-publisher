@@ -4,11 +4,10 @@ import Link from "next/link";
 import Script from "next/script";
 import { Suspense } from "react";
 import { contactEmail, siteUrl } from "@/lib/site-text";
-import { CATEGORIES, categoryPath } from "@/lib/catalog";
 import { EVENT_PAGES } from "@/lib/event-pages";
 import { consentDefaultsScript, gaMeasurementId, googleSiteVerification } from "@/lib/analytics";
 import { Analytics, CookieSettingsLink } from "./analytics";
-import { LiveHeader } from "./live-header";
+import { FooterCategories, LiveFooterCategories, LiveHeader } from "./live-header";
 import { SeoDrawer } from "./seo-panel";
 import { HeaderCategoryProvider, SiteHeader } from "./site-header";
 import { Flash } from "./flash";
@@ -56,12 +55,9 @@ export default function SiteLayout({ children, modal }: LayoutProps<"/">) {
         <div className="wrap">
           <span>© CuponLab · Chollos y códigos descuento verificados</span>
           <nav aria-label="Categorías y fechas de ofertas" className="foot-links">
-            {CATEGORIES.map((c, i) => (
-              <span key={c.slug}>
-                {i > 0 && " · "}
-                <Link href={categoryPath(c.slug)}>{c.label}</Link>
-              </span>
-            ))}
+            <Suspense fallback={<FooterCategories />}>
+              <LiveFooterCategories />
+            </Suspense>
             {FOOTER_EVENTS.map((e) => (
               <span key={e.slug}>
                 {" · "}

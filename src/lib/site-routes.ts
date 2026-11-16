@@ -81,3 +81,8 @@ export function fixedRouteVerdict(pathname: string, search: URLSearchParams): Ro
   }
   return null;
 }
+
+// The private side (the panel, client demos, the API): a visitor without a session is sent to sign in there. Any other
+// URL that is not on the public site does not exist: a typo or an old link gets the site's 404, not the panel's login.
+const PRIVATE = /^\/(panel|demo|demo-preview|api)(\/|$)/;
+export const needsSignIn = (pathname: string): boolean => PRIVATE.test(pathname);
