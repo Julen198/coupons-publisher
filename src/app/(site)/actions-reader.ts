@@ -45,9 +45,17 @@ export async function requestReaderLink(_prev: FormState, f: FormData): Promise<
       WHERE readers.status = 'active'
         AND (readers.link_sent_at IS NULL OR readers.link_sent_at < now() - ${MAGIC_LINK_COOLDOWN_SECONDS} * interval '1 second')
       RETURNING id`;
-    if (reader) {
-      const link = `${appUrl()}/entrar/confirmar?token=${token}&next=${encodeURIComponent(safeNext(str(f, "next"), "/"))}`;
+    if (!reader) return { sent: true };
+    const link = `${appUrl()}/entrar/confirmar?token=${token}&next=${encodeURIComponent(safeNext(str(f, "next"), "/"))}`;
+    try {
       await sendEmail(email, readerLinkEmail(link));
+    } catch (e) {
+      // the email never left: drop the token and the cooldown so the reader can retry now, and say so instead of
+      // showing "Revisa tu email" for a message that will never arrive (any valid email gets this far, so it probes nothing)
+      console.error("[reader-link] send failed", e);
+      await sql()`UPDATE readers SET login_token_hash = NULL, login_expires_at = NULL, link_sent_at = NULL
+        WHERE id = ${reader.id} AND login_token_hash = ${hashToken(token)}`.catch((err) => console.error("[reader-link] revoke failed", err));
+      return { error: "No hemos podido enviarte el email ahora mismo. Prueba de nuevo en unos minutos." };
     }
   } catch (e) {
     console.error("[reader-link]", e);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState, useSyncExternalStore } from "react";
-import { deleteUser, importCoupons, inviteUser, regenerateInvite, updateUser, wipeAllData, type InviteState } from "@/app/actions-admin";
+import { deleteUser, importCoupons, inviteUser, regenerateInvite, sendTestEmail, updateUser, wipeAllData, type InviteState, type TestEmailState } from "@/app/actions-admin";
 import type { Role } from "@/lib/auth";
 import type { FormState } from "@/lib/form";
 import { btnCls, btnSecondaryCls, Field, inputCls } from "@/app/ui";
@@ -232,5 +232,30 @@ export function WipeDataForm() {
       <button type="button" onClick={() => { setAsking(false); setTyped(""); }} className={`${btnSecondaryCls} min-h-10`}>Cancelar</button>
       <button disabled={typed !== "BORRAR"} className="min-h-10 rounded-md bg-red-700 px-4 text-sm font-semibold text-white disabled:opacity-40">Sí, borrar todo</button>
     </form>
+  );
+}
+
+// The sign-in, reset and invite emails all go through Resend: this card says what is missing and sends a real test
+export function EmailHealth({ missing }: { missing: string[] }) {
+  const [state, formAction, pending] = useActionState<TestEmailState, FormData>(sendTestEmail, {});
+  return (
+    <section aria-labelledby="email-health" className="flex flex-col gap-3 rounded-lg border border-neutral-200 px-5 py-4 dark:border-neutral-800">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 id="email-health" className="font-semibold">Envío de emails</h2>
+          <p className="text-sm text-neutral-500">Los enlaces para entrar, restablecer la contraseña e invitar salen por Resend.</p>
+        </div>
+        <form action={formAction}>
+          <button disabled={pending} className={btnSecondaryCls}>{pending ? "Enviando…" : "Enviarme un email de prueba"}</button>
+        </form>
+      </div>
+      {missing.length > 0 && (
+        <p role="alert" className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          Falta configurar en Vercel: <strong>{missing.join(", ")}</strong>. {missing.includes("RESEND_API_KEY") ? "Sin ella no sale ningún email." : "Sin RESEND_FROM los emails solo llegan al dueño de la cuenta de Resend."}
+        </p>
+      )}
+      {state.error && <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-900 dark:bg-red-950 dark:text-red-200">No ha salido: {state.error}</p>}
+      {state.sentTo && <p role="status" className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-900 dark:bg-green-950 dark:text-green-200">Enviado a {state.sentTo}. Si no llega en un par de minutos, mira en spam.</p>}
+    </section>
   );
 }

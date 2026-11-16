@@ -29,3 +29,14 @@ test("readerLinkEmail: the board's email, as HTML tables with inline styles plus
 test("readerLinkEmail escapes the link", () => {
   assert.ok(readerLinkEmail('https://x.es/?a="><b>').html.includes("&#34;&#62;&#60;b&#62;"));
 });
+
+test("explainEmailError: turns Resend's answers into the setting to fix", async () => {
+  const { explainEmailError } = await import("./email.ts");
+  const ok = { RESEND_API_KEY: "re_x", RESEND_FROM: "CuponLab <hola@cuponlab.com>" };
+  assert.match(explainEmailError("anything", {}), /Falta RESEND_API_KEY/);
+  assert.match(explainEmailError('Resend 403: {"message":"You can only send testing emails to your own email address (a@b.es)."}', { RESEND_API_KEY: "re_x" }), /RESEND_FROM/);
+  assert.match(explainEmailError('Resend 403: {"message":"The cuponlab.com domain is not verified."}', ok), /hola@cuponlab\.com.*no está verificado/);
+  assert.match(explainEmailError('Resend 401: {"message":"API key is invalid"}', ok), /no es válida/);
+  assert.match(explainEmailError("Resend 429: too many", ok), /límite/);
+  assert.equal(explainEmailError("Resend 500: boom", ok), "Resend 500: boom");
+});

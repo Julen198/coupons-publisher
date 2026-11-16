@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useActionState, useState } from "react";
 import { login, requestMagicLink, type FormState, type MagicLinkState } from "@/app/actions";
@@ -38,7 +39,10 @@ function PasswordForm({ next, onSwitch }: ModeProps) {
       {state.error && <AuthError title={state.error}>Revísalos e inténtalo de nuevo.</AuthError>}
       <EmailField />
       <label className="flex flex-col gap-1.5 text-sm font-medium">
-        Contraseña
+        <span className="flex items-baseline justify-between gap-3">
+          Contraseña
+          <Link href="/login/recuperar" className="text-[13px] font-medium text-blue-700 underline-offset-4 hover:underline dark:text-blue-400">¿La has olvidado?</Link>
+        </span>
         <PasswordInput name="password" required autoComplete="current-password" />
       </label>
       <button disabled={pending} aria-busy={pending} className={authBtnCls}>
