@@ -79,7 +79,7 @@ export default async function CalendarPage() {
               <> {next?.date === bf ? "Hoy" : "y hoy"} es el <strong>Black Friday</strong>.</>
             ) : (
               <>
-                {" "}{next?.date === bf ? "Quedan" : "y quedan"} <strong>{daysToBf === 1 ? "1 día" : `${daysToBf} días`} para el Black Friday</strong>, el {weekday(bf)} {bfYear === year ? dayMonth(bf) : longDate(bf)}.
+                {" "}{next?.date === bf ? "Quedan" : "y quedan"} <strong>{daysToBf === 1 ? "1 día" : `${daysToBf} días`} para el <Link href="/ofertas/black-friday">Black Friday</Link></strong>, el {weekday(bf)} {bfYear === year ? dayMonth(bf) : longDate(bf)}.
               </>
             )}
           </p>
@@ -100,7 +100,7 @@ export default async function CalendarPage() {
                           <small>{monthShort(Number(e.date.slice(5, 7)))}</small>
                         </span>
                         <span style={{ minWidth: 0 }}>
-                          <strong>{e.name}</strong>
+                          <strong>{e.page ? <Link href={`/ofertas/${e.page}`}>{e.name}</Link> : e.name}</strong>
                           <span className="note">{e.note}</span>
                         </span>
                         <span className="when">

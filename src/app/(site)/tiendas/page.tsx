@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CATEGORIES, categoryOf } from "@/lib/catalog";
-import { siteCoupons, type SiteCoupon } from "@/lib/public-site";
+import { siteCoupons, siteRecentlyExpired, type SiteCoupon } from "@/lib/public-site";
 import { siteUrl } from "@/lib/site-text";
 import { bestDiscountLine } from "@/lib/store-list";
 import { StoreBrand } from "../store-logo-img";
@@ -27,6 +27,11 @@ export default async function StoresPage({ searchParams }: PageProps<"/tiendas">
     s.coupons.push(c);
     byStore.set(c.store_slug, s);
   }
+  // stores whose coupons all expired lately: their pages stay up (and indexed), so they stay linked from here
+  const resting = new Map<string, string>();
+  for (const c of await siteRecentlyExpired())
+    if ((!cat || c.store_category === cat.slug) && !byStore.has(c.store_slug)) resting.set(c.store_slug, c.store_name);
+  const restingStores = [...resting.entries()].map(([slug, name]) => ({ slug, name })).sort((a, b) => a.name.localeCompare(b.name, "es"));
   const stores = [...byStore.values()].sort((a, b) => a.name.localeCompare(b.name, "es")).map((s) => ({ ...s, best: bestDiscountLine(s.coupons) }));
   const letterOf = (name: string) => {
     const l = name.normalize("NFD").charAt(0).toUpperCase();
@@ -102,6 +107,19 @@ export default async function StoresPage({ searchParams }: PageProps<"/tiendas">
             </ul>
           </section>
         ))
+      )}
+      {restingStores.length > 0 && (
+        <section className="letter" aria-labelledby="sin-cupones">
+          <h2 id="sin-cupones">Sin cupones activos hoy</h2>
+          <p className="small">Tiendas cuyos últimos cupones han caducado. En su página verás cuáles eran y cuándo vuelven a tener.</p>
+          <ul className="stores">
+            {restingStores.map((s) => (
+              <li key={s.slug}>
+                <Link href={`/tiendas/${s.slug}`}>{s.name}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </main>
   );
