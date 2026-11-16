@@ -11,7 +11,7 @@ import { errorMessage, required, str, type FormState } from "@/lib/form";
 import { hashPassword, MIN_PASSWORD_LENGTH, newToken } from "@/lib/password";
 import { WIPE_DATA_SQL } from "@/lib/schema";
 import { startSession } from "@/lib/start-session";
-import { appUrl, inviteEmail, sendEmail } from "@/lib/email";
+import { appUrl, explainEmailError, inviteEmail, sendEmail, testEmail } from "@/lib/email";
 
 // Every action here is admin-only except acceptInvite, which is the invitee proving they hold the link.
 
@@ -29,6 +29,22 @@ async function emailInvite(to: string, name: string, inviter: string, token: str
   } catch (e) {
     console.error("[invite] email failed", e);
     return false;
+  }
+}
+
+export type TestEmailState = FormState & { sentTo?: string };
+
+// Administración > "Enviarme un email de prueba": the same path every sign-in email takes, with Resend's answer put
+// in words, so a broken setup shows here instead of as links that never arrive
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- useActionState passes the previous state
+export async function sendTestEmail(_prev: TestEmailState): Promise<TestEmailState> {
+  const admin = await requireAdmin();
+  try {
+    await sendEmail(admin.email, testEmail(admin.name));
+    return { sentTo: admin.email };
+  } catch (e) {
+    console.error("[test-email] send failed", e);
+    return { error: explainEmailError(errorMessage(e), process.env) };
   }
 }
 

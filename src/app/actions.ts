@@ -23,8 +23,10 @@ import {
   bareDomain, digits, errorMessage, hexColor, ids, isoDate, required, slugify, str, url, type FormState,
 } from "@/lib/form";
 import { canSeeClient, requireAdmin, requireEditor } from "@/lib/auth";
-import { newToken, verifyPassword } from "@/lib/password";
-import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, magicLinkEmail, sendEmail } from "@/lib/email";
+import { hashPassword, MIN_PASSWORD_LENGTH, newToken, verifyPassword } from "@/lib/password";
+import {
+  appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, magicLinkEmail, missingEmailConfig, passwordResetEmail, sendEmail, type Mail,
+} from "@/lib/email";
 import { SESSION_COOKIE, safeNext } from "@/lib/session";
 import { startSession } from "@/lib/start-session";
 
@@ -83,25 +85,86 @@ export async function login(_prev: FormState, f: FormData): Promise<FormState> {
 
 export type MagicLinkState = FormState & { sentTo?: string };
 
-// Same answer whether or not the email has an account, so the form can't probe who's registered
-export async function requestMagicLink(_prev: MagicLinkState, f: FormData): Promise<MagicLinkState> {
-  const email = str(f, "email").toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Escribe un email válido." };
+const SEND_FAILED = "No hemos podido enviar el email ahora mismo. Prueba de nuevo en unos minutos o entra con tu contraseña.";
+
+// Puts a fresh one-time token on an active account, unless one went out less than a minute ago. The same token
+// serves the sign-in link and the password-reset link: both only prove the holder reads that inbox.
+async function issueLoginToken(email: string): Promise<{ name: string; token: string } | null> {
   const token = newToken();
   const [user] = await sql()<{ name: string }[]>`
     UPDATE users SET login_token_hash = ${hashToken(token)}, login_expires_at = now() + ${MAGIC_LINK_MINUTES} * interval '1 minute'
     WHERE email = ${email} AND status = 'active'
       AND (login_expires_at IS NULL OR login_expires_at < now() + ${MAGIC_LINK_MINUTES * 60 - MAGIC_LINK_COOLDOWN_SECONDS} * interval '1 second')
     RETURNING name`;
-  if (user) {
-    const link = `${appUrl()}/login/magic?token=${token}&next=${encodeURIComponent(safeNext(str(f, "next")))}`;
-    try {
-      await sendEmail(email, magicLinkEmail(user.name, link));
-    } catch (e) {
-      console.error("[magic-link] send failed", e);
+  return user ? { name: user.name, token } : null;
+}
+
+// The email never left: drop the token so the cooldown doesn't block an immediate retry
+async function revokeLoginToken(email: string, token: string) {
+  await sql()`UPDATE users SET login_token_hash = NULL, login_expires_at = NULL WHERE email = ${email} AND login_token_hash = ${hashToken(token)}`
+    .catch((e) => console.error("[login-token] revoke failed", e));
+}
+
+// Sends the email for a freshly issued token. On failure the token is revoked and the reason logged (with the
+// missing settings named), and the caller shows an error instead of a "sent" that never arrives.
+async function mailLoginToken(tag: string, email: string, issued: { name: string; token: string }, mail: (name: string) => Mail): Promise<boolean> {
+  const missing = missingEmailConfig(process.env);
+  if (missing.length) console.error(`[${tag}] email not configured`, { missing });
+  try {
+    await sendEmail(email, mail(issued.name));
+    return true;
+  } catch (e) {
+    console.error(`[${tag}] send failed`, e);
+    await revokeLoginToken(email, issued.token);
+    return false;
+  }
+}
+
+// Same answer whether or not the email has an account, so the form can't probe who's registered (only a broken
+// mail setup shows an error, and that is logged for the admin)
+export async function requestMagicLink(_prev: MagicLinkState, f: FormData): Promise<MagicLinkState> {
+  const email = str(f, "email").toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Escribe un email válido." };
+  const issued = await issueLoginToken(email);
+  if (issued) {
+    const link = `${appUrl()}/login/magic?token=${issued.token}&next=${encodeURIComponent(safeNext(str(f, "next")))}`;
+    if (!(await mailLoginToken("magic-link", email, issued, (name) => magicLinkEmail(name, link)))) return { error: SEND_FAILED };
+  }
+  return { sentTo: email };
+}
+
+// "¿Has olvidado la contraseña?" on /login/recuperar: a one-time link to /login/restablecer
+export async function requestPasswordReset(_prev: MagicLinkState, f: FormData): Promise<MagicLinkState> {
+  const email = str(f, "email").toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Escribe un email válido." };
+  const issued = await issueLoginToken(email);
+  if (issued) {
+    const link = `${appUrl()}/login/restablecer?token=${issued.token}`;
+    if (!(await mailLoginToken("password-reset", email, issued, (name) => passwordResetEmail(name, link)))) {
+      return { error: "No hemos podido enviar el email ahora mismo. Prueba de nuevo en unos minutos." };
     }
   }
   return { sentTo: email };
+}
+
+// The reset link's form: a new password, then signed in. Bumping session_version signs out every other device.
+export async function resetPassword(_prev: FormState, f: FormData): Promise<FormState> {
+  const token = str(f, "token");
+  const password = str(f, "password");
+  if (password.length < MIN_PASSWORD_LENGTH) return { error: `La contraseña necesita al menos ${MIN_PASSWORD_LENGTH} caracteres.` };
+  if (password !== str(f, "confirm")) return { error: "Las contraseñas no coinciden." };
+  const [user] = /^[0-9a-f]{64}$/.test(token)
+    ? await sql()<{ id: number; session_version: number; email: string }[]>`
+        UPDATE users SET password_hash = ${await hashPassword(password)}, login_token_hash = NULL, login_expires_at = NULL,
+          session_version = session_version + 1
+        WHERE login_token_hash = ${hashToken(token)} AND login_expires_at > now() AND status = 'active'
+        RETURNING id, session_version, email`
+    : [];
+  if (!user) return { error: "El enlace ha caducado o ya se usó." };
+  // a forgotten password usually comes after a few failed tries: don't leave the account locked
+  await sql()`DELETE FROM login_attempts WHERE key = ${attemptKeys(user.email, "").account}`.catch((e) => console.error("[reset] attempts clear failed", e));
+  await startSession(user.id, user.session_version);
+  redirect("/panel");
 }
 
 // POST (button on /login/magic), not GET: mail scanners that prefetch links would burn the token

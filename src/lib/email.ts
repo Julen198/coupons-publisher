@@ -83,6 +83,25 @@ export function readerLinkEmail(link: string): Mail {
   };
 }
 
+export function passwordResetEmail(name: string, link: string): Mail {
+  const body = `Pulsa el botón para elegir una contraseña nueva para tu panel de CuponLab. El enlace caduca en ${MAGIC_LINK_MINUTES} minutos y solo sirve una vez.`;
+  const footer = "Si no lo has pedido tú, ignora este email: tu contraseña no cambia.";
+  return {
+    subject: "Restablece tu contraseña de CuponLab",
+    text: `Hola, ${firstName(name)}.\n\n${body}\n${link}\n\n${footer}`,
+    html: layout(name, body, "Elegir contraseña nueva", link, footer),
+  };
+}
+
+export function testEmail(name: string): Mail {
+  const body = "Si lees esto, el envío de emails de CuponLab funciona: los enlaces para entrar y para restablecer la contraseña llegarán.";
+  return {
+    subject: "Prueba de email de CuponLab",
+    text: `Hola, ${firstName(name)}.\n\n${body}`,
+    html: layout(name, body, "Ir al panel", `${appUrl()}/panel`, "Lo has pedido desde Administración."),
+  };
+}
+
 export function inviteEmail(name: string, inviter: string, link: string, days: number): Mail {
   const body = `${inviter} te ha invitado al panel de CuponLab. Pulsa el botón para crear tu contraseña y empezar. La invitación caduca en ${days} días.`;
   const footer = "Si no esperabas esta invitación, ignora este email.";
@@ -111,4 +130,20 @@ export async function sendEmail(to: string, mail: Mail): Promise<void> {
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
+}
+
+// A send failure in words an admin can act on (Administración > Probar email). Pure, so it is tested without Resend.
+export function explainEmailError(message: string, env: Record<string, string | undefined>): string {
+  const missing = missingEmailConfig(env);
+  if (missing.includes("RESEND_API_KEY")) return "Falta RESEND_API_KEY en Vercel: sin ella no sale ningún email.";
+  if (/testing emails|own email address/i.test(message)) {
+    return "Resend solo deja enviar al dueño de la cuenta: falta RESEND_FROM con una dirección de un dominio verificado en Resend.";
+  }
+  if (/domain is not verified|verify (a|your) domain/i.test(message)) {
+    return `El dominio de RESEND_FROM${env.RESEND_FROM ? ` (${env.RESEND_FROM})` : ""} no está verificado en Resend: verifícalo en resend.com/domains.`;
+  }
+  if (/Resend 401|api key is invalid|invalid api key/i.test(message)) return "RESEND_API_KEY no es válida: genera una nueva en Resend y cámbiala en Vercel.";
+  if (/Resend 429|rate limit|quota/i.test(message)) return "Resend ha frenado el envío por límite de emails (diario o por segundo) de tu plan.";
+  if (/Resend 422/.test(message) && /from/i.test(message)) return "RESEND_FROM no tiene un formato válido: usa «CuponLab <hola@tudominio.com>».";
+  return message;
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { AuthShell } from "@/app/auth/auth-shell";
 import { LoginForm } from "./login-form";
@@ -15,7 +16,7 @@ export default function LoginPage() {
         </Suspense>
         <div className="flex flex-col gap-2 border-t border-neutral-200 pt-5 text-[13px] leading-relaxed text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">
           <p><strong className="font-semibold text-neutral-800 dark:text-neutral-200">¿Sin cuenta?</strong> Las cuentas se crean por invitación: pídesela a un administrador de tu equipo.</p>
-          <p><strong className="font-semibold text-neutral-800 dark:text-neutral-200">¿Olvidaste la contraseña?</strong> Un administrador puede enviarte un enlace nuevo desde Administración.</p>
+          <p><strong className="font-semibold text-neutral-800 dark:text-neutral-200">¿Olvidaste la contraseña?</strong> <Link href="/login/recuperar" className="font-medium text-blue-700 underline underline-offset-2 dark:text-blue-400">Restablécela con un enlace por email</Link>.</p>
         </div>
       </div>
     </AuthShell>

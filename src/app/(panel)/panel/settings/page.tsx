@@ -7,7 +7,8 @@ import { clickRetention } from "@/lib/clicks";
 import { listClients, sql } from "@/lib/db";
 import { IMPORT_COLUMNS } from "@/lib/coupon-import";
 import { cardCls, fmtDateTime, PageHeader } from "@/app/ui";
-import { EditUserButton, ImportCouponsForm, InviteButton, WipeDataForm } from "./admin-ui";
+import { missingEmailConfig } from "@/lib/email";
+import { EditUserButton, EmailHealth, ImportCouponsForm, InviteButton, WipeDataForm } from "./admin-ui";
 
 interface UserRow {
   id: number; name: string; email: string; role: Role; client_ids: number[];
@@ -78,6 +79,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/panel/sett
 
       {tab === "users" && (
         <>
+          <EmailHealth missing={missingEmailConfig(process.env)} />
           <section aria-label="Roles" className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
             {ROLES.map((r) => (
               <div key={r.role} className={`${cardCls} flex flex-col gap-2`}>
