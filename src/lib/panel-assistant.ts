@@ -18,7 +18,7 @@ const round = (v: number | null, d = 1) => (v == null ? null : Math.round(v * 10
 const tools = {
   estadisticas: tool({
     description: "Estadísticas de la web en un periodo: Search Console (impresiones, clics, posición, búsquedas), visitas GA4, clics a tiendas y copias por origen, tiendas con más actividad, guías y coste de IA, con el periodo anterior para comparar.",
-    inputSchema: z.object({ dias: z.union([z.literal(7), z.literal(28), z.literal(90)]).describe("Periodo en días") }),
+    inputSchema: z.object({ dias: z.union([z.literal(1), z.literal(7), z.literal(28), z.literal(90)]).describe("Periodo en días (1 = ayer)") }),
     execute: async ({ dias }) => {
       const s = await loadStats(rangeOf(dias));
       return {

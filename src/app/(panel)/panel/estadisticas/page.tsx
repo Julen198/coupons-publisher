@@ -3,7 +3,7 @@ import { io } from "next/cache";
 import { cardCls, PageHeader } from "@/app/ui";
 import { canEdit, requireUser } from "@/lib/auth";
 import { SOURCE_LABEL } from "@/lib/click-signals";
-import { loadStats, rangeOf, STATS_RANGES, type SourceState, type Stats, type Totals } from "@/lib/stats";
+import { loadStats, rangeLabel, rangeOf, STATS_RANGES, type SourceState, type Stats, type Totals } from "@/lib/stats";
 import { ClicksTab } from "./clicks-tab";
 
 const n = (v: number) => Math.round(v).toLocaleString("es-ES");
@@ -132,12 +132,15 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
         <nav aria-label="Periodo" className="flex gap-1 rounded-lg bg-neutral-100 p-1 dark:bg-neutral-900">
           {STATS_RANGES.map((d) => (
             <Link key={d} href={`/panel/estadisticas?dias=${d}`} aria-current={d === days ? "page" : undefined}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${d === days ? "bg-white shadow-sm dark:bg-neutral-800" : "text-neutral-500"}`}>{d} días</Link>
+              className={`rounded-md px-3 py-1.5 text-sm font-medium ${d === days ? "bg-white shadow-sm dark:bg-neutral-800" : "text-neutral-500"}`}>{rangeLabel(d)}</Link>
           ))}
         </nav>
       </PageHeader>
       <Tabs tab="general" general />
-      <p className="text-sm text-neutral-500">Del {fmtDay(s.range.start)} al {fmtDay(s.range.end)}, comparado con los {days} días anteriores.</p>
+      <p className="text-sm text-neutral-500">
+        {days === 1 ? <>Ayer, {fmtDay(s.range.end)}, comparado con el día anterior.</> : <>Del {fmtDay(s.range.start)} al {fmtDay(s.range.end)}, comparado con los {days} días anteriores.</>}
+        {days === 1 && " Search Console tarda 2–3 días en tener completo un día: lo de Google de ayer saldrá bajo o vacío hasta entonces."}
+      </p>
 
       <div className="flex flex-wrap gap-2">
         <SourcePill label="Search Console" s={s.sources.search} />
