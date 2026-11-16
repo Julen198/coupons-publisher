@@ -10,6 +10,9 @@ const n = (v: number) => Math.round(v).toLocaleString("es-ES");
 const eur = (v: number) => v.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
 // Queries in position 8–30: close to Google's first page, where a store guide can push them up
 const NEAR_LABEL = "Cerca de 1.ª página";
+const isNear = (position: number) => position >= 8 && position <= 30;
+// near rows are tinted with the legend chip's own colour instead of carrying a chip each
+const NEAR_ROW_CLS = "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100";
 const NEAR_CLS = "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200 whitespace-nowrap";
 const pct = (v: number) => `${(v * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`;
 const pos = (v: number | null) => (v == null ? "—" : v.toLocaleString("es-ES", { maximumFractionDigits: 1 }));
@@ -206,7 +209,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
           </div>
           <p className="flex flex-wrap items-center gap-2 border-b border-neutral-200 px-5 py-2 text-xs text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">
             <span className={NEAR_CLS}>{NEAR_LABEL}</span>
-            Sales entre la posición 8 y la 30 (final de la 1.ª página a la 3.ª): con una guía de tienda puede subir a la primera página.
+            Las filas en amarillo salen entre la posición 8 y la 30 (final de la 1.ª página a la 3.ª): con una guía de tienda pueden subir a la primera página.
           </p>
           {s.queries.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">{s.sources.search.ok ? "Google todavía no muestra la web en búsquedas de este periodo." : "Sin datos de Search Console."}</p>
@@ -218,8 +221,8 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
                 </thead>
                 <tbody>
                   {s.queries.map((q) => (
-                    <tr key={q.query} className="border-t border-neutral-100 dark:border-neutral-800">
-                      <td className="px-3 py-2 pl-5 font-medium">{q.query}{q.position >= 8 && q.position <= 30 && <span className={`ml-2 ${NEAR_CLS}`} title="Posición 8–30: una guía puede subirla a la primera página">{NEAR_LABEL}</span>}</td>
+                    <tr key={q.query} className={`border-t border-neutral-100 dark:border-neutral-800 ${isNear(q.position) ? NEAR_ROW_CLS : ""}`} title={isNear(q.position) ? `${NEAR_LABEL}: posición 8–30, una guía puede subirla a la primera página` : undefined}>
+                      <td className="px-3 py-2 pl-5 font-medium">{q.query}</td>
                       <td className={td}>{n(q.impressions)}</td><td className={td}>{n(q.clicks)}</td>
                       <td className={`${td} text-neutral-500`}>{q.impressions ? pct(q.clicks / q.impressions) : "—"}</td>
                       <td className={`${td} pr-5 font-semibold`}>{pos(q.position)}</td>
