@@ -101,10 +101,13 @@ const knownBrands = cache(async (): Promise<string[]> => {
 
 // Plain copies with display_title filled in. A coupon that came in another language reads in Spanish: title and
 // description become its translation (publicText), so every card, page, meta tag and slug uses it.
-function titled<T extends { title: string; description: string; store_name: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string })[] {
+// A coupon's own category (coupons.category, '' = its store's) wins over the store's: a sneaker shop's winter-clothing
+// sale belongs in Moda. Read off c.*, so it is simply absent until the migration has run.
+function titled<T extends { title: string; description: string; store_name: string; store_category: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string })[] {
   return rows.map((r) => {
     const text = publicText(r);
-    return { ...r, ...text, display_title: displayTitle(text.title, r.store_name, brands) };
+    const own = (r as { category?: unknown }).category;
+    return { ...r, ...text, ...(typeof own === "string" && own ? { store_category: own } : {}), display_title: displayTitle(text.title, r.store_name, brands) };
   });
 }
 
