@@ -129,9 +129,25 @@ export function mentionsBadge(title: string, badge: string): boolean {
 
 type Titled = { kind: "code" | "deal"; code: string; discount: string };
 
-// The store page h1 and title. "Códigos descuento" only when the store has codes, and then only codes' figures:
-// "Códigos descuento zooplus 15 % y 5 €, noviembre 2026" / "Ofertas PcComponentes 320 € y 50 €, noviembre 2026"
-export function storeHeading(storeName: string, coupons: Titled[], now: Date): string {
+// What a store page's title leads with, per store (stores.title_term): the words people type in Google for that store.
+// The pages that outrank us use the singular, exactly as searched: «Código descuento MyProtein», «Cupón descuento Aosom»,
+// «Código promocional Atmósfera Sport». "" = the default, «Código descuento».
+export const TITLE_TERMS = [
+  { slug: "", label: "Código descuento" },
+  { slug: "cupon", label: "Cupón descuento" },
+  { slug: "promocional", label: "Código promocional" },
+] as const;
+export type TitleTerm = (typeof TITLE_TERMS)[number]["slug"];
+export const titleTermInput = (raw: string): TitleTerm => TITLE_TERMS.find((t) => t.slug === raw.trim())?.slug ?? "";
+const termLabel = (term: string | undefined) => (TITLE_TERMS.find((t) => t.slug === (term ?? "")) ?? TITLE_TERMS[0]).label;
+
+// The term only when the store has codes (a page of offers does not promise one), else «Ofertas»
+const headOf = (coupons: Titled[], term: string | undefined) =>
+  coupons.some((c) => c.kind === "code" && c.code.trim()) ? termLabel(term) : "Ofertas";
+
+// The store page <title>, shaped like the ones that rank: «Código descuento zooplus: 15 % y 5 € válido en noviembre 2026»
+// / «Ofertas PcComponentes: 320 € y 50 € válidas en noviembre 2026». Only codes' figures when it has codes, two at most.
+export function storeHeading(storeName: string, coupons: Titled[], now: Date, term?: string): string {
   const codes = coupons.filter((c) => c.kind === "code" && c.code.trim());
   const pool = codes.length ? codes : coupons;
   const figures = pool
@@ -141,12 +157,11 @@ export function storeHeading(storeName: string, coupons: Titled[], now: Date): s
     .sort((a, b) => (a.unit === b.unit ? 0 : a.unit === "%" ? -1 : 1) || b.value - a.value || Number(a.upTo) - Number(b.upTo));
   const seen = new Set<string>();
   const top = figures.filter((f) => !seen.has(`${f.value}${f.unit}`) && seen.add(`${f.value}${f.unit}`)).slice(0, 2);
-  const head = `${codes.length ? "Códigos descuento" : "Ofertas"} ${storeName}`;
-  return `${head}${top.length ? ` ${top.map((f) => f.text).join(" y ")}` : ""}, ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  const valid = codes.length ? "válido" : "válidas";
+  return `${headOf(coupons, term)} ${storeName}${top.length ? `: ${top.map((f) => f.text).join(" y ")}` : ""} ${valid} en ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
 }
 
-// The store page h1 as the design shows it: kind of discounts, store and month, no figures (those stay in the <title>)
-export function storeH1(storeName: string, coupons: Titled[], now: Date): string {
-  const hasCodes = coupons.some((c) => c.kind === "code" && c.code.trim());
-  return `${hasCodes ? "Códigos descuento" : "Ofertas"} ${storeName} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+// The store page h1 as the design shows it: the same words, store and month, no figures (those stay in the <title>)
+export function storeH1(storeName: string, coupons: Titled[], now: Date, term?: string): string {
+  return `${headOf(coupons, term)} ${storeName} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
 }

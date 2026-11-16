@@ -7,8 +7,10 @@ import { categoryOf, categoryPath, factsOf, ordenOf, type Orden } from "@/lib/ca
 import { sortDeals } from "@/lib/community";
 import { badgeInSentence, storeH1, storeHeading } from "@/lib/deal-text";
 import { currentVotes, nearFirstPageStores, siteClient, siteCoupons, siteRecentlyExpired, siteStore } from "@/lib/public-site";
-import { dealPath, longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
+import { dealPath, longDate, madridToday, percentOf, shortDate, siteUrl } from "@/lib/site-text";
 import { storeGuide } from "@/lib/store-guides";
+import { eventEdition, storeEventPath, storeEventsInSeason } from "@/lib/event-pages";
+import { checkedLabel, isPerk, lastChecked } from "@/lib/perks";
 import { publishedGuide } from "@/lib/store-guides-db";
 import { publishedGuides } from "@/lib/guide-index";
 import { relatedGuides } from "@/lib/seo-auto";
@@ -30,15 +32,16 @@ export async function generateMetadata({ params }: PageProps<"/tiendas/[slug]">)
   if (!found) return { title: "Tienda no encontrada", robots: { index: false } };
   const { store, coupons, expired } = found;
   const codes = coupons.filter((c) => c.kind === "code" && c.code).length;
+  const checked = lastChecked(coupons.filter((c) => c.verified));
   const guide = storeGuide(store.slug) ?? (await publishedGuide(store.id));
   const now = new Date();
   return {
     // with nothing live the title names no figures: the discounts it would quote are gone
-    title: { absolute: `${coupons.length ? storeHeading(store.name, coupons, now) : storeH1(store.name, expired, now)} | CuponLab` },
+    title: { absolute: `${coupons.length ? storeHeading(store.name, coupons, now, store.title_term) : storeH1(store.name, expired, now, store.title_term)} | CuponLab` },
     description: coupons.length
       ? guide
         ? guide.description
-        : `${coupons.length} cupones activos de ${store.name} (${codes} códigos descuento), con condiciones y fecha de caducidad.`
+        : `${coupons.length === 1 ? "1 cupón activo" : `${coupons.length} cupones activos`} de ${store.name} (${codes === 1 ? "1 código descuento" : `${codes} códigos descuento`}), con condiciones y fecha de caducidad.${checked ? ` Última comprobación: ${shortDate(checked)}.` : ""}`
       : `Hoy no hay cupones activos de ${store.name}. Los últimos códigos y ofertas que publicamos, cuándo caducaron y lo que conviene saber antes de comprar.`,
     alternates: { canonical: `/tiendas/${store.slug}` },
     // the URL stays in the index while the store has live coupons, a guide, or coupons that expired in the last months
@@ -85,13 +88,18 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   const codes = coupons.filter((c) => c.kind === "code" && c.code).length;
   const verified = coupons.filter((c) => c.verified).length;
   const best = [...coupons].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
-  const sorted = sortDeals(coupons, orden);
+  // standing offers (newsletter, app…) get their own block under the coupons
+  const perks = coupons.filter(isPerk);
+  const sorted = sortDeals(coupons.filter((c) => !isPerk(c)), orden);
+  const checked = lastChecked(coupons.filter((c) => c.verified));
+  // this store on the shopping dates coming up (/ofertas/black-friday/<store>)
+  const seasonEvents = storeEventsInSeason(today);
   const facts = factsOf(store.facts);
   const cat = categoryOf(store.category);
   const domain = store.website.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
   // through its category when it has one (Inicio › Moda › Tienda): links every store page to its category page
   const crumbs = [{ name: "Inicio", href: "/" }, cat ? { name: cat.label, href: categoryPath(cat.slug) } : { name: "Tiendas", href: "/tiendas" }, { name: store.name }];
-  const title = storeH1(store.name, coupons.length ? coupons : expired, now);
+  const title = storeH1(store.name, coupons.length ? coupons : expired, now, store.title_term);
   const lastExpired = expired.slice(0, EXPIRED_SHOWN);
 
   // other stores of the same category first, then the ones with the most coupons
@@ -144,7 +152,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
           <div>
           <h1 data-seo="H1 con intención">{title}</h1>
           <div className="meta-line">
-            <span className="live">Actualizado a las {time}</span>
+            {checked ? <span className="live">Última comprobación: {checkedLabel(checked, today).replace(/^Comprobado /, "")}</span> : <span className="live">Actualizado a las {time}</span>}
             <span>{coupons.length === 1 ? "1 cupón activo" : `${coupons.length} cupones activos`}</span>
             {domain && <span>{domain}</span>}
           </div>
@@ -190,13 +198,23 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
                   <DealCard key={c.id} c={c} client={client} today={today} now={now} mine={mine} next={sortHref(store.slug, orden)} hideStore source={source} />
                 ))}
               </div>
-            ) : (
+            ) : perks.length ? null : (
               <div className="panel">
                 <h3>No hay cupones activos de {store.name} hoy</h3>
                 <p className="small">
                   Publicamos cupones nuevos cada día. Mientras tanto, <Link href="/">mira los chollos de otras tiendas</Link>.
                 </p>
               </div>
+            )}
+            {perks.length > 0 && (
+              <section aria-labelledby="storePerks" data-seo="Ofertas permanentes">
+                <h2 id="storePerks" className="feed-title">Descuentos que {store.name} tiene todo el año</h2>
+                <div className="feed">
+                  {perks.map((c) => (
+                    <DealCard key={c.id} c={c} client={client} today={today} now={now} mine={mine} next={sortHref(store.slug, orden)} hideStore source={source} />
+                  ))}
+                </div>
+              </section>
             )}
             {lastExpired.length > 0 && (
               <section className="panel" aria-labelledby="storeExpired" data-seo="Últimos cupones caducados">
@@ -228,6 +246,21 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
                   <li><span>Cupones activos<small>{coupons.length}</small></span></li>
                   <li><span>Con código<small>{codes}</small></span></li>
                   <li><span>Comprobados<small>{verified}</small></span></li>
+                </ul>
+              </section>
+            )}
+            {seasonEvents.length > 0 && (
+              <section className="panel" data-seo="Enlazado interno tienda + evento">
+                <h2>Próximas fechas de ofertas</h2>
+                <ul className="stores">
+                  {seasonEvents.map((e) => (
+                    <li key={e.slug}>
+                      <Link href={storeEventPath(e.slug, store.slug)}>
+                        {e.name} {store.name}
+                        <small>{longDate(eventEdition(e, today).date)}</small>
+                      </Link>
+                    </li>
+                  ))}
                 </ul>
               </section>
             )}

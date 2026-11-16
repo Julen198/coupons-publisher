@@ -8,6 +8,7 @@ import { siteCoupon, siteCoupons } from "./public-site";
 import { SITE_CLIENT_SLUG } from "./link-accounts";
 import { dealPath, siteUrl } from "./site-text";
 import { dealMessage, editPrompt, parseCallback, promptCouponId, reviewKeyboard, tg, type DealFields, type TelegramConfig } from "./telegram";
+import { withoutPerks } from "./perks.ts";
 
 const BATCH = 10;
 // ponytail: only coupons from the last 3 days reach the admin chat, so switching the bot on doesn't flood it with the whole catalogue
@@ -43,7 +44,8 @@ function dealPost(cfg: TelegramConfig, c: PostableDeal, title?: string) {
 // public channel yet, just a link to the deal)
 export async function sendQueue(cfg: TelegramConfig): Promise<{ sent: number; left: number }> {
   const since = Date.now() - FRESH_DAYS * 86_400_000;
-  const fresh = (await siteCoupons()).filter((c) => new Date(c.created_at).getTime() >= since);
+  // standing offers (newsletter, app…) are not news: they never go to the channel
+  const fresh = withoutPerks(await siteCoupons()).filter((c) => new Date(c.created_at).getTime() >= since);
   if (!fresh.length) return { sent: 0, left: 0 };
   const byId = new Map(fresh.map((c) => [c.id, c]));
   const ids = [...byId.keys()];

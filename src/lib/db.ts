@@ -1,6 +1,7 @@
 import { poolerUrl } from "./pooler.ts";
 import { countrySql, withCountryColumn } from "./country-column.ts";
 import { altDomainsColumn, altDomainsSql } from "./tracking-columns.ts";
+import { titleTermColumn } from "./perks.ts";
 import type { CategorySlug } from "./catalog.ts";
 import postgres from "postgres";
 import { io } from "next/cache";
@@ -37,6 +38,7 @@ export type Store = {
   country: string; // ISO 3166-1 alpha-2 it sells in, "" = unknown (see onSpanishSite); "" too until npm run db:setup adds the column
   country_source: "" | "network" | "inferred" | "manual";
   alt_domains?: string; // other domains the store sells on, comma-separated (see storeDomains); "" or missing until npm run db:setup adds it
+  title_term?: string; // what its page title leads with in Google (see TITLE_TERMS); "" or missing until npm run db:setup adds it
 };
 
 export type Coupon = {
@@ -65,6 +67,10 @@ export type Coupon = {
   description_es?: string;
   translation_status?: "" | "auto" | "approved" | "skip";
   translated_from?: string; // md5 of the source title + description it translates
+  // the last real check (see perks.ts): null = never dated; optional until the column exists
+  checked_at?: Date | null;
+  // a standing offer of the store ("bienvenida", "newsletter"… see PERKS), "" = an ordinary coupon; optional until the column exists
+  perk?: string;
 };
 
 export type CouponWithStore = Coupon & { store_name: string; store_slug: string; store_has_logo: boolean };
@@ -124,7 +130,9 @@ export const listStores = () =>
   q(async (s) => plain(await withCountryColumn((c) => altDomainsColumn.run((a) => s<Store[]>`SELECT ${s.unsafe(storeCols(c, a))} FROM stores ORDER BY lower(name)`))));
 
 export const getStore = (slug: string) =>
-  q(async (s) => plain(await withCountryColumn((c) => altDomainsColumn.run((a) => s<Store[]>`SELECT ${s.unsafe(storeCols(c, a))} FROM stores WHERE slug = ${slug}`)))[0] as Store | undefined);
+  q(async (s) =>
+    plain(await withCountryColumn((c) => altDomainsColumn.run((a) => titleTermColumn.run((t) =>
+      s<Store[]>`SELECT ${s.unsafe(storeCols(c, a))}, ${s.unsafe(t ? "title_term" : "'' AS title_term")} FROM stores WHERE slug = ${slug}`))))[0] as Store | undefined);
 
 export const listCoupons = (storeId: number) =>
   q(async (s) => plain(await s<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${storeId} AND review = '' ORDER BY verified DESC, id`));

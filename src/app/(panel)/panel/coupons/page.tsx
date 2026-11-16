@@ -13,6 +13,7 @@ import { btnCls, btnSecondaryCls, ClearFilters, inputCls, Pager } from "@/app/ui
 import { SearchInput } from "@/app/search-input";
 import { paginate } from "@/lib/store-filter";
 import { translationDraft } from "@/lib/translation";
+import { checkedDay } from "@/lib/perks";
 import { CouponForm, type CouponDraft } from "./coupon-form";
 
 const TILES: { id: StatusFilter; label: string; dot: string }[] = [
@@ -82,9 +83,10 @@ export default async function CouponsPage({ searchParams }: PageProps<"/panel/co
         id: editing.id, store_id: editing.store_id, kind: editing.kind, title: editing.title, code: editing.code,
         discount: editing.discount, description: editing.description, target_url: editing.target_url,
         expires_at: editing.expires_at, verified: Boolean(editing.verified),
+        perk: editing.perk ?? "", checked_day: checkedDay(editing.checked_at),
       }
     : sp.new !== undefined && stores[0]
-      ? { store_id: stores[0].id, kind: "code", title: "", code: "", discount: "", description: "", target_url: stores[0].website, expires_at: "", verified: false }
+      ? { store_id: stores[0].id, kind: "code", title: "", code: "", discount: "", description: "", target_url: stores[0].website, expires_at: "", verified: false, perk: "" }
       : undefined;
 
   return (

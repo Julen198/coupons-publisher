@@ -23,7 +23,7 @@ export interface EventPage {
   faqs: (when: string, year: number) => { q: string; a: string }[];
 }
 
-const RETURNS =
+export const RETURNS =
   "Las compras online en España tienen 14 días naturales de desistimiento desde que recibes el pedido, salvo excepciones como productos personalizados o precintados que se han abierto. Algunas tiendas amplían ese plazo en campañas; revisa sus condiciones antes de pagar.";
 const OMNIBUS =
   "Desde 2022, cuando una tienda anuncia una rebaja tiene que tomar como precio anterior el más bajo que aplicó en los 30 días previos. Si un «antes» te parece inflado, desconfía y compara en otras tiendas.";
@@ -357,3 +357,23 @@ export function eventDeals<T extends DealText>(e: EventPage, live: readonly T[],
   const fallback = matched.length ? [] : e.categories.length ? live.filter((c) => (e.categories as readonly string[]).includes(c.store_category)) : [...live];
   return { matched, fallback };
 }
+
+// /ofertas/<event>/<store>: one page per store and shopping date («black friday myprotein»), as the sites that outrank
+// us have (/cupones/especiales/black-friday/amazon). The URL is the same every year.
+export const storeEventPath = (event: string, storeSlug: string) => `/ofertas/${event}/${storeSlug}`;
+
+// From six weeks before the date until it ends: when a store's page for the event is linked from its store page and
+// listed in the sitemap, so Google finds it before people start searching
+const STORE_EVENT_LEAD_DAYS = 45;
+export const storeEventSeason = (e: EventPage, todayIso: string): boolean => {
+  const { date, ends } = eventEdition(e, todayIso);
+  return todayIso >= addDays(date, -STORE_EVENT_LEAD_DAYS) && todayIso <= ends;
+};
+
+// The events whose store pages are in season today, nearest first
+export const storeEventsInSeason = (todayIso: string): EventPage[] =>
+  EVENT_PAGES.filter((e) => storeEventSeason(e, todayIso)).sort((a, b) => eventEdition(a, todayIso).date.localeCompare(eventEdition(b, todayIso).date));
+
+// A store × event page is worth indexing only with something of its own to show: live coupons of the store. Without
+// them it would be the event's text with another name (thin), so it stays out of the index but its links are followed.
+export const storeEventIndexable = (liveOfStore: number): boolean => liveOfStore > 0;

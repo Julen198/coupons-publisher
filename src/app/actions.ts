@@ -15,6 +15,8 @@ import { storeCategory } from "@/lib/catalog";
 import { countryInput } from "@/lib/market";
 import { isMissingCountry } from "@/lib/country-column";
 import { altDomainsColumn } from "@/lib/tracking-columns";
+import { couponFreshnessColumns, perkInput, titleTermColumn } from "@/lib/perks";
+import { titleTermInput } from "@/lib/deal-text";
 import { altDomainsInput } from "@/lib/tracked-link";
 import { cleanDisguise, cleanFontFamily, darkSvgDataUri, decodeHtml, isSvgUrl, isWhiteSvg, MAX_SVG_LOGO, validLogo, extractDisguise, siteDigest, type Disguise } from "@/lib/disguise";
 import { disguiseFromDigest, storesFromText } from "@/lib/ai-content";
@@ -490,6 +492,15 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
       const missing = await saveAltDomains(s, altDomainsInput(str(f, "alt_domains")));
       if (missing) return { error: "Guardado, salvo los otros dominios. Ejecuta npm run db:setup para poder guardarlos" };
     }
+    if (f.has("title_term")) {
+      const term = titleTermInput(str(f, "title_term"));
+      try {
+        await sql()`UPDATE stores SET title_term = ${term} WHERE slug = ${s}`;
+      } catch (e) {
+        if (!titleTermColumn.isMissing(e)) throw e;
+        if (term) return { error: "Guardado, salvo la palabra del título. Ejecuta npm run db:setup para poder guardarla" };
+      }
+    }
   } catch (e) {
     return { error: errorMessage(e) };
   }
@@ -524,13 +535,25 @@ export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormSta
       archived: 0,
     };
     const id = Number(str(f, "id"));
+    // a standing offer of the store (newsletter, app…): only what its website says, see PERKS
+    const perk = perkInput(str(f, "perk"));
+    // «Comprobado hoy» ticked, or a coupon marked verified right now: the date the site shows is today's
+    const checkedNow = f.get("checked_now") === "on";
     // reader-shared deals waiting for review (or rejected) are only handled on /panel/moderacion: never published from here
     // an edit locks the text against the network sync (text_locked), so the correction survives the next sync
-    if (id) await sql()`UPDATE coupons SET ${sql()({ ...c, text_locked: true })} WHERE id = ${id} AND review = ''`;
-    else {
-      await sql()`INSERT INTO coupons ${sql()(c)}`;
-      await logActivity(`Nuevo cupón: ${c.title}`);
-    }
+    await couponFreshnessColumns.run(async (present) => {
+      if (!present && perk) throw new Error("Para guardar ofertas permanentes ejecuta antes npm run db:setup");
+      if (id) {
+        if (present)
+          await sql()`UPDATE coupons SET ${sql()({ ...c, text_locked: true, perk })},
+            checked_at = CASE WHEN ${checkedNow}::boolean OR (coupons.verified = 0 AND ${c.verified}::int = 1) THEN now() ELSE coupons.checked_at END
+            WHERE id = ${id} AND review = ''`;
+        else await sql()`UPDATE coupons SET ${sql()({ ...c, text_locked: true })} WHERE id = ${id} AND review = ''`;
+      } else {
+        await sql()`INSERT INTO coupons ${sql()(present ? { ...c, perk, checked_at: c.verified || checkedNow ? new Date() : null } : c)}`;
+      }
+    });
+    if (!id) await logActivity(`Nuevo cupón: ${c.title}`);
   } catch (e) {
     return { error: errorMessage(e) };
   }
@@ -543,7 +566,12 @@ export async function verifyCoupons(f: FormData) {
   await requireEditor();
   const list = ids(f);
   if (!list.length) return;
-  await sql()`UPDATE coupons SET verified = 1 WHERE id IN ${sql()(list)}`;
+  // verifying is checking: the site shows today as its check date
+  await couponFreshnessColumns.run((present) =>
+    present
+      ? sql()`UPDATE coupons SET verified = 1, checked_at = now() WHERE id IN ${sql()(list)}`
+      : sql()`UPDATE coupons SET verified = 1 WHERE id IN ${sql()(list)}`,
+  );
   await logActivity(list.length === 1 ? "Cupón verificado" : `${list.length} cupones verificados`);
   // web finds are published here: look for their product photo once
   after(() => fillProductImages(list));

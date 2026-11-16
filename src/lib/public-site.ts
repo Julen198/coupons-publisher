@@ -18,6 +18,7 @@ import { hasWordmarkSql, withWordmarkColumn } from "./wordmark-column.ts";
 import { countrySql, withCountryColumn } from "./country-column.ts";
 import { publicText } from "./translation.ts";
 import { translationSql, withTranslationColumns } from "./translation-column.ts";
+import { titleTermColumn } from "./perks.ts";
 
 // Readers wrapped in React cache() run once per render: generateMetadata, the page and its related deals share one
 // query. The memo lasts one request only (no cross-request caching), and callers copy before sorting.
@@ -205,11 +206,11 @@ export type SiteStore = Store & { has_wordmark: boolean };
 
 export const siteStore = cache(async (slug: string): Promise<SiteStore | undefined> => {
   await io();
-  const [row] = await withWordmarkColumn((w) => withCountryColumn((c) => altDomainsColumn.run((a) => sql()<SiteStore[]>`
+  const [row] = await withWordmarkColumn((w) => withCountryColumn((c) => altDomainsColumn.run((a) => titleTermColumn.run((t) => sql()<SiteStore[]>`
     SELECT id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo,
            ${sql().unsafe(hasWordmarkSql(w, "stores"))} AS has_wordmark, ${sql().unsafe(countrySql(c, "stores", ""))},
-           ${sql().unsafe(altDomainsSql(a, "stores", "alt_domains"))}
-    FROM stores WHERE slug = ${slug}`)));
+           ${sql().unsafe(altDomainsSql(a, "stores", "alt_domains"))}, ${sql().unsafe(t ? "title_term" : "'' AS title_term")}
+    FROM stores WHERE slug = ${slug}`))));
   return row && onSpanishSite(row) ? { ...row } : undefined;
 });
 

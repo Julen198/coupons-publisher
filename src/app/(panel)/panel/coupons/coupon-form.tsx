@@ -7,6 +7,8 @@ import { btnCls, Field, inputCls } from "@/app/ui";
 import { Combobox } from "@/app/combobox";
 import type { TranslationDraft } from "@/lib/translation";
 import { TranslationEditor } from "./translation-editor";
+import { PERKS } from "@/lib/perks";
+import { shortDate } from "@/lib/site-text";
 
 export interface CouponDraft {
   id?: number;
@@ -19,6 +21,8 @@ export interface CouponDraft {
   target_url: string;
   expires_at: string;
   verified: boolean;
+  perk: string; // a standing offer of the store (see PERKS), "" = an ordinary coupon
+  checked_day?: string; // the day of its last real check, "" = never dated
 }
 
 interface CouponFormProps {
@@ -99,6 +103,18 @@ export function CouponForm({ initial, stores, back, translation }: CouponFormPro
         </div>
         <Field label="Descripción" name="description" placeholder="Condiciones en una línea" value={c.description} onChange={set("description")} />
         <Field label="URL destino" name="target_url" type="url" required value={c.target_url} onChange={set("target_url")} />
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-neutral-600 dark:text-neutral-400">Oferta permanente</span>
+          <select name="perk" value={c.perk} onChange={set("perk")} className={inputCls} aria-describedby="perk-note">
+            <option value="">No: es un cupón u oferta normal</option>
+            {PERKS.map((p) => (
+              <option key={p.slug} value={p.slug}>{p.hint}</option>
+            ))}
+          </select>
+          <span id="perk-note" className="text-xs text-neutral-600 dark:text-neutral-400">
+            Las que la tienda mantiene siempre. Sale en su página y no en la portada. Cópiala de la web de la tienda, no la supongas.
+          </span>
+        </label>
         <div className="grid grid-cols-2 items-end gap-3">
           <Field label="Caduca" name="expires_at" type="date" value={c.expires_at} onChange={set("expires_at")} />
           <label className="flex min-h-11 items-center gap-2 text-sm">
@@ -106,6 +122,15 @@ export function CouponForm({ initial, stores, back, translation }: CouponFormPro
             Verificado
           </label>
         </div>
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input type="checkbox" name="checked_now" className="size-5" />
+          <span>
+            Lo he comprobado hoy en la tienda
+            <span className="block text-xs text-neutral-600 dark:text-neutral-400">
+              {c.checked_day ? `Última comprobación: ${shortDate(c.checked_day)}.` : "Aún sin fecha de comprobación."} La web muestra esa fecha junto a «Comprobado».
+            </span>
+          </span>
+        </label>
         <p className="text-xs text-neutral-500">El enlace se envuelve con el Awin ID de cada medio al publicar.</p>
 
         {state.error && <p role="alert" className="text-sm text-red-800 dark:text-red-300">{state.error}</p>}

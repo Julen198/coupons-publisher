@@ -5,6 +5,7 @@ import { updateStore, type FormState } from "@/app/actions";
 import { generateContent } from "@/app/actions-pages";
 import { pageTitle, parseFaqs } from "@/lib/affiliate";
 import { CATEGORIES, factsOf, missingFacts, withFactTemplate } from "@/lib/catalog";
+import { TITLE_TERMS } from "@/lib/deal-text";
 import { COUNTRIES, countryLabel } from "@/lib/market";
 import { btnCls, btnSecondaryCls, cardCls, Field, inputCls } from "@/app/ui";
 import { NetworkFields } from "../network-fields";
@@ -12,7 +13,7 @@ import { NetworkFields } from "../network-fields";
 interface StoreContentProps {
   store: {
     slug: string; name: string; website: string; network: string; merchant_id: string; tracking_url: string; intro: string; faqs: string;
-    category: string; facts: string; country: string; country_source: string; alt_domains?: string;
+    category: string; facts: string; country: string; country_source: string; alt_domains?: string; title_term: string;
   };
   inferred: { country: string; reason: string } | null; // what the site reads from the name and web while País is empty
   discounts: string[];
@@ -26,6 +27,7 @@ export function StoreContentForm({ store, inferred, discounts }: StoreContentPro
   // controlled: a form action resets uncontrolled fields to their first value, and the next save would send that
   const [category, setCategory] = useState(store.category);
   const [country, setCountry] = useState(store.country);
+  const [term, setTerm] = useState(store.title_term);
   const [facts, setFacts] = useState(store.facts);
   const [aiError, setAiError] = useState("");
   const [generating, startGenerate] = useTransition();
@@ -78,6 +80,17 @@ export function StoreContentForm({ store, inferred, discounts }: StoreContentPro
                 <option key={c.slug} value={c.slug}>{c.label}</option>
               ))}
             </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-neutral-600 dark:text-neutral-400">Título en Google empieza por</span>
+            <select name="title_term" value={term} onChange={(e) => setTerm(e.target.value)} className={inputCls} aria-describedby="term-note">
+              {TITLE_TERMS.map((t) => (
+                <option key={t.slug} value={t.slug}>{t.label} {store.name}</option>
+              ))}
+            </select>
+            <span id="term-note" className="text-xs text-neutral-600 dark:text-neutral-400">
+              Elige lo que más busca la gente para esta tienda (míralo en Search Console). Sin códigos activos, el título dice «Ofertas».
+            </span>
           </label>
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-neutral-600 dark:text-neutral-400">País</span>

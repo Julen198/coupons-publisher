@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BRAND_ALLOWLIST, badgeInSentence, conditionsOf, dedupeDeals, displayTitle, lowerFirst, mentionsBadge, storeHeading, storeH1 } from "./deal-text.ts";
+import { BRAND_ALLOWLIST, badgeInSentence, conditionsOf, dedupeDeals, displayTitle, lowerFirst, mentionsBadge, storeHeading, storeH1, titleTermInput } from "./deal-text.ts";
 
 test("conditionsOf splits a description into short reader-facing bullets", () => {
   assert.deepEqual(conditionsOf("No válido en lanzamientos. Pedido mínimo 50 €."), ["No válido en lanzamientos", "Pedido mínimo 50 €"]);
@@ -84,15 +84,20 @@ test("storeHeading promises codes only when the store has them", () => {
   const deal = (discount: string) => ({ kind: "deal" as const, code: "", discount });
   const code = (discount: string, c = "X") => ({ kind: "code" as const, code: c, discount });
   // percentages first, then amounts, biggest first; two at most
-  assert.equal(storeHeading("PcComponentes", [deal("50€"), deal("320 €"), deal("20%")], now), "Ofertas PcComponentes 20 % y 320 €, noviembre 2026");
-  assert.equal(storeHeading("PcComponentes", [deal("50€"), deal("320 €")], now), "Ofertas PcComponentes 320 € y 50 €, noviembre 2026");
-  assert.equal(storeHeading("zooplus", [deal("50%"), code("15%"), code("15 %"), code("5€")], now), "Códigos descuento zooplus 15 % y 5 €, noviembre 2026");
+  assert.equal(storeHeading("PcComponentes", [deal("50€"), deal("320 €"), deal("20%")], now), "Ofertas PcComponentes: 20 % y 320 € válidas en noviembre 2026");
+  assert.equal(storeHeading("PcComponentes", [deal("50€"), deal("320 €")], now), "Ofertas PcComponentes: 320 € y 50 € válidas en noviembre 2026");
+  assert.equal(storeHeading("zooplus", [deal("50%"), code("15%"), code("15 %"), code("5€")], now), "Código descuento zooplus: 15 % y 5 € válido en noviembre 2026");
   // the same figure once, the flat one before its "hasta"
-  assert.equal(storeHeading("Worten", [deal("Hasta 90%"), deal("hasta 90 %"), deal("90%")], now), "Ofertas Worten 90 %, noviembre 2026");
-  assert.equal(storeHeading("Worten", [deal("Hasta 90%"), deal("20%")], now), "Ofertas Worten hasta 90 % y 20 %, noviembre 2026");
+  assert.equal(storeHeading("Worten", [deal("Hasta 90%"), deal("hasta 90 %"), deal("90%")], now), "Ofertas Worten: 90 % válidas en noviembre 2026");
+  assert.equal(storeHeading("Worten", [deal("Hasta 90%"), deal("20%")], now), "Ofertas Worten: hasta 90 % y 20 % válidas en noviembre 2026");
   // a "code" without the code itself is not a code
-  assert.equal(storeHeading("Shein", [code("10%", "")], now), "Ofertas Shein 10 %, noviembre 2026");
-  assert.equal(storeHeading("Shein", [], now), "Ofertas Shein, noviembre 2026");
+  assert.equal(storeHeading("Shein", [code("10%", "")], now), "Ofertas Shein: 10 % válidas en noviembre 2026");
+  assert.equal(storeHeading("Shein", [], now), "Ofertas Shein válidas en noviembre 2026");
+  // the store's own term (stores.title_term), only when it has codes
+  assert.equal(storeHeading("Aosom", [code("10%")], now, "cupon"), "Cupón descuento Aosom: 10 % válido en noviembre 2026");
+  assert.equal(storeHeading("Atmósfera Sport", [code("3 €")], now, "promocional"), "Código promocional Atmósfera Sport: 3 € válido en noviembre 2026");
+  assert.equal(storeHeading("Aosom", [deal("10%")], now, "cupon"), "Ofertas Aosom: 10 % válidas en noviembre 2026");
+  assert.equal(storeHeading("Aosom", [code("10%")], now, "desconocido"), "Código descuento Aosom: 10 % válido en noviembre 2026");
 });
 
 test("badgeInSentence lowercases «hasta» inside a sentence", () => {
@@ -157,5 +162,12 @@ test("storeH1 is the store heading without figures, as the design shows it", () 
   const deal = (discount: string) => ({ kind: "deal" as const, code: "", discount });
   const code = (discount: string) => ({ kind: "code" as const, code: "X", discount });
   assert.equal(storeH1("PcComponentes", [deal("20%"), deal("320 €")], now), "Ofertas PcComponentes noviembre 2026");
-  assert.equal(storeH1("zooplus", [code("15%")], now), "Códigos descuento zooplus noviembre 2026");
+  assert.equal(storeH1("zooplus", [code("15%")], now), "Código descuento zooplus noviembre 2026");
+  assert.equal(storeH1("Aosom", [code("15%")], now, "cupon"), "Cupón descuento Aosom noviembre 2026");
+});
+
+test("titleTermInput keeps only the known terms", () => {
+  assert.equal(titleTermInput("cupon"), "cupon");
+  assert.equal(titleTermInput(" promocional "), "promocional");
+  assert.equal(titleTermInput("otra cosa"), "");
 });
