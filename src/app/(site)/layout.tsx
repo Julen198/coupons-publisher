@@ -4,6 +4,8 @@ import Link from "next/link";
 import Script from "next/script";
 import { Suspense } from "react";
 import { contactEmail, siteUrl } from "@/lib/site-text";
+import { CATEGORIES, categoryPath } from "@/lib/catalog";
+import { EVENT_PAGES } from "@/lib/event-pages";
 import { consentDefaultsScript, gaMeasurementId, googleSiteVerification } from "@/lib/analytics";
 import { Analytics, CookieSettingsLink } from "./analytics";
 import { LiveHeader } from "./live-header";
@@ -15,6 +17,9 @@ import "./site.css";
 
 const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
 const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"], weight: ["500", "700"] });
+
+// Linked from every page's footer: the shopping dates people search for most
+const FOOTER_EVENTS = EVENT_PAGES.filter((e) => ["black-friday", "cyber-monday", "navidad", "rebajas-de-enero", "rebajas-de-verano"].includes(e.slug));
 
 // The public deals site: indexable (the root layout keeps the panel out of search engines)
 export const metadata: Metadata = {
@@ -50,6 +55,20 @@ export default function SiteLayout({ children, modal }: LayoutProps<"/">) {
       <footer className="foot">
         <div className="wrap">
           <span>© CuponLab · Chollos y códigos descuento verificados</span>
+          <nav aria-label="Categorías y fechas de ofertas" className="foot-links">
+            {CATEGORIES.map((c, i) => (
+              <span key={c.slug}>
+                {i > 0 && " · "}
+                <Link href={categoryPath(c.slug)}>{c.label}</Link>
+              </span>
+            ))}
+            {FOOTER_EVENTS.map((e) => (
+              <span key={e.slug}>
+                {" · "}
+                <Link href={`/ofertas/${e.slug}`}>{e.name}</Link>
+              </span>
+            ))}
+          </nav>
           <span>
             <Link href="/tiendas">Tiendas</Link> · <Link href="/calendario">Calendario de ofertas</Link> · <Link href="/metodologia">Metodología</Link> ·{" "}
             <Link href="/aviso-de-afiliacion">Aviso de afiliación</Link>

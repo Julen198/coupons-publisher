@@ -60,6 +60,17 @@ export function scoreOf(s: StoreSignals): number {
   return score;
 }
 
+// Store pages Google already shows between 8 and 30 (the panel's «Cerca de 1.ª página»), most seen first: the site links
+// to them from the home page and from other store pages, the cheapest push towards the first page
+export const NEAR_MIN_IMPRESSIONS = 20;
+export function nearFirstPage(all: readonly StoreSignals[], limit = 8): string[] {
+  return all
+    .filter((s) => (s.impressions ?? 0) >= NEAR_MIN_IMPRESSIONS && s.position != null && s.position >= 8 && s.position <= 30)
+    .sort((a, b) => (b.impressions ?? 0) - (a.impressions ?? 0) || a.slug.localeCompare(b.slug))
+    .slice(0, limit)
+    .map((s) => s.slug);
+}
+
 // Stores that should get a guide, best first: Spanish (or unknown) market, enough live coupons, at least one code (the
 // search is «código descuento…»), content that lasts, and no guide yet. `taken` = slugs that already have one
 // (hand-written, scheduled, published or rejected).

@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
-import { categoryOf, factsOf, ordenOf, type Orden } from "@/lib/catalog";
+import { categoryOf, categoryPath, factsOf, ordenOf, type Orden } from "@/lib/catalog";
 import { sortDeals } from "@/lib/community";
 import { badgeInSentence, storeH1, storeHeading } from "@/lib/deal-text";
-import { currentVotes, siteClient, siteCoupons, siteRecentlyExpired, siteStore } from "@/lib/public-site";
+import { currentVotes, nearFirstPageStores, siteClient, siteCoupons, siteRecentlyExpired, siteStore } from "@/lib/public-site";
 import { dealPath, longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { storeGuide } from "@/lib/store-guides";
 import { publishedGuide } from "@/lib/store-guides-db";
@@ -64,7 +64,9 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   const orden = ordenOf(typeof rawOrden === "string" ? rawOrden : "");
   if (!found) notFound();
   const { store, all, coupons, expired } = found;
-  const [client, mine] = await Promise.all([siteClient(), currentVotes()]);
+  const [client, mine, near] = await Promise.all([siteClient(), currentVotes(), nearFirstPageStores()]);
+  const nearRank = new Map(near.map((n, i) => [n.slug, i]));
+  const boost = (slug: string) => nearRank.get(slug) ?? Number.MAX_SAFE_INTEGER;
   // where its clicks count: a campaign's utm_source, or this store page (the SEO landing for "<store> códigos")
   const source = pageSource(sp, "tienda");
   const now = new Date();
@@ -87,7 +89,8 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   const facts = factsOf(store.facts);
   const cat = categoryOf(store.category);
   const domain = store.website.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
-  const crumbs = [{ name: "Inicio", href: "/" }, { name: "Tiendas", href: "/tiendas" }, { name: store.name }];
+  // through its category when it has one (Inicio › Moda › Tienda): links every store page to its category page
+  const crumbs = [{ name: "Inicio", href: "/" }, cat ? { name: cat.label, href: categoryPath(cat.slug) } : { name: "Tiendas", href: "/tiendas" }, { name: store.name }];
   const title = storeH1(store.name, coupons.length ? coupons : expired, now);
   const lastExpired = expired.slice(0, EXPIRED_SHOWN);
 
@@ -96,7 +99,8 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   for (const c of all)
     if (c.store_id !== store.id)
       counts.set(c.store_slug, { name: c.store_name, slug: c.store_slug, n: (counts.get(c.store_slug)?.n ?? 0) + 1, same: !!store.category && c.store_category === store.category });
-  const otherStores = [...counts.values()].sort((a, b) => Number(b.same) - Number(a.same) || b.n - a.n).slice(0, 6);
+  // same category first; within it, pages close to Google's first page (nearFirstPageStores), then the most coupons
+  const otherStores = [...counts.values()].sort((a, b) => Number(b.same) - Number(a.same) || boost(a.slug) - boost(b.slug) || b.n - a.n).slice(0, 6);
   const otherTitle = cat && otherStores.some((s) => s.same) ? `Otras tiendas de ${cat.label.toLowerCase()}` : "Otras tiendas con cupones";
 
   return (

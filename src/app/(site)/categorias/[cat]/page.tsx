@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { categoryOf } from "@/lib/catalog";
+import { siteCoupons } from "@/lib/public-site";
 import { HomeFeed, homeMetadata, readFilters } from "../../home-feed";
 
 // One indexable page per category (/categorias/moda…): the home feed scoped to it, with its own title and canonical.
@@ -8,7 +9,8 @@ import { HomeFeed, homeMetadata, readFilters } from "../../home-feed";
 export async function generateMetadata({ params, searchParams }: PageProps<"/categorias/[cat]">): Promise<Metadata> {
   const cat = categoryOf((await params).cat);
   if (!cat) return { title: "Página no encontrada", robots: { index: false } };
-  return homeMetadata(readFilters(await searchParams, cat.slug));
+  const live = (await siteCoupons()).filter((c) => c.store_category === cat.slug).length;
+  return homeMetadata(readFilters(await searchParams, cat.slug), live);
 }
 
 export default async function CategoryPage({ params, searchParams }: PageProps<"/categorias/[cat]">) {

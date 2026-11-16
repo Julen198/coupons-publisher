@@ -141,6 +141,27 @@ export const siteRecentlyExpired = cache(async (): Promise<SiteCoupon[]> => {
   return dedupeDeals(titled(rows, brands).filter((c) => dealVisibility(c, t, unverified, tracked(c, links)) === "expired"));
 });
 
+// The store pages Google shows between 8 and 30 (settings, written daily by the guides cron): linked from the home page
+// and first among a store page's «otras tiendas». Missing or broken = none.
+export const NEAR_PAGES_KEY = "seo_near_pages";
+
+export const nearFirstPageStores = cache(async (): Promise<{ slug: string; name: string }[]> => {
+  await io();
+  const [row] = await sql()<{ value: string }[]>`SELECT value FROM settings WHERE key = ${NEAR_PAGES_KEY}`;
+  let slugs: string[] = [];
+  try {
+    const parsed: unknown = JSON.parse(row?.value ?? "[]");
+    slugs = Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+  if (!slugs.length) return [];
+  const rows = await withCountryColumn((c) => sql()<{ slug: string; name: string; website: string; tracking_url: string; country: string; country_source: string }[]>`
+    SELECT slug, name, website, tracking_url, ${sql().unsafe(countrySql(c, "stores", ""))} FROM stores WHERE slug = ANY(${slugs})`);
+  const bySlug = new Map(rows.filter((r) => onSpanishSite(r)).map((r) => [r.slug, r.name]));
+  return slugs.filter((s) => bySlug.has(s)).map((slug) => ({ slug, name: bySlug.get(slug)! }));
+});
+
 // One coupon for its own page: live ones, and expired ones too (shown as expired so the URL keeps working)
 export const siteCoupon = cache(async (id: number): Promise<{ coupon: SiteCoupon; live: boolean } | undefined> => {
   await io();

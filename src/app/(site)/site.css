@@ -236,6 +236,7 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .author strong { color: var(--ink); }
 .cl .foot { border-top: 1px solid var(--line); }
 .cl .foot .wrap { padding-block: 24px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: .82rem; color: var(--ink-3); }
+.cl .foot .foot-links { flex-basis: 100%; line-height: 1.8; }
 
 /* Tables */
 .cl .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
