@@ -1,6 +1,7 @@
 import { io } from "next/cache";
 import { sql } from "./db";
 import { clickColumns, clickSourceColumn } from "./tracking-columns.ts";
+import { anonVotesTable } from "./anon-votes.ts";
 import { CLICK_RETENTION_DAYS, DEDUPE_SECONDS, retentionDays, type ClickKind } from "./click-signals.ts";
 
 export interface ClickRow { id: number; name: string; slug: string; clicks: number }
@@ -34,6 +35,15 @@ export async function purgeOldClicks(): Promise<number> {
   if (keep === null) return 0;
   const res = await sql()`DELETE FROM clicks WHERE at < now() - ${keep} * interval '1 day'`;
   return res.count;
+}
+
+// Same daily cron: anonymous votes keep their per-day IP hash two days (the abuse limits look back 24 hours), then lose it
+export async function forgetAnonVoteIps(): Promise<number> {
+  return anonVotesTable.run(async (present) => {
+    if (!present) return 0;
+    const res = await sql()`UPDATE anon_votes SET ip_hash = '' WHERE ip_hash <> '' AND at < now() - interval '2 days'`;
+    return res.count;
+  });
 }
 
 export interface ClickEvent { clientId: number; storeId: number; couponId: number; kind: ClickKind; ref: string; source: string; uaHash: string }

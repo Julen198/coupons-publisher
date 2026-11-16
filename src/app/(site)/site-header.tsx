@@ -57,7 +57,8 @@ export function MarkHeaderCategory({ slug }: { slug: string }) {
 // Pages with a feed of deals (home, categories, search, a store) skip straight to it; the rest to their content
 const hasFeed = (path: string) => path === "/" || /^\/(tiendas|categorias|ofertas)\//.test(path);
 
-function Shell({ path, cat, q, reader, pageCat = "", cats }: { path: string; cat: string; q: string; reader?: HeaderReader; pageCat?: string; cats?: readonly string[] }) {
+// accounts: reader accounts are on (Administración); off, there is no «Entrar» and no «Compartir chollo»
+function Shell({ path, cat, q, reader, pageCat = "", cats, accounts = false }: { path: string; cat: string; q: string; reader?: HeaderReader; pageCat?: string; cats?: readonly string[]; accounts?: boolean }) {
   // the home page and a category page mark their category; a store page marks the store's
   const current = (slug: string) => (path === "/" || CATEGORY_PAGE.test(path) ? cat === slug : !!pageCat && path.startsWith("/tiendas/") && pageCat === slug);
   return (
@@ -82,7 +83,7 @@ function Shell({ path, cat, q, reader, pageCat = "", cats }: { path: string; cat
         </form>
         <div className="top-actions">
           <SeoToggle />
-          {reader === null && <Link className="btn" href="/entrar">Entrar</Link>}
+          {accounts && reader === null && <Link className="btn" href="/entrar">Entrar</Link>}
           {reader && (
             <form className="who" action={signOutReader}>
               {reader.handle && <Link className="handle" href="/cuenta">@{reader.handle}</Link>}
@@ -92,7 +93,7 @@ function Shell({ path, cat, q, reader, pageCat = "", cats }: { path: string; cat
           {/* phones: the share icon alone, and the account behind a round button (SiteHeaderMobile board) */}
           {/* signed out: straight to the sign-in modal over this page (going through /compartir would redirect, leaving the
               modal over an empty page); after signing in the reader lands on /compartir */}
-          {SHARING_ENABLED && (
+          {SHARING_ENABLED && accounts && (
             <Link className="btn btn-primary share" href={reader === null ? "/entrar?next=/compartir" : "/compartir"} aria-label="Compartir chollo">
               {SHARE_ICON}
               <span className="share-label">Compartir chollo</span>
@@ -118,15 +119,15 @@ function Shell({ path, cat, q, reader, pageCat = "", cats }: { path: string; cat
   );
 }
 
-function Live({ reader, cats }: { reader: HeaderReader; cats?: readonly string[] }) {
+function Live({ reader, cats, accounts }: { reader: HeaderReader; cats?: readonly string[]; accounts: boolean }) {
   const path = usePathname();
   const sp = useSearchParams();
   const cat = CATEGORY_PAGE.exec(path)?.[1] ?? sp.get("cat") ?? "";
   const { cat: pageCat } = useContext(PageCategory);
   // an unknown ?cat= shows everything, so "Todos" is the current tab
-  return <Shell path={path} cat={CATEGORIES.some((c) => c.slug === cat) ? cat : ""} q={sp.get("q") ?? ""} reader={reader} pageCat={pageCat} cats={cats} />;
+  return <Shell path={path} cat={CATEGORIES.some((c) => c.slug === cat) ? cat : ""} q={sp.get("q") ?? ""} reader={reader} pageCat={pageCat} cats={cats} accounts={accounts} />;
 }
 
-export function SiteHeader({ live = false, reader, cats }: { live?: boolean; reader?: HeaderReader; cats?: readonly string[] }) {
-  return live ? <Live reader={reader ?? null} cats={cats} /> : <Shell path="" cat="" q="" />;
+export function SiteHeader({ live = false, reader, cats, accounts = false }: { live?: boolean; reader?: HeaderReader; cats?: readonly string[]; accounts?: boolean }) {
+  return live ? <Live reader={reader ?? null} cats={cats} accounts={accounts} /> : <Shell path="" cat="" q="" />;
 }

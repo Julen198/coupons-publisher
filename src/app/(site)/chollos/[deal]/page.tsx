@@ -6,6 +6,7 @@ import { categoryOf, categoryPath, factsOf } from "@/lib/catalog";
 import { pageSource } from "@/lib/click-signals";
 import { copyBeaconHref, currentVotes, dealComments, readerDealMarks, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
+import { readerAccountsEnabled } from "@/lib/settings";
 import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
 import { badgeInSentence, conditionsOf, lowerFirst, mentionsBadge } from "@/lib/deal-text";
 import { aboutParagraphs, aboutSnippet } from "@/lib/deal-about";
@@ -58,7 +59,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
   // old or mistyped words after the id: send readers and crawlers to the one canonical URL
   if (`/chollos/${param}` !== dealPath(c)) permanentRedirect(dealPath(c));
 
-  const reader = await getReader();
+  const [reader, accounts] = await Promise.all([getReader(), readerAccountsEnabled()]);
   const [client, store, all, mine, comments, marks] = await Promise.all([
     siteClient(),
     siteStoreById(c.store_id),
@@ -217,17 +218,18 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             <Faqs items={faqs} />
           </section>
 
-          {(live || comments.length > 0) && (
+          {/* reader accounts off (Administración): earlier comments stay readable, nobody can add one */}
+          {((live && accounts) || comments.length > 0) && (
           <section className="dt-sec" id="comentarios" data-seo="Contenido de la comunidad">
             <h2>{comments.length === 1 ? "1 comentario" : `${comments.length} comentarios`}</h2>
             <div className="comments">
               {threads.map(({ comment: m, replies }) => {
                 const item = (x: typeof m) => (
-                  <CommentItem key={x.id} m={x} now={now} path={dealPath(c)} couponId={c.id} live={live} viewer={reader} replying={replyingTo === x.id} />
+                  <CommentItem key={x.id} m={x} now={now} path={dealPath(c)} couponId={c.id} live={live && accounts} viewer={reader} replying={replyingTo === x.id} />
                 );
                 return [item(m), ...replies.map(item)];
               })}
-              {live &&
+              {live && accounts &&
                 (!reader ? (
                   <div className="cm-form">
                     <Link href={`/entrar?next=${encodeURIComponent(`${dealPath(c)}#comentarios`)}`}>Entra para comentar</Link>
@@ -282,7 +284,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             <>
               {hasCode && <CopyCode code={c.code} beacon={copyBeaconHref(client, c, source)} />}
               <GoButton client={client} c={c} source={source} />
-              <DealActions couponId={c.id} back={dealPath(c)} saved={marks.saved} reported={marks.reported} />
+              {accounts && <DealActions couponId={c.id} back={dealPath(c)} saved={marks.saved} reported={marks.reported} />}
             </>
           ) : (
             <Link className="btn" href={`/tiendas/${c.store_slug}`}>
