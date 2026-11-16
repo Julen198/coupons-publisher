@@ -8,9 +8,16 @@ import { ClicksTab } from "./clicks-tab";
 
 const n = (v: number) => Math.round(v).toLocaleString("es-ES");
 const eur = (v: number) => v.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+// Queries in position 8–30: close to Google's first page, where a store guide can push them up
+const NEAR_LABEL = "Cerca de 1.ª página";
+const isNear = (position: number) => position >= 8 && position <= 30;
+// near rows are tinted with the legend chip's own colour instead of carrying a chip each
+const NEAR_ROW_CLS = "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100";
+const NEAR_CLS = "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200 whitespace-nowrap";
 const pct = (v: number) => `${(v * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`;
 const pos = (v: number | null) => (v == null ? "—" : v.toLocaleString("es-ES", { maximumFractionDigits: 1 }));
 const fmtDay = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
+const weekday = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "long", timeZone: "UTC" });
 
 // ▲/▼ against the previous period; for position, lower is better
 function Delta({ cur, prev, lowerIsBetter = false }: { cur: number | null; prev: number | null; lowerIsBetter?: boolean }) {
@@ -68,10 +75,17 @@ function DailyChart({ daily }: { daily: Stats["daily"] }) {
   return (
     <div>
       <div className="flex h-56 items-end gap-0.5 border-b border-neutral-300 dark:border-neutral-700" role="img" aria-label="Visitas y clics a tiendas por día">
-        {daily.map((d) => (
-          <div key={d.day} title={`${fmtDay(d.day)}: ${n(d.visits)} visitas, ${n(d.clicks)} clics a tiendas`} className="flex h-full flex-1 items-end gap-px">
-            <span className="block flex-1 rounded-t-sm bg-blue-300 dark:bg-blue-800" style={{ height: `${(d.visits / top) * 100}%` }} />
-            <span className="block flex-1 rounded-t-sm bg-orange-700 dark:bg-orange-400" style={{ height: `${(d.clicks / top) * 100}%` }} />
+        {daily.map((d, i) => (
+          // hover/focus tooltip with the day's numbers; it opens towards the middle so the edge days stay on screen
+          <div key={d.day} tabIndex={0} aria-label={`${fmtDay(d.day)}: ${n(d.visits)} visitas, ${n(d.clicks)} clics a tiendas`} className="group relative flex h-full flex-1 items-end gap-px outline-none">
+            <span className="block flex-1 rounded-t-sm bg-blue-300 transition-opacity group-hover:opacity-80 group-focus:opacity-80 dark:bg-blue-800" style={{ height: `${(d.visits / top) * 100}%` }} />
+            <span className="block flex-1 rounded-t-sm bg-orange-700 transition-opacity group-hover:opacity-80 group-focus:opacity-80 dark:bg-orange-400" style={{ height: `${(d.clicks / top) * 100}%` }} />
+            <div className={`pointer-events-none absolute top-0 z-10 hidden w-48 flex-col gap-1 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs shadow-md group-hover:flex group-focus:flex dark:border-neutral-700 dark:bg-neutral-900 ${i < daily.length / 2 ? "left-full ml-2" : "right-full mr-2"}`}>
+              <span className="font-semibold">{weekday(d.day)}, {fmtDay(d.day)}</span>
+              <span className="flex items-center gap-2"><span aria-hidden="true" className="size-2.5 rounded-sm bg-blue-300 dark:bg-blue-800" /><span className="flex-1">Visitas</span><span className="tabular-nums">{n(d.visits)}</span></span>
+              <span className="flex items-center gap-2"><span aria-hidden="true" className="size-2.5 rounded-sm bg-orange-700 dark:bg-orange-400" /><span className="flex-1">Clics a tiendas</span><span className="tabular-nums">{n(d.clicks)}</span></span>
+              {d.visits > 0 && <span className="text-neutral-500">{pct(d.clicks / d.visits)} de las visitas va a la tienda</span>}
+            </div>
           </div>
         ))}
       </div>
@@ -192,8 +206,11 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
         <section aria-labelledby="queries" className="min-w-0 flex-[2_1_460px] overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-neutral-200 px-5 py-3 dark:border-neutral-800">
             <h2 id="queries" className="font-semibold">Búsquedas en Google</h2>
-            <span className="text-xs text-neutral-500">«Cerca»: posición 8–30, donde una guía puede subirla</span>
           </div>
+          <p className="flex flex-wrap items-center gap-2 border-b border-neutral-200 px-5 py-2 text-xs text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">
+            <span className={NEAR_CLS}>{NEAR_LABEL}</span>
+            Las filas en amarillo salen entre la posición 8 y la 30 (final de la 1.ª página a la 3.ª): con una guía de tienda pueden subir a la primera página.
+          </p>
           {s.queries.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">{s.sources.search.ok ? "Google todavía no muestra la web en búsquedas de este periodo." : "Sin datos de Search Console."}</p>
           ) : (
@@ -204,8 +221,8 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
                 </thead>
                 <tbody>
                   {s.queries.map((q) => (
-                    <tr key={q.query} className="border-t border-neutral-100 dark:border-neutral-800">
-                      <td className="px-3 py-2 pl-5 font-medium">{q.query}{q.position >= 8 && q.position <= 30 && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200">Cerca</span>}</td>
+                    <tr key={q.query} className={`border-t border-neutral-100 dark:border-neutral-800 ${isNear(q.position) ? NEAR_ROW_CLS : ""}`} title={isNear(q.position) ? `${NEAR_LABEL}: posición 8–30, una guía puede subirla a la primera página` : undefined}>
+                      <td className="px-3 py-2 pl-5 font-medium">{q.query}</td>
                       <td className={td}>{n(q.impressions)}</td><td className={td}>{n(q.clicks)}</td>
                       <td className={`${td} text-neutral-500`}>{q.impressions ? pct(q.clicks / q.impressions) : "—"}</td>
                       <td className={`${td} pr-5 font-semibold`}>{pos(q.position)}</td>
