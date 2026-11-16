@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dealRouteVerdict, dealVisibility, isDocumentRequest, storeRouteVerdict } from "./site-routes.ts";
+import { dealRouteVerdict, dealVisibility, isDocumentRequest, storeRouteVerdict, needsSignIn } from "./site-routes.ts";
 import { fixedRouteVerdict } from "./site-routes.ts";
 
 const T = "2026-11-06";
@@ -104,4 +104,9 @@ test("fixedRouteVerdict: an old /?cat= link moves to the category page and keeps
   assert.equal(fixedRouteVerdict("/", new URLSearchParams("q=nike&cat=moda")), null);
   assert.equal(fixedRouteVerdict("/", new URLSearchParams("cat=juguetes")), null);
   assert.equal(fixedRouteVerdict("/", new URLSearchParams()), null);
+});
+
+test("needsSignIn: only the panel, client demos and the API ask to sign in; anything else unknown is a 404", () => {
+  for (const p of ["/panel", "/panel/coupons", "/demo/runnea", "/demo-preview", "/api/export"]) assert.equal(needsSignIn(p), true, p);
+  for (const p of ["/algo-mal-escrito", "/black-friday", "/paneles", "/apis", "/tienda/myprotein"]) assert.equal(needsSignIn(p), false, p);
 });

@@ -132,7 +132,8 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
     ["caducan", "Caducan pronto"],
   ] as const;
 
-  const crumbs = cat && !f.q ? [{ name: "Inicio", href: "/" }, { name: pageName }] : [{ name: "Inicio", href: "/" }, { name: "Chollos", href: "/" }, { name: pageName }];
+  // «Inicio / Chollos de hoy»: a «Chollos» step would link to the home page a second time
+  const crumbs = [{ name: "Inicio", href: "/" }, { name: pageName }];
 
   return (
     <main>
@@ -162,12 +163,12 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
       <div className="wrap">
         <Crumbs seo="Migas de pan" items={crumbs} />
 
-        <section className="intro">
+        <section className="intro home-intro">
           <h1 data-seo="H1 con intención + fecha">{heading}</h1>
           <div className="meta-line">
             <span className="live">Actualizado a las {time}</span>
-            <span>Los cupones caducados salen de la portada al día siguiente</span>
-            <span>Por el equipo editorial de CuponLab</span>
+            <span className="meta-more">Los cupones caducados salen de la portada al día siguiente</span>
+            <span className="meta-more">Por el equipo editorial de CuponLab</span>
           </div>
           <p className="answer" data-seo="Respuesta citable (GEO)">
             {scope.length === 0 ? (

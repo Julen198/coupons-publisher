@@ -22,14 +22,24 @@ const NOTE =
 const FOR_PUBLISHERS =
   /\b(tu|vuestra|su) audiencia\b|\btus (ventas|seguidores|lectores|usuarios|visitantes|suscriptores)\b|\bimpulsar (tus|las) ventas\b|\bpromocional[oa]s?\b|\bpromocion(a|ad|en) (esta|la|el|estos|estas)\b|\b(publishers?|editores|afiliados)\b|\bcomision(es)?\b|\bmaterial(es)? (creativo|grafico)s?\b|\bbanners?\b|\bdeep ?links?\b/;
 
+// Prices as the site writes them: "34,99 EUR" → "34,99 €", and a euro sign left after a bracket goes back next to its
+// figure ("17,99 (-51% descuento) €" → "17,99 € (-51% descuento)"). Only moves what the feed says; adds nothing.
+export const tidyPrices = (s: string): string =>
+  s
+    .replace(/(\d(?:[\d.]*\d)?(?:,\d{1,2})?)\s?EUR\b/g, "$1 €")
+    .replace(/(\d(?:[\d.]*\d)?(?:,\d{1,2})?)\s*(\([^()]*\))\s*€/g, "$1 € $2");
+
+// "20% de descuento" alone: the badge already says it, next to every bullet
+const BARE_DISCOUNT = /^-?\d+(?:[.,]\d+)?\s?% (?:de )?descuento$/;
+
 // "No válido en lanzamientos. Pedido mínimo 50 €." → ["No válido en lanzamientos", "Pedido mínimo 50 €"].
 // Notes for the team, lines meant for affiliates, and bullets the title already says, are left out.
 export function conditionsOf(description: string, title = ""): string[] {
   const titleKey = ` ${textKey(title)} `;
   return description
     .split(/(?<=[.;!?])\s+|\n+/)
-    .map((s) => s.trim().replace(/[.;]$/, ""))
-    .filter((s) => s && !NOTE.test(fold(s)) && !FOR_PUBLISHERS.test(fold(s)))
+    .map((s) => tidyPrices(s.trim().replace(/[.;]$/, "")))
+    .filter((s) => s && !NOTE.test(fold(s)) && !FOR_PUBLISHERS.test(fold(s)) && !BARE_DISCOUNT.test(fold(s)))
     .filter((s) => !title || !titleKey.includes(` ${textKey(s)} `));
 }
 
@@ -88,7 +98,7 @@ const capitalizeWord = (s: string) => (/^\p{Ll}\p{Lu}/u.test(s) ? s : capitalize
 // Caps become sentence case (brands in `brands`, e.g. store names plus BRAND_ALLOWLIST, keep their case), a leading
 // "<Store>:" or "<Store> -" and a trailing "| <Store>" go, pipes become " · ".
 export function displayTitle(title: string, storeName: string, brands: readonly string[] = []): string {
-  const raw = title.trim().replace(/\s+/g, " ");
+  const raw = tidyPrices(title.trim().replace(/\s+/g, " "));
   const store = storeName.trim();
   let t = raw;
   let cut = false;

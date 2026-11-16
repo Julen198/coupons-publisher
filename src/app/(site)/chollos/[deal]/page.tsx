@@ -94,8 +94,8 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
   const left = c.expires_at ? daysBetween(today, c.expires_at) : null;
   const published = new Date(c.created_at).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
   const crumbs = [
+    // «Chollos» would be the home page again: Inicio already is
     { name: "Inicio", href: "/" },
-    { name: "Chollos", href: "/" },
     cat ? { name: cat.label, href: categoryPath(cat.slug) } : { name: c.store_name, href: `/tiendas/${c.store_slug}` },
     { name: titleOf(c) },
   ];

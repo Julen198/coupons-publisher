@@ -7,6 +7,12 @@ export const MIN_CATEGORY_DEALS = 3;
 
 export const indexableCategory = (liveDeals: number): boolean => liveDeals >= MIN_CATEGORY_DEALS;
 
+// The categories the header and the footer link to: those with at least one live coupon (standing offers aside). An
+// empty one («Viajes») would be a dead end; its page stays reachable and comes back to the menu with its first coupon.
+export const menuCategories = (liveWithoutPerks: readonly { store_category: string }[]): string[] => [
+  ...new Set(liveWithoutPerks.map((c) => c.store_category).filter(Boolean)),
+];
+
 export interface CategoryContent {
   intro: string;
   faqs: { q: string; a: string }[];

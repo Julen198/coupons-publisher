@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BRAND_ALLOWLIST, badgeInSentence, conditionsOf, dedupeDeals, displayTitle, lowerFirst, mentionsBadge, storeHeading, storeH1, titleTermInput } from "./deal-text.ts";
+import { tidyPrices, BRAND_ALLOWLIST, badgeInSentence, conditionsOf, dedupeDeals, displayTitle, lowerFirst, mentionsBadge, storeHeading, storeH1, titleTermInput } from "./deal-text.ts";
 
 test("conditionsOf splits a description into short reader-facing bullets", () => {
   assert.deepEqual(conditionsOf("No válido en lanzamientos. Pedido mínimo 50 €."), ["No válido en lanzamientos", "Pedido mínimo 50 €"]);
@@ -184,4 +184,18 @@ test("conditionsOf leaves out the lines a network writes for affiliates", () => 
   ]);
   // what shoppers read stays
   assert.deepEqual(conditionsOf("Pedido mínimo 50 €. Válido en la app."), ["Pedido mínimo 50 €", "Válido en la app"]);
+});
+
+test("tidyPrices: € next to its figure, EUR as €", () => {
+  assert.equal(tidyPrices("Origin Pre-Entreno por solo 17,99 (-51% descuento) € + Shaker gratis"), "Origin Pre-Entreno por solo 17,99 € (-51% descuento) + Shaker gratis");
+  assert.equal(tidyPrices("Black Friday Impact Bundle por 34,99 EUR"), "Black Friday Impact Bundle por 34,99 €");
+  assert.equal(tidyPrices("Desde 1.299 EUR y envío gratis"), "Desde 1.299 € y envío gratis");
+  assert.equal(tidyPrices("Pedido mínimo 50 €"), "Pedido mínimo 50 €");
+  assert.equal(displayTitle("Black Friday Clear Bundle por 43,99 EUR", "Myprotein"), "Black Friday Clear Bundle por 43,99 €");
+});
+
+test("conditionsOf leaves out a bullet that only repeats the discount", () => {
+  assert.deepEqual(conditionsOf("20% de descuento"), []);
+  assert.deepEqual(conditionsOf("10 % descuento. Solo en la app"), ["Solo en la app"]);
+  assert.deepEqual(conditionsOf("20% de descuento en abrigos"), ["20% de descuento en abrigos"]);
 });
