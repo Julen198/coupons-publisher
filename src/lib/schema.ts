@@ -379,6 +379,11 @@ ALTER TABLE commissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS checked_at timestamptz;
 -- a standing offer of the store (welcome discount, newsletter, app, students, free shipping…): '' = an ordinary coupon
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS perk text NOT NULL DEFAULT '';
+-- the coupon's own category on the public site when it differs from its store's ('' = the store's)
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT '';
+ALTER TABLE coupons DROP CONSTRAINT IF EXISTS coupons_category_check;
+ALTER TABLE coupons ADD CONSTRAINT coupons_category_check
+  CHECK (category IN ('', 'tecnologia', 'zapatillas', 'moda', 'hogar', 'deporte', 'viajes'));
 -- the words a store page's title leads with in Google ('' = «Código descuento», see TITLE_TERMS)
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS title_term text NOT NULL DEFAULT '';
 `;
