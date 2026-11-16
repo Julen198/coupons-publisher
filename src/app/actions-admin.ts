@@ -10,6 +10,7 @@ import { parseCsv } from "@/lib/csv";
 import { errorMessage, required, str, type FormState } from "@/lib/form";
 import { hashPassword, MIN_PASSWORD_LENGTH, newToken } from "@/lib/password";
 import { WIPE_DATA_SQL } from "@/lib/schema";
+import { READER_ACCOUNTS_KEY } from "@/lib/settings";
 import { startSession } from "@/lib/start-session";
 import { appUrl, explainEmailError, inviteEmail, sendEmail, testEmail } from "@/lib/email";
 
@@ -174,6 +175,15 @@ export async function setPublishUnverified(f: FormData) {
   const on = f.get("publish_unverified") === "on" ? "1" : "0";
   await sql()`INSERT INTO settings (key, value) VALUES ('publish_unverified', ${on}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
   await logActivity(on === "1" ? "Modo demo: los cupones sin verificar se publican" : "Modo demo desactivado: solo se publican cupones verificados");
+  revalidatePath("/", "layout");
+}
+
+// «Cuentas de lectores»: off hides Entrar, comments, Guardar and the date alerts on the public site; nothing is deleted
+export async function setReaderAccounts(f: FormData) {
+  await requireAdmin();
+  const on = f.get("reader_accounts") === "on" ? "1" : "0";
+  await sql()`INSERT INTO settings (key, value) VALUES (${READER_ACCOUNTS_KEY}, ${on}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+  await logActivity(on === "1" ? "Cuentas de lectores activadas en la web" : "Cuentas de lectores desactivadas en la web");
   revalidatePath("/", "layout");
 }
 

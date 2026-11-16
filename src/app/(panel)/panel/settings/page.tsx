@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { setPublishUnverified, setRetention } from "@/app/actions-admin";
-import { publishUnverified } from "@/lib/settings";
+import { setPublishUnverified, setReaderAccounts, setRetention } from "@/app/actions-admin";
+import { publishUnverified, readerAccountsEnabled } from "@/lib/settings";
 import { requireUser, ROLE_LABEL, initials, type Role } from "@/lib/auth";
 import { clickRetention } from "@/lib/clicks";
 import { listClients, sql } from "@/lib/db";
@@ -43,7 +43,7 @@ const EXPORTS = [
 export default async function AdminPage({ searchParams }: PageProps<"/panel/settings">) {
   const me = await requireUser();
   if (me.role !== "admin") redirect("/panel");
-  const [sp, clients, users, counts, retention, unverified] = await Promise.all([
+  const [sp, clients, users, counts, retention, unverified, accounts] = await Promise.all([
     searchParams,
     listClients(),
     sql()<UserRow[]>`SELECT id, name, email, role, client_ids, status, last_login_at FROM users ORDER BY role, lower(name)`,
@@ -53,6 +53,7 @@ export default async function AdminPage({ searchParams }: PageProps<"/panel/sett
              (SELECT count(*) FROM clicks)::int AS clicks`,
     clickRetention(),
     publishUnverified(),
+    readerAccountsEnabled(),
   ]);
   const tab = sp.tab === "data" ? "data" : "users";
   const clientName = new Map(clients.map((c) => [c.id, c.name]));
@@ -169,6 +170,18 @@ export default async function AdminPage({ searchParams }: PageProps<"/panel/sett
                 <span className="flex flex-col">
                   Publicar cupones sin verificar
                   <span className="text-xs text-neutral-500">Los cupones encontrados en internet salen en las páginas, el widget y las demos aunque nadie los haya revisado. Desactívalo antes de trabajar con clientes reales.</span>
+                </span>
+              </label>
+              <button className="min-h-10 self-start rounded-md border border-neutral-300 px-4 text-sm font-medium dark:border-neutral-700">Guardar</button>
+            </form>
+
+            <form action={setReaderAccounts} className={`${cardCls} flex flex-col gap-3`}>
+              <h2 className="font-semibold">Cuentas de lectores</h2>
+              <label className="flex items-start gap-2.5 text-sm">
+                <input type="checkbox" name="reader_accounts" defaultChecked={accounts} className="mt-0.5 size-4" />
+                <span className="flex flex-col">
+                  Permitir que los lectores se registren y entren en la web
+                  <span className="text-xs text-neutral-500">Apagado: no hay «Entrar», ni comentarios nuevos, ni «Guardar», ni avisos del calendario. Los votos siguen abiertos a todos sin cuenta. No se borra nada: al encenderlo vuelve todo como estaba. No afecta al acceso a este panel.</span>
                 </span>
               </label>
               <button className="min-h-10 self-start rounded-md border border-neutral-300 px-4 text-sm font-medium dark:border-neutral-700">Guardar</button>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { readerAccountsEnabled } from "@/lib/settings";
 import { ACCOUNT_TABS, accountHref, accountTabOf, liveFirst, sharedStatus } from "@/lib/account";
 import { timeAgo } from "@/lib/community";
 import { SHARE_LIMIT_NOTE, SHARING_ENABLED } from "@/lib/community-rules";
@@ -88,6 +89,7 @@ async function CommentList({ readerId, now }: { readerId: number; now: Date }) {
 }
 
 export default async function CuentaPage({ searchParams }: PageProps<"/cuenta">) {
+  if (!(await readerAccountsEnabled())) notFound(); // reader accounts are off (Administración)
   const reader = await getReader();
   if (!reader) redirect("/entrar?next=/cuenta");
   if (!reader.handle) redirect("/entrar/nombre?next=/cuenta");

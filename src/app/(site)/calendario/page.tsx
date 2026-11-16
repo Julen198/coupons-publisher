@@ -4,6 +4,7 @@ import { blackFriday, calendarGroups, daysBetween, eventsOf, longDate, madridTod
 import Link from "next/link";
 import { hasDateAlert } from "@/lib/date-alert-subs";
 import { getReader } from "@/lib/reader";
+import { readerAccountsEnabled } from "@/lib/settings";
 import { toggleDateAlert } from "../actions-reader";
 import { Crumbs, Faqs, JsonLd, crumbsLd, faqLd } from "../site-ui";
 
@@ -20,7 +21,9 @@ const dayMonth = (iso: string) => longDate(iso).replace(/ de \d{4}$/, "");
 
 // "Avísame antes de cada fecha" (board SiteCalendar): signed out it goes to sign in and back here; signed in the
 // button creates or removes the subscription the daily cron (/api/date-alerts/cron) emails
+// With reader accounts off (Administración) there is nobody to email, so the panel is left out
 async function DateAlertPanel() {
+  if (!(await readerAccountsEnabled())) return null;
   const reader = await getReader();
   const on = reader ? await hasDateAlert(reader.id) : false;
   return (

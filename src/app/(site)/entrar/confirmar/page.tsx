@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { safeNext } from "@/lib/session";
+import { readerAccountsEnabled } from "@/lib/settings";
 import { confirmReaderLink } from "../../actions-reader";
 import { AlertIcon, ArrowIcon, TicketIcon } from "../icons";
 import { OverHome } from "../over-home";
@@ -11,6 +13,7 @@ export const metadata: Metadata = { title: "Entrar", robots: { index: false } };
 // so link prefetchers and mail scanners can't burn the token. The card floats over the home page, dimmed behind it
 // (SiteHeaderMobile board, step 4); closing it leaves the reader on that page.
 export default async function ConfirmarPage({ searchParams }: PageProps<"/entrar/confirmar">) {
+  if (!(await readerAccountsEnabled())) notFound();
   const { token, next, invalid } = await searchParams;
   const target = safeNext(typeof next === "string" ? next : null, "/");
   return (
