@@ -171,3 +171,17 @@ test("titleTermInput keeps only the known terms", () => {
   assert.equal(titleTermInput(" promocional "), "promocional");
   assert.equal(titleTermInput("otra cosa"), "");
 });
+
+test("conditionsOf leaves out the lines a network writes for affiliates", () => {
+  const brief =
+    "Zapatillas de running de primeras marcas con hasta un 50% de descuento en nuestra sección de Últimas Tallas\n" +
+    "Encuentra modelos de ASICS, Brooks y muchas más a precios especiales, ¡sin necesidad de código! Una oportunidad perfecta para ofrecer grandes descuentos a tu audiencia e impulsar tus ventas\n" +
+    "Las tallas son limitadas y, una vez agotadas, ¡no volverán! Promociónalo antes del 18 de noviembre a las 23:59 h";
+  assert.deepEqual(conditionsOf(brief), [
+    "Zapatillas de running de primeras marcas con hasta un 50% de descuento en nuestra sección de Últimas Tallas",
+    "Encuentra modelos de ASICS, Brooks y muchas más a precios especiales, ¡sin necesidad de código!",
+    "Las tallas son limitadas y, una vez agotadas, ¡no volverán!",
+  ]);
+  // what shoppers read stays
+  assert.deepEqual(conditionsOf("Pedido mínimo 50 €. Válido en la app."), ["Pedido mínimo 50 €", "Válido en la app"]);
+});

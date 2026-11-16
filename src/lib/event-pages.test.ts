@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { EVENT_PAGES, eventDeals, eventEdition, eventPageOf, inSeason, storeEventIndexable, storeEventPath, storeEventSeason, storeEventsInSeason } from "./event-pages.ts";
+import { EVENT_PAGES, eventCouponsByStore, eventDeals, eventEdition, eventPageOf, inSeason, storeEventIndexable, storeEventPath, storeEventSeason, storeEventsInSeason } from "./event-pages.ts";
 import { eventsOf } from "./site-text.ts";
 
 const deal = (title: string, store_category = "", description = "") => ({ title, description, store_category });
@@ -53,4 +53,23 @@ test("store × event pages: in season from six weeks before until the event ends
   assert.ok(!now.includes("rebajas-de-verano"));
   assert.equal(storeEventIndexable(0), false);
   assert.equal(storeEventIndexable(3), true);
+});
+
+test("eventCouponsByStore: per store, only its coupons that name the event (standing offers left out)", () => {
+  const bf = eventPageOf("black-friday")!;
+  const c = (store: string, title: string, perk: string | null = null) => ({ ...deal(title, "deporte"), store_slug: store, store_name: store.toUpperCase(), perk });
+  const live = [
+    c("myprotein", "Black Friday Impact Bundle"),
+    c("myprotein", "Black Friday Clear Bundle"),
+    c("myprotein", "15 € por cada amigo"),
+    c("myprotein", "Envío gratis en Black Friday", "envio"),
+    c("honor", "10% descuento"),
+    c("adidas", "Black Friday Membership Early Access"),
+  ];
+  assert.deepEqual(eventCouponsByStore(bf, live, "2026-11-16"), [
+    { slug: "myprotein", name: "MYPROTEIN", n: 2 },
+    { slug: "adidas", name: "ADIDAS", n: 1 },
+  ]);
+  // Honor has coupons but none for Cyber Monday: no page in the sitemap, and noindex
+  assert.deepEqual(eventCouponsByStore(eventPageOf("cyber-monday")!, live, "2026-11-16"), []);
 });

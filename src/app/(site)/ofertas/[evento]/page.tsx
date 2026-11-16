@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { categoryOf } from "@/lib/catalog";
 import { pageSource } from "@/lib/click-signals";
 import { sortDeals } from "@/lib/community";
-import { EVENT_PAGES, eventDeals, eventEdition, eventPageOf, storeEventPath } from "@/lib/event-pages";
+import { EVENT_PAGES, eventCouponsByStore, eventDeals, eventEdition, eventPageOf, storeEventPath } from "@/lib/event-pages";
 import { currentVotes, nearFirstPageStores, siteClient, siteCoupons } from "@/lib/public-site";
 import { daysBetween, longDate, madridToday, siteUrl } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, crumbsLd, faqLd, offerLd } from "../../site-ui";
@@ -19,6 +20,7 @@ const MAX_STORES = 24;
 export async function generateMetadata({ params }: PageProps<"/ofertas/[evento]">): Promise<Metadata> {
   const e = eventPageOf((await params).evento);
   if (!e) return { title: "Página no encontrada", robots: { index: false } };
+  await connection(); // the edition depends on today: read per request, not while prerendering (it threw there)
   const { year, date } = eventEdition(e, madridToday().iso);
   return {
     title: { absolute: `Ofertas ${e.name} ${year}: chollos y códigos descuento | CuponLab` },
@@ -46,11 +48,10 @@ export default async function EventPage({ params, searchParams }: PageProps<"/of
   const catLabels = e.categories.map((s) => categoryOf(s)?.label.toLowerCase()).filter(Boolean) as string[];
   const fallbackWhat = catLabels.length ? `de ${catLabels.length > 1 ? `${catLabels.slice(0, -1).join(", ")} y ${catLabels[catLabels.length - 1]}` : catLabels[0]}` : "de todas las tiendas";
   const faqs = e.faqs(longDate(date), year);
-  // this date in each store (/ofertas/<event>/<store>): pages close to Google's first page first, then the most coupons
+  // this date in each store that has coupons for it (/ofertas/<event>/<store>, counted as on that page): pages close to
+  // Google's first page first, then the most coupons
   const nearRank = new Map(near.map((n, i) => [n.slug, i]));
-  const perStore = new Map<string, { name: string; slug: string; n: number }>();
-  for (const c of all) perStore.set(c.store_slug, { name: c.store_name, slug: c.store_slug, n: (perStore.get(c.store_slug)?.n ?? 0) + 1 });
-  const stores = [...perStore.values()]
+  const stores = eventCouponsByStore(e, all, today)
     .sort((a, b) => (nearRank.get(a.slug) ?? 1e9) - (nearRank.get(b.slug) ?? 1e9) || b.n - a.n)
     .slice(0, MAX_STORES);
   const others = EVENT_PAGES.filter((x) => x.slug !== e.slug)

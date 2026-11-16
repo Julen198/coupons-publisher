@@ -5,7 +5,7 @@ import { factsOf } from "@/lib/catalog";
 import { pageSource } from "@/lib/click-signals";
 import { sortDeals } from "@/lib/community";
 import { badgeInSentence } from "@/lib/deal-text";
-import { RETURNS, eventDeals, eventEdition, eventPageOf, storeEventIndexable, storeEventPath } from "@/lib/event-pages";
+import { RETURNS, eventCouponsByStore, eventDeals, eventEdition, eventPageOf, storeEventIndexable, storeEventPath } from "@/lib/event-pages";
 import { isPerk } from "@/lib/perks";
 import { currentVotes, nearFirstPageStores, siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { daysBetween, longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
@@ -35,17 +35,22 @@ export async function generateMetadata({ params }: PageProps<"/ofertas/[evento]/
   const p = await params;
   const found = await load(p.evento, p.tienda);
   if (!found) return { title: "Página no encontrada", robots: { index: false } };
-  const { e, store, live } = found;
-  const { year, date } = eventEdition(e, madridToday().iso);
-  const codes = live.filter((c) => c.kind === "code" && c.code).length;
+  const { e, store, regular } = found;
+  const { iso: today } = madridToday();
+  const { year, date } = eventEdition(e, today);
+  // the figures are the store's coupons for the event, the same the page's text and list give
+  const { matched } = eventDeals(e, regular, today);
+  const codes = matched.filter((c) => c.kind === "code" && c.code).length;
   return {
     title: { absolute: `${e.name} ${store.name} ${year}: código descuento y ofertas | CuponLab` },
-    description: live.length
-      ? `Códigos descuento y ofertas de ${store.name} para ${e.name} ${year} (${longDate(date)}): ${live.length === 1 ? "1 activo" : `${live.length} activos`} hoy, ${codes} con código, con sus condiciones y su fecha de caducidad.`
-      : `${e.name} ${year} es el ${longDate(date)}. Hoy no hay cupones activos de ${store.name}: publicamos sus códigos en cuanto salen.`,
+    description: matched.length
+      ? `Códigos descuento y ofertas de ${store.name} para ${e.name} ${year} (${longDate(date)}): ${matched.length === 1 ? "1 activo" : `${matched.length} activos`} hoy, ${codes} con código, con sus condiciones y su fecha de caducidad.`
+      : regular.length
+        ? `${e.name} ${year} es el ${longDate(date)}. Todavía no hay cupones de ${store.name} para ${e.name}; mientras tanto, sus ${regular.length === 1 ? "cupón activo" : `${regular.length} cupones activos`}.`
+        : `${e.name} ${year} es el ${longDate(date)}. Hoy no hay cupones activos de ${store.name}: publicamos sus códigos en cuanto salen.`,
     alternates: { canonical: storeEventPath(e.slug, store.slug) },
-    // without live coupons of its own the page would be the event's text with another name: kept out of the index
-    robots: storeEventIndexable(live.length) ? undefined : { index: false, follow: true },
+    // without coupons for the event the page shows the store's ordinary ones under the event's name: kept out of the index
+    robots: storeEventIndexable(matched.length) ? undefined : { index: false, follow: true },
   };
 }
 
@@ -55,7 +60,7 @@ export default async function StoreEventPage({ params, searchParams }: PageProps
   const p = await params;
   const found = await load(p.evento, p.tienda);
   if (!found) notFound();
-  const { e, store, all, live, regular, perks } = found;
+  const { e, store, all, regular, perks } = found;
   const sp = await searchParams;
   const [client, mine, near] = await Promise.all([siteClient(), currentVotes(), nearFirstPageStores()]);
   const now = new Date();
@@ -64,7 +69,7 @@ export default async function StoreEventPage({ params, searchParams }: PageProps
   const left = daysBetween(today, date);
   const { matched } = eventDeals(e, regular, today);
   const shown = sortDeals(matched.length ? matched : regular, "destacados");
-  const codes = live.filter((c) => c.kind === "code" && c.code).length;
+  const codes = regular.filter((c) => c.kind === "code" && c.code).length;
   const best = [...shown].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
   const source = pageSource(sp, "evento");
   const base = siteUrl();
@@ -74,13 +79,13 @@ export default async function StoreEventPage({ params, searchParams }: PageProps
   const facts = factsOf(store.facts);
   const returns = facts.find((f) => f.label.toLowerCase().startsWith("devoluc"));
 
-  // other stores on the same date: same category first, then pages close to Google's first page, then the most coupons
+  // other stores with coupons for the same date (the count is theirs for the event): same category first, then pages
+  // close to Google's first page, then the most coupons
   const nearRank = new Map(near.map((n, i) => [n.slug, i]));
-  const counts = new Map<string, { name: string; slug: string; n: number; same: boolean }>();
-  for (const c of all)
-    if (c.store_id !== store.id && !isPerk(c))
-      counts.set(c.store_slug, { name: c.store_name, slug: c.store_slug, n: (counts.get(c.store_slug)?.n ?? 0) + 1, same: !!store.category && c.store_category === store.category });
-  const others = [...counts.values()]
+  const categoryOfStore = new Map(all.map((c) => [c.store_slug, c.store_category]));
+  const others = eventCouponsByStore(e, all, today)
+    .filter((s) => s.slug !== store.slug)
+    .map((s) => ({ ...s, same: !!store.category && categoryOfStore.get(s.slug) === store.category }))
     .sort((a, b) => Number(b.same) - Number(a.same) || (nearRank.get(a.slug) ?? 1e9) - (nearRank.get(b.slug) ?? 1e9) || b.n - a.n)
     .slice(0, OTHER_STORES);
 
@@ -90,8 +95,8 @@ export default async function StoreEventPage({ params, searchParams }: PageProps
       q: `¿Hay código descuento de ${store.name} para ${eventName}?`,
       a: matched.length
         ? `Sí. Hoy hay ${matched.length === 1 ? "1 cupón" : `${matched.length} cupones`} de ${store.name} para ${e.name}${best && percentOf(best.discount) > 0 ? `; el mayor es de ${badgeInSentence(badgeOf(best))}` : ""}. Cada uno indica sus condiciones y hasta cuándo vale.`
-        : live.length
-          ? `Todavía no hemos visto ninguno que mencione ${e.name}. Mientras tanto ${store.name} tiene ${live.length === 1 ? "1 cupón activo" : `${live.length} cupones activos`}, ${codes} con código, y en cuanto la tienda publique los de ${e.name} los añadimos aquí.`
+        : regular.length
+          ? `Todavía no hemos visto ninguno que mencione ${e.name}. Mientras tanto ${store.name} tiene ${regular.length === 1 ? "1 cupón activo" : `${regular.length} cupones activos`}, ${codes} con código, y en cuanto la tienda publique los de ${e.name} los añadimos aquí.`
           : `Ahora mismo no hay cupones activos de ${store.name}. Revisamos la tienda a diario y los publicamos aquí en cuanto salen.`,
     },
     e.faqs(longDate(date), year)[0],
@@ -130,9 +135,9 @@ export default async function StoreEventPage({ params, searchParams }: PageProps
                 Hoy hay <strong>{matched.length === 1 ? "1 cupón" : `${matched.length} cupones`} de {store.name} para {e.name}</strong>
                 {best && percentOf(best.discount) > 0 ? <>, el mayor de <strong>{badgeInSentence(badgeOf(best))}</strong></> : null}.
               </>
-            ) : live.length ? (
+            ) : regular.length ? (
               <>
-                Todavía no hay cupones de {store.name} que mencionen {e.name}; mientras tanto, {live.length === 1 ? <>este es su <strong>único cupón activo</strong></> : <>estos son sus <strong>{live.length} cupones activos</strong></>}.
+                Todavía no hay cupones de {store.name} que mencionen {e.name}; mientras tanto, {regular.length === 1 ? <>este es su <strong>único cupón activo</strong></> : <>estos son sus <strong>{regular.length} cupones activos</strong></>}.
               </>
             ) : (
               <>Hoy no hay cupones activos de {store.name}: los publicamos aquí en cuanto salen.</>

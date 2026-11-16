@@ -4,6 +4,7 @@ import { CATEGORIES, categoryOf } from "@/lib/catalog";
 import { siteCoupons, siteRecentlyExpired, type SiteCoupon } from "@/lib/public-site";
 import { siteUrl } from "@/lib/site-text";
 import { bestDiscountLine } from "@/lib/store-list";
+import { isPerk } from "@/lib/perks";
 import { StoreBrand } from "../store-logo-img";
 import { Crumbs, JsonLd, crumbsLd } from "../site-ui";
 
@@ -20,10 +21,12 @@ export default async function StoresPage({ searchParams }: PageProps<"/tiendas">
   const rawCat = (await searchParams).cat;
   const cat = categoryOf(typeof rawCat === "string" ? rawCat : "");
   const coupons = (await siteCoupons()).filter((c) => !cat || c.store_category === cat.slug);
-  const byStore = new Map<string, { name: string; slug: string; hasLogo: boolean; hasWordmark: boolean; count: number; coupons: SiteCoupon[] }>();
+  // «N cupones» as on the store's page: its standing offers (newsletter, app…) are counted apart
+  const byStore = new Map<string, { name: string; slug: string; hasLogo: boolean; hasWordmark: boolean; count: number; perks: number; coupons: SiteCoupon[] }>();
   for (const c of coupons) {
-    const s = byStore.get(c.store_slug) ?? { name: c.store_name, slug: c.store_slug, hasLogo: c.store_has_logo, hasWordmark: !!c.store_has_wordmark, count: 0, coupons: [] };
-    s.count++;
+    const s = byStore.get(c.store_slug) ?? { name: c.store_name, slug: c.store_slug, hasLogo: c.store_has_logo, hasWordmark: !!c.store_has_wordmark, count: 0, perks: 0, coupons: [] };
+    if (isPerk(c)) s.perks++;
+    else s.count++;
     s.coupons.push(c);
     byStore.set(c.store_slug, s);
   }
@@ -97,7 +100,7 @@ export default async function StoresPage({ searchParams }: PageProps<"/tiendas">
                     <span style={{ minWidth: 0 }}>
                       <b>{s.name}</b>
                       <small>
-                        {s.count} {s.count === 1 ? "cupón" : "cupones"}
+                        {s.count ? `${s.count} ${s.count === 1 ? "cupón" : "cupones"}` : `${s.perks} ${s.perks === 1 ? "descuento permanente" : "descuentos permanentes"}`}
                       </small>
                       {s.best && <span className="best">{s.best}</span>}
                     </span>

@@ -17,14 +17,19 @@ const textKey = (s: string) =>
 const NOTE =
   /https?:\/\/|\bwww\.|drive\.google|\bsegun (la |una )?(fuente|noticia)|\bsegun europa press|\bnoticia de\b|\ben la fuente\b|\bfuente:|\bno consta\b|\bno se indica\b|\bsin fecha de fin indicada\b|\ben el resultado\b|\bla pagina es de\b/;
 
+// Sentences the network wrote for publishers, not shoppers («ofrecer grandes descuentos a tu audiencia e impulsar tus
+// ventas», «Promociónalo antes del 18»): the feed's description is the brief the store sends its affiliates
+const FOR_PUBLISHERS =
+  /\b(tu|vuestra|su) audiencia\b|\btus (ventas|seguidores|lectores|usuarios|visitantes|suscriptores)\b|\bimpulsar (tus|las) ventas\b|\bpromocional[oa]s?\b|\bpromocion(a|ad|en) (esta|la|el|estos|estas)\b|\b(publishers?|editores|afiliados)\b|\bcomision(es)?\b|\bmaterial(es)? (creativo|grafico)s?\b|\bbanners?\b|\bdeep ?links?\b/;
+
 // "No válido en lanzamientos. Pedido mínimo 50 €." → ["No válido en lanzamientos", "Pedido mínimo 50 €"].
-// Notes for the team, and bullets the title already says, are left out.
+// Notes for the team, lines meant for affiliates, and bullets the title already says, are left out.
 export function conditionsOf(description: string, title = ""): string[] {
   const titleKey = ` ${textKey(title)} `;
   return description
-    .split(/(?<=[.;])\s+|\n+/)
+    .split(/(?<=[.;!?])\s+|\n+/)
     .map((s) => s.trim().replace(/[.;]$/, ""))
-    .filter((s) => s && !NOTE.test(fold(s)))
+    .filter((s) => s && !NOTE.test(fold(s)) && !FOR_PUBLISHERS.test(fold(s)))
     .filter((s) => !title || !titleKey.includes(` ${textKey(s)} `));
 }
 

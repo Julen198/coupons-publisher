@@ -31,7 +31,10 @@ export async function generateMetadata({ params }: PageProps<"/tiendas/[slug]">)
   const found = await load((await params).slug);
   if (!found) return { title: "Tienda no encontrada", robots: { index: false } };
   const { store, coupons, expired } = found;
-  const codes = coupons.filter((c) => c.kind === "code" && c.code).length;
+  // «cupones» are the store's coupons and offers; its standing offers (newsletter, app…) are counted apart, as everywhere
+  const regular = coupons.filter((c) => !isPerk(c));
+  const perks = coupons.length - regular.length;
+  const codes = regular.filter((c) => c.kind === "code" && c.code).length;
   const checked = lastChecked(coupons.filter((c) => c.verified));
   const guide = storeGuide(store.slug) ?? (await publishedGuide(store.id));
   const now = new Date();
@@ -41,7 +44,9 @@ export async function generateMetadata({ params }: PageProps<"/tiendas/[slug]">)
     description: coupons.length
       ? guide
         ? guide.description
-        : `${coupons.length === 1 ? "1 cupón activo" : `${coupons.length} cupones activos`} de ${store.name} (${codes === 1 ? "1 código descuento" : `${codes} códigos descuento`}), con condiciones y fecha de caducidad.${checked ? ` Última comprobación: ${shortDate(checked)}.` : ""}`
+        : regular.length
+          ? `${regular.length === 1 ? "1 cupón activo" : `${regular.length} cupones activos`} de ${store.name} (${codes === 1 ? "1 código descuento" : `${codes} códigos descuento`})${perks ? ` y ${perks === 1 ? "1 descuento permanente" : `${perks} descuentos permanentes`}` : ""}, con condiciones y fecha de caducidad.${checked ? ` Última comprobación: ${shortDate(checked)}.` : ""}`
+          : `${perks === 1 ? "1 descuento permanente" : `${perks} descuentos permanentes`} de ${store.name}, con sus condiciones.${checked ? ` Última comprobación: ${shortDate(checked)}.` : ""}`
       : `Hoy no hay cupones activos de ${store.name}. Los últimos códigos y ofertas que publicamos, cuándo caducaron y lo que conviene saber antes de comprar.`,
     alternates: { canonical: `/tiendas/${store.slug}` },
     // the URL stays in the index while the store has live coupons, a guide, or coupons that expired in the last months
@@ -85,12 +90,14 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   // the store's own FAQs (panel) win; a store with none borrows its guide's
   const ownFaqs = parseFaqs(store.faqs);
   const faqs = ownFaqs.length ? ownFaqs : (guide?.faqs ?? []);
-  const codes = coupons.filter((c) => c.kind === "code" && c.code).length;
-  const verified = coupons.filter((c) => c.verified).length;
-  const best = [...coupons].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
-  // standing offers (newsletter, app…) get their own block under the coupons
+  // standing offers (newsletter, app…) get their own block under the coupons, and are counted apart from them
   const perks = coupons.filter(isPerk);
-  const sorted = sortDeals(coupons.filter((c) => !isPerk(c)), orden);
+  const regular = coupons.filter((c) => !isPerk(c));
+  const codes = regular.filter((c) => c.kind === "code" && c.code).length;
+  const verified = regular.filter((c) => c.verified).length;
+  const best = [...(regular.length ? regular : coupons)].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
+  const sorted = sortDeals(regular, orden);
+  const perksPhrase = perks.length === 1 ? "1 descuento permanente" : `${perks.length} descuentos permanentes`;
   const checked = lastChecked(coupons.filter((c) => c.verified));
   // this store on the shopping dates coming up (/ofertas/black-friday/<store>)
   const seasonEvents = storeEventsInSeason(today);
@@ -105,7 +112,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   // other stores of the same category first, then the ones with the most coupons
   const counts = new Map<string, { name: string; slug: string; n: number; same: boolean }>();
   for (const c of all)
-    if (c.store_id !== store.id)
+    if (c.store_id !== store.id && !isPerk(c))
       counts.set(c.store_slug, { name: c.store_name, slug: c.store_slug, n: (counts.get(c.store_slug)?.n ?? 0) + 1, same: !!store.category && c.store_category === store.category });
   // same category first; within it, pages close to Google's first page (nearFirstPageStores), then the most coupons
   const otherStores = [...counts.values()].sort((a, b) => Number(b.same) - Number(a.same) || boost(a.slug) - boost(b.slug) || b.n - a.n).slice(0, 6);
@@ -153,13 +160,14 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
           <h1 data-seo="H1 con intención">{title}</h1>
           <div className="meta-line">
             {checked ? <span className="live">Última comprobación: {checkedLabel(checked, today).replace(/^Comprobado /, "")}</span> : <span className="live">Actualizado a las {time}</span>}
-            <span>{coupons.length === 1 ? "1 cupón activo" : `${coupons.length} cupones activos`}</span>
+            <span>{regular.length === 1 ? "1 cupón activo" : `${regular.length} cupones activos`}</span>
             {domain && <span>{domain}</span>}
           </div>
           <p className="answer" data-seo="Respuesta citable (GEO)">
-            {coupons.length ? (
+            {regular.length ? (
               <>
-                Hoy hay <strong>{coupons.length} {coupons.length === 1 ? "cupón activo" : "cupones activos"}</strong> de {store.name}, {codes} con código y {coupons.length - codes} sin código. {verified === 1 ? "1 está comprobado" : `${verified} están comprobados`}.
+                Hoy hay <strong>{regular.length} {regular.length === 1 ? "cupón activo" : "cupones activos"}</strong> de {store.name}, {codes} con código y {regular.length - codes} sin código. {verified === 1 ? "1 está comprobado" : `${verified} están comprobados`}.
+                {perks.length > 0 && <> Además tiene <strong>{perksPhrase}</strong>.</>}
                 {best && percentOf(best.discount) > 0 && (
                   <>
                     {" "}El mayor porcentaje es <strong>{badgeInSentence(badgeOf(best))}</strong>
@@ -167,6 +175,10 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
                     {best.expires_at ? <>, válido hasta el {longDate(best.expires_at)}</> : null}.
                   </>
                 )}
+              </>
+            ) : perks.length ? (
+              <>
+                Ahora mismo no hay cupones de {store.name} con fecha, pero tiene <strong>{perksPhrase}</strong>.
               </>
             ) : (
               <>
@@ -243,9 +255,10 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
               <section className="panel">
                 <h2>{store.name} en cifras</h2>
                 <ul className="stores">
-                  <li><span>Cupones activos<small>{coupons.length}</small></span></li>
+                  <li><span>Cupones activos<small>{regular.length}</small></span></li>
                   <li><span>Con código<small>{codes}</small></span></li>
                   <li><span>Comprobados<small>{verified}</small></span></li>
+                  {perks.length > 0 && <li><span>Descuentos permanentes<small>{perks.length}</small></span></li>}
                 </ul>
               </section>
             )}

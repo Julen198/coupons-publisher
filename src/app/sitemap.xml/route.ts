@@ -1,7 +1,7 @@
 import { publishedGuides } from "@/lib/guide-index";
 import { siteCoupons, siteRecentlyExpired } from "@/lib/public-site";
 import { CATEGORIES, categoryPath } from "@/lib/catalog";
-import { EVENT_PAGES, storeEventPath, storeEventsInSeason } from "@/lib/event-pages";
+import { EVENT_PAGES, eventCouponsByStore, storeEventPath, storeEventsInSeason } from "@/lib/event-pages";
 import { indexableCategory } from "@/lib/category-pages";
 import { contactEmail, dealPath, madridToday, siteUrl } from "@/lib/site-text";
 import { esc } from "@/lib/render-page";
@@ -13,10 +13,11 @@ export async function GET() {
   const base = siteUrl();
   const [coupons, expired, guides] = await Promise.all([siteCoupons(), siteRecentlyExpired(), publishedGuides()]);
   const stores = [...new Set([...coupons, ...expired].map((c) => c.store_slug))];
-  // each store with live coupons on the shopping dates coming up (/ofertas/black-friday/<store>): listed from six weeks
-  // before, when people start searching «black friday <tienda>»; the same pages are noindex without live coupons
-  const live = [...new Set(coupons.map((c) => c.store_slug))];
-  const storeEvents = storeEventsInSeason(madridToday().iso).flatMap((e) => live.map((s) => storeEventPath(e.slug, s)));
+  // each store on the shopping dates coming up (/ofertas/black-friday/<store>), listed from six weeks before, when people
+  // start searching «black friday <tienda>», but only once the store has coupons that name the event: without them the
+  // page is noindex (storeEventIndexable)
+  const today = madridToday().iso;
+  const storeEvents = storeEventsInSeason(today).flatMap((e) => eventCouponsByStore(e, coupons, today).map((s) => storeEventPath(e.slug, s.slug)));
   // a store page with a guide says when its guide last changed (hand-written ones have no date)
   const lastmod = new Map(guides.filter((g) => g.updatedAt).map((g) => [`/tiendas/${g.slug}`, g.updatedAt!.toISOString().slice(0, 10)]));
   const urls = ["/", ...CATEGORIES.filter((c) => indexableCategory(coupons.filter((x) => x.store_category === c.slug).length)).map((c) => categoryPath(c.slug)), ...EVENT_PAGES.map((e) => `/ofertas/${e.slug}`), "/tiendas", "/calendario", "/metodologia", "/aviso-de-afiliacion", ...(contactEmail() ? ["/contacto"] : []), ...stores.map((s) => `/tiendas/${s}`), ...storeEvents, ...coupons.map(dealPath)];
