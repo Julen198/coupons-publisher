@@ -6,9 +6,11 @@ import { commissionsBetween, type CommissionTotals } from "./commissions";
 import { guideSlugs } from "./store-guides.ts";
 import { dateRange, ga4Report, googleConfigured, googleKeyProblem, meanPosition, searchAnalytics, storeSlugOf, type SearchRow } from "./google-api.ts";
 
-export const STATS_RANGES = [7, 28, 90] as const;
+// 1 = yesterday (dateRange ends yesterday), compared with the day before
+export const STATS_RANGES = [1, 7, 28, 90] as const;
 export type StatsRange = (typeof STATS_RANGES)[number];
 export const rangeOf = (v: unknown): StatsRange => (STATS_RANGES.includes(Number(v) as StatsRange) ? (Number(v) as StatsRange) : 28);
+export const rangeLabel = (d: StatsRange): string => (d === 1 ? "Ayer" : `${d} días`);
 
 export interface Totals { impressions: number; gClicks: number; position: number | null; visits: number | null; clicks: number; copies: number; earned: number; sales: number }
 export interface DayPoint { day: string; visits: number; clicks: number }
