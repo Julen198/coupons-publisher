@@ -5,7 +5,7 @@ import { fixedRouteVerdict, isDocumentRequest, type RouteVerdict } from "@/lib/s
 import { orNullAfter } from "@/lib/with-timeout";
 
 // The public deals site: indexable, open to everyone
-const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/tiendas\/[^/]+\/opengraph-image/, /^\/categorias\/[^/]+$/, /^\/ofertas\/[^/]+$/, /^\/ofertas\/[^/]+\/opengraph-image/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado)$/, /^\/sitemap\.xml$/];
+const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/tiendas\/[^/]+\/opengraph-image/, /^\/categorias\/[^/]+$/, /^\/ofertas\/[^/]+(\/[^/]+)?$/, /^\/ofertas\/[^/]+\/opengraph-image/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado)$/, /^\/sitemap\.xml$/];
 // Reachable without signing in: the public site, login, accepting an invitation, and what publishers embed on their sites
 const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/llms\.txt$/, /^\/indexnow\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//,
   // Telegram webhook and its daily cron: each checks its own secret header instead of a session
@@ -17,6 +17,8 @@ const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/
 
 const DEAL_PAGE = /^\/chollos\/([^/]+)$/;
 const STORE_PAGE = /^\/tiendas\/([^/]+)$/;
+// a store's page for a shopping date (/ofertas/black-friday/myprotein): the event was checked by fixedRouteVerdict
+const EVENT_STORE_PAGE = /^\/ofertas\/[^/]+\/([^/]+)$/;
 // Rendered by src/app/(site)/no-encontrado: a route that only calls notFound(), so it answers with a real 404
 const NOT_FOUND_PAGE = "/no-encontrado";
 // Past this the request goes on to the page, which runs the same checks itself
@@ -30,7 +32,8 @@ async function sitePageVerdict(req: NextRequest): Promise<RouteVerdict | null> {
   if (!isDocumentRequest(req.method, req.headers.get("accept"), req.nextUrl)) return null;
   const { pathname } = req.nextUrl;
   const deal = DEAL_PAGE.exec(pathname);
-  const store = deal ? null : STORE_PAGE.exec(pathname);
+  const eventStore = EVENT_STORE_PAGE.exec(pathname);
+  const store = deal ? null : (STORE_PAGE.exec(pathname) ?? (eventStore && eventStore[1] !== "opengraph-image" ? eventStore : null));
   if (!deal && !store) return null;
   let slug = "";
   if (store) {

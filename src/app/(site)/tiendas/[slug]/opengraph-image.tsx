@@ -17,7 +17,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const [[row], coupons] = await Promise.all([sql()<{ logo_data: string }[]>`SELECT logo_data FROM stores WHERE id = ${store.id}`, siteCoupons()]);
   const mine = coupons.filter((c) => c.store_id === store.id);
   const logo = /^data:image\//.test(row?.logo_data ?? "") ? row.logo_data : "";
-  const heading = storeH1(store.name, mine, new Date(`${madridToday().iso}T12:00:00Z`));
+  const heading = storeH1(store.name, mine, new Date(`${madridToday().iso}T12:00:00Z`), store.title_term);
   const count = mine.length === 0 ? "Sin cupones activos hoy" : mine.length === 1 ? "1 cupón activo hoy" : `${mine.length} cupones activos hoy`;
   const host = new URL(siteUrl()).host;
 

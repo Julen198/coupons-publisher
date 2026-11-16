@@ -6,6 +6,7 @@ import { decryptJson } from "./secrets.ts";
 import { adapterFor } from "./networks/index.ts";
 import { cleanAdvertiserName, matchStore, type StoreRef } from "./networks/match.ts";
 import { isMissingCountry } from "./country-column.ts";
+import { couponFreshnessColumns } from "./perks.ts";
 import { archiveMissing } from "./sync-archive";
 import { recordSuccess } from "./sync-success";
 import { httpsImage, networkCountries, type Credentials, type NetAdvertiser, type NetFeed, type NetOffer, type NetworkAdapter } from "./networks/types.ts";
@@ -154,9 +155,16 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
   });
   let created = 0;
   let updated = 0;
+  // the feed still listing an offer is a real check: its date (checked_at) is today's, for the verified ones
+  const dated = await couponFreshnessColumns.run(async (present) => {
+    if (!present) return false;
+    await sql()`SELECT checked_at FROM coupons LIMIT 0`;
+    return true;
+  });
   for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = dated ? rows.slice(i, i + CHUNK).map((r) => ({ ...r, checked_at: new Date() })) : rows.slice(i, i + CHUNK);
     const res = await sql()<{ inserted: boolean }[]>`
-      INSERT INTO coupons ${sql()(rows.slice(i, i + CHUNK))}
+      INSERT INTO coupons ${sql()(chunk)}
       ON CONFLICT (external_id) DO UPDATE SET
         -- text an editor corrected in the panel (text_locked) stays theirs
         kind = excluded.kind,
@@ -171,6 +179,7 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
         image_checked_at = CASE WHEN excluded.target_url <> coupons.target_url THEN NULL ELSE coupons.image_checked_at END,
         -- a client's own account sends "": it never takes over the publisher id our account set
         publisher_id = CASE WHEN excluded.publisher_id <> '' THEN excluded.publisher_id ELSE coupons.publisher_id END
+        ${dated ? sql()`, checked_at = CASE WHEN coupons.verified = 1 THEN now() ELSE coupons.checked_at END` : sql()``}
       RETURNING (xmax = 0) AS inserted`;
     const fresh = res.filter((r) => r.inserted).length;
     created += fresh;

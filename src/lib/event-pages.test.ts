@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { EVENT_PAGES, eventDeals, eventEdition, eventPageOf, inSeason } from "./event-pages.ts";
+import { EVENT_PAGES, eventDeals, eventEdition, eventPageOf, inSeason, storeEventIndexable, storeEventPath, storeEventSeason, storeEventsInSeason } from "./event-pages.ts";
 import { eventsOf } from "./site-text.ts";
 
 const deal = (title: string, store_category = "", description = "") => ({ title, description, store_category });
@@ -38,4 +38,19 @@ test("eventDeals: a word used all year («rebajas») only counts in season", () 
   assert.equal(inSeason(sales, "2026-11-16"), false);
   assert.equal(eventDeals(sales, live, "2026-11-16").matched.length, 0);
   assert.equal(eventDeals(sales, live, "2027-01-10").matched.length, 1);
+});
+
+test("store × event pages: in season from six weeks before until the event ends", () => {
+  const bf = eventPageOf("black-friday")!;
+  assert.equal(storeEventPath("black-friday", "myprotein"), "/ofertas/black-friday/myprotein");
+  assert.equal(storeEventSeason(bf, "2026-10-12"), false);
+  assert.equal(storeEventSeason(bf, "2026-10-13"), true);
+  assert.equal(storeEventSeason(bf, "2026-11-30"), true);
+  assert.equal(storeEventSeason(bf, "2026-12-01"), false);
+  // mid-November: Black Friday first, then Cyber Monday (both close), nothing far away
+  const now = storeEventsInSeason("2026-11-16").map((e) => e.slug);
+  assert.deepEqual(now.slice(0, 2), ["black-friday", "cyber-monday"]);
+  assert.ok(!now.includes("rebajas-de-verano"));
+  assert.equal(storeEventIndexable(0), false);
+  assert.equal(storeEventIndexable(3), true);
 });

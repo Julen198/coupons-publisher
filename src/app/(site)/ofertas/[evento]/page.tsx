@@ -4,15 +4,17 @@ import { notFound } from "next/navigation";
 import { categoryOf } from "@/lib/catalog";
 import { pageSource } from "@/lib/click-signals";
 import { sortDeals } from "@/lib/community";
-import { EVENT_PAGES, eventDeals, eventEdition, eventPageOf } from "@/lib/event-pages";
-import { currentVotes, siteClient, siteCoupons } from "@/lib/public-site";
+import { EVENT_PAGES, eventDeals, eventEdition, eventPageOf, storeEventPath } from "@/lib/event-pages";
+import { currentVotes, nearFirstPageStores, siteClient, siteCoupons } from "@/lib/public-site";
 import { daysBetween, longDate, madridToday, siteUrl } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, crumbsLd, faqLd, offerLd } from "../../site-ui";
+import { withoutPerks } from "@/lib/perks";
 
 const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const when = (iso: string) => `${WEEKDAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()]} ${longDate(iso)}`;
 const MAX_DEALS = 30;
 const MAX_FALLBACK = 12;
+const MAX_STORES = 24;
 
 export async function generateMetadata({ params }: PageProps<"/ofertas/[evento]">): Promise<Metadata> {
   const e = eventPageOf((await params).evento);
@@ -30,7 +32,7 @@ export default async function EventPage({ params, searchParams }: PageProps<"/of
   const e = eventPageOf((await params).evento);
   if (!e) notFound();
   const sp = await searchParams;
-  const [all, client, mine] = await Promise.all([siteCoupons(), siteClient(), currentVotes()]);
+  const [all, client, mine, near] = await Promise.all([siteCoupons().then(withoutPerks), siteClient(), currentVotes(), nearFirstPageStores()]);
   const now = new Date();
   const { iso: today } = madridToday(now);
   const { year, date, ends } = eventEdition(e, today);
@@ -44,6 +46,13 @@ export default async function EventPage({ params, searchParams }: PageProps<"/of
   const catLabels = e.categories.map((s) => categoryOf(s)?.label.toLowerCase()).filter(Boolean) as string[];
   const fallbackWhat = catLabels.length ? `de ${catLabels.length > 1 ? `${catLabels.slice(0, -1).join(", ")} y ${catLabels[catLabels.length - 1]}` : catLabels[0]}` : "de todas las tiendas";
   const faqs = e.faqs(longDate(date), year);
+  // this date in each store (/ofertas/<event>/<store>): pages close to Google's first page first, then the most coupons
+  const nearRank = new Map(near.map((n, i) => [n.slug, i]));
+  const perStore = new Map<string, { name: string; slug: string; n: number }>();
+  for (const c of all) perStore.set(c.store_slug, { name: c.store_name, slug: c.store_slug, n: (perStore.get(c.store_slug)?.n ?? 0) + 1 });
+  const stores = [...perStore.values()]
+    .sort((a, b) => (nearRank.get(a.slug) ?? 1e9) - (nearRank.get(b.slug) ?? 1e9) || b.n - a.n)
+    .slice(0, MAX_STORES);
   const others = EVENT_PAGES.filter((x) => x.slug !== e.slug)
     .map((x) => ({ x, ed: eventEdition(x, today) }))
     .sort((a, b) => a.ed.date.localeCompare(b.ed.date))
@@ -141,6 +150,23 @@ export default async function EventPage({ params, searchParams }: PageProps<"/of
             </div>
             <Faqs items={faqs} />
           </section>
+          {stores.length > 0 && (
+            <nav aria-label={`${e.name} por tienda`} data-seo="Enlazado interno tienda + evento">
+              <div className="section-head">
+                <h2>{e.name} {year} por tienda</h2>
+              </div>
+              <ul className="stores">
+                {stores.map((st) => (
+                  <li key={st.slug}>
+                    <Link href={storeEventPath(e.slug, st.slug)}>
+                      {e.name} {st.name}
+                      <small>{st.n === 1 ? "1 cupón" : `${st.n} cupones`}</small>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
           <nav aria-label="Otras fechas de ofertas" data-seo="Enlazado interno entre eventos">
             <div className="section-head">
               <h2>Otras fechas de ofertas</h2>

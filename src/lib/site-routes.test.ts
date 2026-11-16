@@ -91,6 +91,10 @@ test("fixedRouteVerdict: known categories and events exist, unknown ones are mis
   assert.deepEqual(fixedRouteVerdict("/ofertas/black-friday", none), { kind: "ok" });
   assert.deepEqual(fixedRouteVerdict("/ofertas/prime-week", none), { kind: "missing" });
   assert.equal(fixedRouteVerdict("/tiendas/nike", none), null);
+  // a store's page for an event: the event is checked here, the store later (null = go on)
+  assert.equal(fixedRouteVerdict("/ofertas/black-friday/myprotein", none), null);
+  assert.deepEqual(fixedRouteVerdict("/ofertas/prime-week/myprotein", none), { kind: "missing" });
+  assert.equal(fixedRouteVerdict("/ofertas/black-friday/opengraph-image", none), null);
 });
 
 test("fixedRouteVerdict: an old /?cat= link moves to the category page and keeps its other filters", () => {

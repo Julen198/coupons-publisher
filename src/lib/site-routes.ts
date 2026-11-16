@@ -68,6 +68,9 @@ export function fixedRouteVerdict(pathname: string, search: URLSearchParams): Ro
   if (cat) return categoryOf(cat[1]) ? { kind: "ok" } : { kind: "missing" };
   const ev = /^\/ofertas\/([^/]+)$/.exec(pathname);
   if (ev) return eventPageOf(ev[1]) ? { kind: "ok" } : { kind: "missing" };
+  // /ofertas/<event>/<store>: an unknown event is missing here; the store is looked up like /tiendas/<slug> (proxy)
+  const evStore = /^\/ofertas\/([^/]+)\/([^/]+)$/.exec(pathname);
+  if (evStore && evStore[2] !== "opengraph-image" && !eventPageOf(evStore[1])) return { kind: "missing" };
   if (pathname === "/" && search.has("cat") && !search.get("q")) {
     const known = categoryOf(search.get("cat") ?? "");
     const rest = new URLSearchParams(search);

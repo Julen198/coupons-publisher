@@ -12,6 +12,7 @@ import { guideLabels } from "@/lib/store-list";
 import { badgeInSentence } from "@/lib/deal-text";
 import { blackFriday, daysBetween, longDate, madridToday, monthShort, percentOf, siteUrl, upcomingEvents } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd } from "./site-ui";
+import { withoutPerks } from "@/lib/perks";
 
 // The home page and the category pages (/categorias/<slug>) share this feed. A category page has its own title and
 // canonical; a search page stays out of the index.
@@ -67,7 +68,8 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
   const f = readFilters(sp, pageCat);
   // where its clicks count: a campaign's utm_source, or the home page
   const source = pageSource(sp, "portada");
-  const [all, client, mine, reader] = await Promise.all([siteCoupons(), siteClient(), currentVotes(), getReader()]);
+  // standing offers (newsletter, app…) live on their store's page, not in the feed of chollos
+  const [all, client, mine, reader] = await Promise.all([siteCoupons().then(withoutPerks), siteClient(), currentVotes(), getReader()]);
   const now = new Date();
   const { iso: today, words: todayWords } = madridToday(now);
   const time = now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });

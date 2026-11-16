@@ -11,6 +11,7 @@ import { expiresSoon, statusOf, today } from "@/lib/coupon-status";
 import { coverageOf, DELIVERY_LABEL } from "@/lib/page-status";
 import { btnCls, btnSecondaryCls, CoverageBadge, PageHeader } from "@/app/ui";
 import { translationDraft } from "@/lib/translation";
+import { checkedDay } from "@/lib/perks";
 import { CouponForm, type CouponDraft } from "@/app/(panel)/panel/coupons/coupon-form";
 import { StoreContentForm } from "./store-content-form";
 import { inferStoreCountry } from "@/lib/market";
@@ -48,9 +49,10 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
         id: editing.id, store_id: editing.store_id, kind: editing.kind, title: editing.title, code: editing.code,
         discount: editing.discount, description: editing.description, target_url: editing.target_url,
         expires_at: editing.expires_at, verified: Boolean(editing.verified),
+        perk: editing.perk ?? "", checked_day: checkedDay(editing.checked_at),
       }
     : sp.new !== undefined
-      ? { store_id: store.id, kind: "code", title: "", code: "", discount: "", description: "", target_url: store.website, expires_at: "", verified: false }
+      ? { store_id: store.id, kind: "code", title: "", code: "", discount: "", description: "", target_url: store.website, expires_at: "", verified: false, perk: "" }
       : undefined;
 
   return (
@@ -148,7 +150,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
 
       {tab === "contenido" && (
         <StoreContentForm
-          store={{ slug: store.slug, name: store.name, website: store.website, network: store.network, merchant_id: store.merchant_id, tracking_url: store.tracking_url, intro: store.intro, faqs: store.faqs, category: store.category, facts: store.facts, country: store.country, country_source: store.country_source }}
+          store={{ slug: store.slug, name: store.name, website: store.website, network: store.network, merchant_id: store.merchant_id, tracking_url: store.tracking_url, intro: store.intro, faqs: store.faqs, category: store.category, facts: store.facts, country: store.country, country_source: store.country_source, title_term: store.title_term ?? "" }}
           inferred={inferStoreCountry({ name: store.name, slug: store.slug, website: store.website, trackingUrl: store.tracking_url })}
           discounts={coupons.filter((c) => !c.archived && statusOf(c, t) !== "expired").map((c) => c.discount)}
         />

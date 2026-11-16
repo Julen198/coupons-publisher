@@ -7,6 +7,7 @@ import { copyBeaconHref, goHref, type SiteCoupon } from "@/lib/public-site";
 import { mayHaveExpired, timeAgo } from "@/lib/community";
 import { httpsImage } from "@/lib/networks/types";
 import { daysBetween, dealPath, shortDate } from "@/lib/site-text";
+import { checkedDay, checkedLabel, perkOf } from "@/lib/perks";
 import { vote } from "./actions-reader";
 import { CopyCode } from "./copy-code";
 import { DealImg, StoreLogoImg } from "./store-logo-img";
@@ -51,7 +52,8 @@ export function StatusBadges({ c, today, live = true }: { c: SiteCoupon; today: 
   const left = c.expires_at ? daysBetween(today, c.expires_at) : null;
   return (
     <>
-      {c.verified ? <span className="badge b-ok">Comprobado</span> : null}
+      {perkOf(c.perk) ? <span className="badge b-exp">Permanente · {perkOf(c.perk)!.label}</span> : null}
+      {c.verified ? <span className="badge b-ok">{checkedLabel(checkedDay(c.checked_at), today)}</span> : null}
       {left !== null && left <= 7 && (
         <span className="badge b-low">{left <= 0 ? "Caduca hoy" : left === 1 ? "Caduca mañana" : `Caduca en ${left} días`}</span>
       )}

@@ -374,6 +374,13 @@ CREATE TABLE IF NOT EXISTS commissions (
 );
 CREATE INDEX IF NOT EXISTS commissions_at_idx ON commissions(at);
 ALTER TABLE commissions ENABLE ROW LEVEL SECURITY;
+-- the last real check of a coupon (perks.ts / freshness): an editor ticking «Comprobado hoy» or verifying it, or the
+-- network sync finding the offer still in the network's feed; NULL = never checked since the column arrived
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS checked_at timestamptz;
+-- a standing offer of the store (welcome discount, newsletter, app, students, free shipping…): '' = an ordinary coupon
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS perk text NOT NULL DEFAULT '';
+-- the words a store page's title leads with in Google ('' = «Código descuento», see TITLE_TERMS)
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS title_term text NOT NULL DEFAULT '';
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
