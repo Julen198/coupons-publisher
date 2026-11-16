@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
-import { categoryOf, factsOf } from "@/lib/catalog";
+import { categoryOf, categoryPath, factsOf } from "@/lib/catalog";
 import { pageSource } from "@/lib/click-signals";
 import { copyBeaconHref, currentVotes, dealComments, readerDealMarks, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
@@ -17,6 +17,8 @@ import { DealActions } from "./deal-actions";
 import { CopyCode, CopyCodeButton } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
 import { Crumbs, DealPicture, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, crumbsLd, faqLd, isWordBadge, offerLd, priceClass, titleOf } from "../../site-ui";
+
+const EXPIRED_INDEX_DAYS = 30;
 
 async function load(param: string) {
   const id = parseDealId(param);
@@ -42,6 +44,9 @@ export async function generateMetadata({ params }: PageProps<"/chollos/[deal]">)
       .slice(0, 300),
     alternates: { canonical: dealPath(c) },
     openGraph: { title: `${what}: ${titleOf(c)}`, url: dealPath(c) },
+    // an expired deal keeps its page (links and readers still reach it), but past a month it leaves the index: a pile of
+    // dead coupons would weigh on how search engines rate the whole site
+    ...(!live && c.expires_at && daysBetween(c.expires_at, madridToday().iso) > EXPIRED_INDEX_DAYS ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
@@ -91,7 +96,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
   const crumbs = [
     { name: "Inicio", href: "/" },
     { name: "Chollos", href: "/" },
-    cat ? { name: cat.label, href: `/?cat=${cat.slug}` } : { name: c.store_name, href: `/tiendas/${c.store_slug}` },
+    cat ? { name: cat.label, href: categoryPath(cat.slug) } : { name: c.store_name, href: `/tiendas/${c.store_slug}` },
     { name: titleOf(c) },
   ];
   const conds = conditionsOf(c.description, c.title);

@@ -4,7 +4,7 @@ import { SHARING_ENABLED } from "@/lib/community-rules";
 import Link from "next/link";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CATEGORIES } from "@/lib/catalog";
+import { CATEGORIES, categoryPath } from "@/lib/catalog";
 import { signOutReader } from "./actions-reader";
 import { SeoToggle } from "./seo-panel";
 import { AccountMenu } from "./account-menu";
@@ -31,8 +31,9 @@ const LOGO = (
   </svg>
 );
 
-// "Todos" plus one tab per category; the current one is the home page with that ?cat= ("" = Todos)
-const SECTIONS = [{ slug: "", label: "Todos" }, ...CATEGORIES].map((c) => ({ ...c, href: c.slug ? `/?cat=${c.slug}` : "/" }));
+// "Todos" plus one tab per category; the current one is that category's page, or the home page searching within it
+const SECTIONS = [{ slug: "", label: "Todos" }, ...CATEGORIES].map((c) => ({ ...c, href: c.slug ? categoryPath(c.slug) : "/" }));
+const CATEGORY_PAGE = /^\/categorias\/([^/]+)/;
 
 // The category of the page being shown (a store's), so the header can mark it; set by <MarkHeaderCategory> on that page
 const PageCategory = createContext<{ cat: string; setCat: (slug: string) => void }>({ cat: "", setCat: () => {} });
@@ -54,11 +55,11 @@ export function MarkHeaderCategory({ slug }: { slug: string }) {
 }
 
 // Pages with a feed of deals (home, categories, search, a store) skip straight to it; the rest to their content
-const hasFeed = (path: string) => path === "/" || path.startsWith("/tiendas/");
+const hasFeed = (path: string) => path === "/" || /^\/(tiendas|categorias|ofertas)\//.test(path);
 
 function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: string; q: string; reader?: HeaderReader; pageCat?: string }) {
-  // the home page marks its ?cat=; a store page marks the store's category
-  const current = (slug: string) => (path === "/" ? cat === slug : !!pageCat && path.startsWith("/tiendas/") && pageCat === slug);
+  // the home page and a category page mark their category; a store page marks the store's
+  const current = (slug: string) => (path === "/" || CATEGORY_PAGE.test(path) ? cat === slug : !!pageCat && path.startsWith("/tiendas/") && pageCat === slug);
   return (
     <header className="top">
       <a className="skip" href={hasFeed(path) ? "#chollos" : "#contenido"}>
@@ -119,7 +120,7 @@ function Shell({ path, cat, q, reader, pageCat = "" }: { path: string; cat: stri
 function Live({ reader }: { reader: HeaderReader }) {
   const path = usePathname();
   const sp = useSearchParams();
-  const cat = sp.get("cat") ?? "";
+  const cat = CATEGORY_PAGE.exec(path)?.[1] ?? sp.get("cat") ?? "";
   const { cat: pageCat } = useContext(PageCategory);
   // an unknown ?cat= shows everything, so "Todos" is the current tab
   return <Shell path={path} cat={CATEGORIES.some((c) => c.slug === cat) ? cat : ""} q={sp.get("q") ?? ""} reader={reader} pageCat={pageCat} />;

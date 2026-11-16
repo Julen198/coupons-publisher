@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { dealRouteVerdict, dealVisibility, isDocumentRequest, storeRouteVerdict } from "./site-routes.ts";
+import { fixedRouteVerdict } from "./site-routes.ts";
 
 const T = "2026-11-06";
 const row = (over: Partial<Parameters<typeof dealVisibility>[0] & { id: number; title: string; store_name: string }> = {}) => ({
@@ -81,4 +82,22 @@ test("isDocumentRequest: only GET/HEAD HTML navigations, never RSC or prefetch f
   assert.equal(isDocumentRequest("GET", null, url()), false);
   assert.equal(isDocumentRequest("GET", html, url("?_rsc=abc")), false);
   assert.equal(isDocumentRequest("GET", "TEXT/HTML", url()), true);
+});
+
+test("fixedRouteVerdict: known categories and events exist, unknown ones are missing", () => {
+  const none = new URLSearchParams();
+  assert.deepEqual(fixedRouteVerdict("/categorias/moda", none), { kind: "ok" });
+  assert.deepEqual(fixedRouteVerdict("/categorias/juguetes", none), { kind: "missing" });
+  assert.deepEqual(fixedRouteVerdict("/ofertas/black-friday", none), { kind: "ok" });
+  assert.deepEqual(fixedRouteVerdict("/ofertas/prime-week", none), { kind: "missing" });
+  assert.equal(fixedRouteVerdict("/tiendas/nike", none), null);
+});
+
+test("fixedRouteVerdict: an old /?cat= link moves to the category page and keeps its other filters", () => {
+  assert.deepEqual(fixedRouteVerdict("/", new URLSearchParams("cat=moda")), { kind: "moved", to: "/categorias/moda" });
+  assert.deepEqual(fixedRouteVerdict("/", new URLSearchParams("cat=moda&orden=nuevos&pagina=2")), { kind: "moved", to: "/categorias/moda?orden=nuevos&pagina=2" });
+  // a search keeps its category as a filter on the home page; an unknown one shows everything
+  assert.equal(fixedRouteVerdict("/", new URLSearchParams("q=nike&cat=moda")), null);
+  assert.equal(fixedRouteVerdict("/", new URLSearchParams("cat=juguetes")), null);
+  assert.equal(fixedRouteVerdict("/", new URLSearchParams()), null);
 });

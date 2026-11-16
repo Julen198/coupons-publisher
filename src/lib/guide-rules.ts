@@ -4,7 +4,7 @@ import type { StoreGuide } from "./store-guides.ts";
 
 export interface GuideSettings { minLive: number; perDay: number; delayHours: number; enabled: boolean }
 
-export const GUIDE_DEFAULTS: GuideSettings = { minLive: 5, perDay: 2, delayHours: 48, enabled: true };
+export const GUIDE_DEFAULTS: GuideSettings = { minLive: 3, perDay: 2, delayHours: 48, enabled: true };
 // ponytail: hard ceiling so a typo in the panel can't publish dozens a day (the scaled-content risk)
 const MAX_PER_DAY = 5;
 

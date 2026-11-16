@@ -21,9 +21,9 @@ const signals = (over: Partial<StoreSignals>): StoreSignals => ({
 const slugs = (all: StoreSignals[], taken: string[] = []) => pickCandidates(all, { minLive: 5, taken: new Set(taken) }).map((c) => c.slug);
 
 test("settingsOf reads the panel settings and falls back to the defaults", () => {
-  assert.deepEqual(settingsOf({}), { minLive: 5, perDay: 2, delayHours: 48, enabled: true });
+  assert.deepEqual(settingsOf({}), { minLive: 3, perDay: 2, delayHours: 48, enabled: true });
   assert.deepEqual(settingsOf({ guides_min_live: "3", guides_per_day: "1", guides_delay_hours: "24", guides_enabled: "0" }), { minLive: 3, perDay: 1, delayHours: 24, enabled: false });
-  assert.deepEqual(settingsOf({ guides_min_live: "-2", guides_per_day: "abc" }), { minLive: 5, perDay: 2, delayHours: 48, enabled: true });
+  assert.deepEqual(settingsOf({ guides_min_live: "-2", guides_per_day: "abc" }), { minLive: 3, perDay: 2, delayHours: 48, enabled: true });
   assert.equal(settingsOf({ guides_per_day: "50" }).perDay, 5); // never a flood, whatever is typed
 });
 

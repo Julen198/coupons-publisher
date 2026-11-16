@@ -28,14 +28,14 @@ const base: HomeFilters = { cat: "", tipo: "todos", orden: "destacados", comprob
 
 test("homeHref keeps the category on every filter link and resets the page", () => {
   const f = { ...base, cat: "moda" as const, pagina: 3 };
-  assert.equal(homeHref(f, { orden: "nuevos" }), "/?cat=moda&orden=nuevos");
-  assert.equal(homeHref(f, { comprobados: true }), "/?cat=moda&comprobados=1");
-  assert.equal(homeHref(f, { pagina: 4 }), "/?cat=moda&pagina=4");
+  assert.equal(homeHref(f, { orden: "nuevos" }), "/categorias/moda?orden=nuevos");
+  assert.equal(homeHref(f, { comprobados: true }), "/categorias/moda?comprobados=1");
+  assert.equal(homeHref(f, { pagina: 4 }), "/categorias/moda?pagina=4");
 });
 
 test("homeHref links the Comentados sort and keeps the other filters", () => {
   assert.equal(homeHref(base, { orden: "comentados" }), "/?orden=comentados");
-  assert.equal(homeHref({ ...base, cat: "moda", orden: "comentados", pagina: 2 }, { tipo: "codigos" }), "/?cat=moda&tipo=codigos&orden=comentados");
+  assert.equal(homeHref({ ...base, cat: "moda", orden: "comentados", pagina: 2 }, { tipo: "codigos" }), "/categorias/moda?tipo=codigos&orden=comentados");
 });
 
 test("ordenOf reads the five sorts from the URL and falls back to Más votados", () => {
@@ -47,8 +47,12 @@ test("ordenOf reads the five sorts from the URL and falls back to Más votados",
   assert.equal(ordenOf(""), "destacados");
 });
 
+test("homeHref keeps a search on the home page, with its category as a filter", () => {
+  assert.equal(homeHref({ ...base, q: "nike", cat: "moda" }, {}), "/?q=nike&cat=moda");
+});
+
 test("homeHref for a category tab drops the search", () => {
-  assert.equal(homeHref({ ...base, q: "nike" }, { cat: "deporte", q: "" }), "/?cat=deporte");
+  assert.equal(homeHref({ ...base, q: "nike" }, { cat: "deporte", q: "" }), "/categorias/deporte");
   assert.equal(homeHref({ ...base, cat: "deporte" }, { cat: "" }), "/");
 });
 
@@ -60,8 +64,8 @@ test("hasStoreGuide needs an intro or at least one valid fact", () => {
 });
 
 test("resetFiltersHref keeps the category when other filters emptied the feed", () => {
-  assert.equal(resetFiltersHref({ ...base, cat: "moda", comprobados: true }), "/?cat=moda");
-  assert.equal(resetFiltersHref({ ...base, cat: "moda", q: "nike", orden: "nuevos" }), "/?cat=moda");
+  assert.equal(resetFiltersHref({ ...base, cat: "moda", comprobados: true }), "/categorias/moda");
+  assert.equal(resetFiltersHref({ ...base, cat: "moda", q: "nike", orden: "nuevos" }), "/categorias/moda");
   assert.equal(resetFiltersHref({ ...base, cat: "moda" }), "/");
   assert.equal(resetFiltersHref({ ...base, comprobados: true }), "/");
 });
@@ -75,7 +79,7 @@ test("emptyFeedText names what emptied the feed and links back to the full list"
   assert.deepEqual(emptyFeedText({ ...base, cat: "moda", comprobados: true }, "Moda"), {
     title: "No hay chollos con estos filtros",
     hint: "Prueba con otra categoría o quita «Solo comprobados».",
-    link: { href: "/?cat=moda", label: "Ver todos los chollos de Moda" },
+    link: { href: "/categorias/moda", label: "Ver todos los chollos de Moda" },
   });
   assert.deepEqual(emptyFeedText({ ...base, cat: "viajes" }, "Viajes"), {
     title: "No hay chollos de Viajes ahora mismo",

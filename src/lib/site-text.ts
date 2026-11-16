@@ -88,7 +88,8 @@ export function blackFriday(year: number): string {
   return `${year}-11-${String(day).padStart(2, "0")}`;
 }
 
-export type ShopEvent = { date: string; name: string; note: string };
+// page: the slug of its evergreen landing page (/ofertas/<page>, see event-pages.ts); Reyes shares Navidad's
+export type ShopEvent = { date: string; name: string; note: string; page?: string };
 
 const iso = (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
@@ -102,16 +103,17 @@ export function eventsOf(year: number): ShopEvent[] {
   const bf = blackFriday(year);
   const cyber = new Date(Date.parse(bf) + 3 * 86_400_000).toISOString().slice(0, 10);
   return [
-    { date: iso(year, 1, 6), name: "Reyes", note: "Último día para los regalos. Las rebajas empiezan al día siguiente" },
-    { date: iso(year, 1, 7), name: "Rebajas de enero", note: "Empiezan en casi todas las tiendas de moda y hogar" },
-    { date: iso(year, 2, 14), name: "San Valentín", note: "Perfumería, joyería, experiencias y restaurantes" },
-    { date: iso(year, 3, 19), name: "Día del Padre", note: "Tecnología, deporte y moda de hombre" },
-    { date: mothersDay(year), name: "Día de la Madre", note: "Perfumería, belleza, moda y joyería" },
-    { date: iso(year, 7, 1), name: "Rebajas de verano", note: "Moda y hogar, hasta finales de agosto" },
-    { date: iso(year, 11, 11), name: "Día del Soltero", note: "Descuentos en AliExpress, moda y tecnología" },
-    { date: bf, name: `Black Friday ${year}`, note: "Muchas tiendas adelantan ofertas toda la semana" },
-    { date: cyber, name: "Cyber Monday", note: "Sobre todo tecnología" },
-    { date: iso(year, 12, 25), name: "Navidad", note: "Revisa el último día de envío de cada tienda" },
+    { date: iso(year, 1, 6), name: "Reyes", note: "Último día para los regalos. Las rebajas empiezan al día siguiente", page: "navidad" },
+    { date: iso(year, 1, 7), name: "Rebajas de enero", note: "Empiezan en casi todas las tiendas de moda y hogar", page: "rebajas-de-enero" },
+    { date: iso(year, 2, 14), name: "San Valentín", note: "Perfumería, joyería, experiencias y restaurantes", page: "san-valentin" },
+    { date: iso(year, 3, 19), name: "Día del Padre", note: "Tecnología, deporte y moda de hombre", page: "dia-del-padre" },
+    { date: mothersDay(year), name: "Día de la Madre", note: "Perfumería, belleza, moda y joyería", page: "dia-de-la-madre" },
+    { date: iso(year, 7, 1), name: "Rebajas de verano", note: "Moda y hogar, hasta finales de agosto", page: "rebajas-de-verano" },
+    { date: iso(year, 9, 1), name: "Vuelta al cole", note: "Material escolar, mochilas, ropa infantil y portátiles", page: "vuelta-al-cole" },
+    { date: iso(year, 11, 11), name: "Día del Soltero", note: "Descuentos en AliExpress, moda y tecnología", page: "dia-del-soltero" },
+    { date: bf, name: `Black Friday ${year}`, note: "Muchas tiendas adelantan ofertas toda la semana", page: "black-friday" },
+    { date: cyber, name: "Cyber Monday", note: "Sobre todo tecnología", page: "cyber-monday" },
+    { date: iso(year, 12, 25), name: "Navidad", note: "Revisa el último día de envío de cada tienda", page: "navidad" },
   ];
 }
 

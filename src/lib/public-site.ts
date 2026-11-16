@@ -121,6 +121,26 @@ export const siteCoupons = cache(async (): Promise<SiteCoupon[]> => {
   return dedupeDeals(titled(rows, brands).filter((c) => isPublic(c, t, unverified) && onSpanishSite(couponStore(c)) && tracked(c, links)));
 });
 
+// How long a store keeps its page in the index after its last coupon expired, listing the latest expired ones
+export const RECENT_EXPIRED_DAYS = 180;
+
+// Coupons that were public and expired in the last RECENT_EXPIRED_DAYS, most recently expired first: a store with no
+// live coupon shows its latest ones and stays indexed (its URL keeps what it ranks for «código descuento <tienda>»)
+export const siteRecentlyExpired = cache(async (): Promise<SiteCoupon[]> => {
+  await io();
+  const t = madridToday().iso;
+  const since = new Date(Date.parse(`${t}T00:00:00Z`) - RECENT_EXPIRED_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const [rows, unverified, brands, links] = await Promise.all([
+    withCouponSelect((select) => sql()<SiteCoupon[]>`${sql().unsafe(select)}
+      WHERE c.archived = 0 AND c.expires_at <> '' AND c.expires_at < ${t} AND c.expires_at >= ${since}
+      ORDER BY c.expires_at DESC, c.id DESC LIMIT 2000`),
+    publishUnverified(),
+    knownBrands(),
+    publicLinks(),
+  ]);
+  return dedupeDeals(titled(rows, brands).filter((c) => dealVisibility(c, t, unverified, tracked(c, links)) === "expired"));
+});
+
 // One coupon for its own page: live ones, and expired ones too (shown as expired so the URL keeps working)
 export const siteCoupon = cache(async (id: number): Promise<{ coupon: SiteCoupon; live: boolean } | undefined> => {
   await io();

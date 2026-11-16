@@ -6,38 +6,44 @@ import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, factsOf, ordenOf, type Orden } from "@/lib/catalog";
 import { sortDeals } from "@/lib/community";
 import { badgeInSentence, storeH1, storeHeading } from "@/lib/deal-text";
-import { currentVotes, siteClient, siteCoupons, siteStore } from "@/lib/public-site";
-import { longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
+import { currentVotes, siteClient, siteCoupons, siteRecentlyExpired, siteStore } from "@/lib/public-site";
+import { dealPath, longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { storeGuide } from "@/lib/store-guides";
 import { publishedGuide } from "@/lib/store-guides-db";
 import { publishedGuides } from "@/lib/guide-index";
 import { relatedGuides } from "@/lib/seo-auto";
 import { MarkHeaderCategory } from "../../site-header";
 import { StoreBrand } from "../../store-logo-img";
-import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd } from "../../site-ui";
+import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd, titleOf } from "../../site-ui";
 
 async function load(slug: string) {
   const store = await siteStore(slug);
   if (!store) return undefined;
-  const all = await siteCoupons();
-  return { store, all, coupons: all.filter((c) => c.store_id === store.id) };
+  const [all, expiredAll] = await Promise.all([siteCoupons(), siteRecentlyExpired()]);
+  return { store, all, coupons: all.filter((c) => c.store_id === store.id), expired: expiredAll.filter((c) => c.store_id === store.id) };
 }
+
+const EXPIRED_SHOWN = 6;
 
 export async function generateMetadata({ params }: PageProps<"/tiendas/[slug]">): Promise<Metadata> {
   const found = await load((await params).slug);
   if (!found) return { title: "Tienda no encontrada", robots: { index: false } };
-  const { store, coupons } = found;
+  const { store, coupons, expired } = found;
   const codes = coupons.filter((c) => c.kind === "code" && c.code).length;
   const guide = storeGuide(store.slug) ?? (await publishedGuide(store.id));
+  const now = new Date();
   return {
-    title: { absolute: `${storeHeading(store.name, coupons, new Date())} | CuponLab` },
-    description:
-      guide && coupons.length
+    // with nothing live the title names no figures: the discounts it would quote are gone
+    title: { absolute: `${coupons.length ? storeHeading(store.name, coupons, now) : storeH1(store.name, expired, now)} | CuponLab` },
+    description: coupons.length
+      ? guide
         ? guide.description
-        : `${coupons.length} cupones activos de ${store.name} (${codes} códigos descuento), con condiciones y fecha de caducidad.`,
+        : `${coupons.length} cupones activos de ${store.name} (${codes} códigos descuento), con condiciones y fecha de caducidad.`
+      : `Hoy no hay cupones activos de ${store.name}. Los últimos códigos y ofertas que publicamos, cuándo caducaron y lo que conviene saber antes de comprar.`,
     alternates: { canonical: `/tiendas/${store.slug}` },
-    // a store with nothing live is a thin page: keep it reachable but out of the index
-    robots: coupons.length ? undefined : { index: false, follow: true },
+    // the URL stays in the index while the store has live coupons, a guide, or coupons that expired in the last months
+    // (dropping it each time its coupons run out would throw away what it ranks for); a store that never had any stays out
+    robots: coupons.length || expired.length || guide ? undefined : { index: false, follow: true },
   };
 }
 
@@ -57,7 +63,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   const rawOrden = sp.orden;
   const orden = ordenOf(typeof rawOrden === "string" ? rawOrden : "");
   if (!found) notFound();
-  const { store, all, coupons } = found;
+  const { store, all, coupons, expired } = found;
   const [client, mine] = await Promise.all([siteClient(), currentVotes()]);
   // where its clicks count: a campaign's utm_source, or this store page (the SEO landing for "<store> códigos")
   const source = pageSource(sp, "tienda");
@@ -82,7 +88,8 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   const cat = categoryOf(store.category);
   const domain = store.website.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
   const crumbs = [{ name: "Inicio", href: "/" }, { name: "Tiendas", href: "/tiendas" }, { name: store.name }];
-  const title = storeH1(store.name, coupons, now);
+  const title = storeH1(store.name, coupons.length ? coupons : expired, now);
+  const lastExpired = expired.slice(0, EXPIRED_SHOWN);
 
   // other stores of the same category first, then the ones with the most coupons
   const counts = new Map<string, { name: string; slug: string; n: number; same: boolean }>();
@@ -151,7 +158,8 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
               </>
             ) : (
               <>
-                Ahora mismo no hay cupones activos de {store.name}. Lo revisamos a diario: vuelve pronto o mira los <Link href="/">chollos de hoy</Link>.
+                Ahora mismo no hay cupones activos de {store.name}.
+                {lastExpired[0] ? <> El último caducó el {longDate(lastExpired[0].expires_at)}.</> : null} Lo revisamos a diario: vuelve pronto o mira los <Link href="/">chollos de hoy</Link>.
               </>
             )}
           </p>
@@ -185,6 +193,22 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
                   Publicamos cupones nuevos cada día. Mientras tanto, <Link href="/">mira los chollos de otras tiendas</Link>.
                 </p>
               </div>
+            )}
+            {lastExpired.length > 0 && (
+              <section className="panel" aria-labelledby="storeExpired" data-seo="Últimos cupones caducados">
+                <h2 id="storeExpired">Últimos cupones de {store.name} caducados</h2>
+                <p className="small">Ya no funcionan: te los dejamos para que sepas qué descuentos suele dar {store.name}.</p>
+                <ul className="stores">
+                  {lastExpired.map((c) => (
+                    <li key={c.id}>
+                      <Link href={dealPath(c)}>
+                        {titleOf(c)}
+                        <small>Caducó el {longDate(c.expires_at)}</small>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
           </section>
           <aside className="rail">

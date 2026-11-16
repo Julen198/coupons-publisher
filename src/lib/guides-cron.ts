@@ -1,7 +1,7 @@
 // The automatic store guides, end to end (design: docs/superpowers/specs/2026-11-09-auto-store-guides-design.md).
 // Daily cron: publish the guides whose wait is over, pick today's stores, write and check their guides, schedule
 // them, tell the admin chat. People only step in to cancel (/panel/guias).
-import { sql } from "./db";
+import { sql, type Coupon, type Store } from "./db";
 import { generateStoreGuide } from "./ai-guide";
 import { GUIDE_DEFAULTS, guideProblems, guideSimilarity, lasts, MAX_SIMILARITY, pickCandidates, settingsOf, type Candidate, type GuideSettings, type StoreSignals } from "./guide-rules.ts";
 import { siteCoupons, siteStore, type SiteCoupon } from "./public-site";
@@ -10,6 +10,8 @@ import { guideSlugs, storeGuide, type StoreGuide } from "./store-guides.ts";
 import { tg, telegramConfig } from "./telegram";
 import { categoryOf } from "./catalog";
 import { pingIndexNow } from "./guide-index";
+import { faqsToText, generateStoreContent } from "./ai-content";
+import { assertWithinBudget } from "./ai-budget";
 import { dateRange, googleConfigured, meanPosition, searchAnalytics, storeSlugOf, type SearchRow } from "./google-api.ts";
 
 // status: scheduled (new, goes out at publish_at), published, rejected (cancelled, or the AI couldn't write a valid
@@ -171,7 +173,45 @@ async function notify(lines: string[]) {
   }
 }
 
-export interface CronResult { published: string[]; scheduled: { name: string; publishAt: Date }[]; failed: { name: string; problems: string[] }[]; skipped?: string }
+export interface CronResult { published: string[]; scheduled: { name: string; publishAt: Date }[]; failed: { name: string; problems: string[] }[]; intros?: string[]; skipped?: string }
+
+// Stores with live coupons but no intro get one (and FAQs if they have none) each day, busiest first: a store page that
+// is only a list of coupons reads as thin content. Short texts from the store's own coupons (generateStoreContent);
+// they can be edited in the store's panel page.
+const INTROS_PER_DAY = 5;
+
+async function fillStoreIntros(coupons: SiteCoupon[], started: number): Promise<string[]> {
+  const live = new Map<number, number>();
+  for (const c of coupons) live.set(c.store_id, (live.get(c.store_id) ?? 0) + 1);
+  if (!live.size) return [];
+  // a store with a guide (or one on its way) is left alone: its page shows the guide's lead where the intro would go
+  const [rows, guided] = await Promise.all([
+    sql()<Store[]>`SELECT * FROM stores WHERE id = ANY(${[...live.keys()]}) AND intro = ''`,
+    sql()<{ slug: string }[]>`SELECT s.slug FROM store_guides g JOIN stores s ON s.id = g.store_id WHERE g.status IN ('scheduled', 'published')`,
+  ]);
+  const skip = new Set([...guideSlugs(), ...guided.map((g) => g.slug)]);
+  const stores = rows.filter((st) => !skip.has(st.slug));
+  const done: string[] = [];
+  for (const store of [...stores].sort((a, b) => (live.get(b.id) ?? 0) - (live.get(a.id) ?? 0)).slice(0, INTROS_PER_DAY)) {
+    if (Date.now() - started > TIME_BUDGET_MS) break;
+    try {
+      await assertWithinBudget();
+      const own = await sql()<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${store.id} AND archived = 0 ORDER BY id DESC LIMIT 40`;
+      const out = await generateStoreContent({ ...store }, [...own]);
+      if (!out.intro.trim()) continue;
+      // only fills what is empty: an intro or FAQs someone wrote by hand meanwhile stay
+      await sql()`
+        UPDATE stores SET intro = CASE WHEN intro = '' THEN ${out.intro.trim()} ELSE intro END,
+                          faqs = CASE WHEN faqs = '' THEN ${faqsToText(out.faqs)} ELSE faqs END
+        WHERE id = ${store.id}`;
+      done.push(store.name);
+    } catch (e) {
+      console.error("store intro failed", store.slug, e);
+      break; // over budget or the AI is down: try again tomorrow
+    }
+  }
+  return done;
+}
 
 // Stop starting new stores after this, so the run (and its notices) ends inside the route's maxDuration of 300 s
 const TIME_BUDGET_MS = 200_000;
@@ -182,9 +222,15 @@ export async function runGuidesCron(started = Date.now()): Promise<CronResult> {
   await notify(published.map((n) => `✅ Publicada la guía de ${n}.`));
   const result: CronResult = { published, scheduled: [], failed: [] };
   if (!settings.enabled) return { ...result, skipped: "desactivado en el panel" };
-  const room = settings.perDay - (await writtenToday());
-  if (room <= 0) return result;
   const coupons = await siteCoupons();
+  const room = settings.perDay - (await writtenToday());
+  if (room > 0) await writeTodaysGuides(coupons, settings, room, result, started);
+  result.intros = await fillStoreIntros(coupons, started);
+  if (result.intros.length) await notify([`✍️ Texto de presentación escrito para ${result.intros.join(", ")}. Puedes editarlo en la ficha de cada tienda.`]);
+  return result;
+}
+
+async function writeTodaysGuides(coupons: SiteCoupon[], settings: GuideSettings, room: number, result: CronResult, started: number) {
   const [signals, taken] = await Promise.all([storeSignals(coupons), takenSlugs()]);
   // ponytail: no lock; Vercel fires this cron once a day, and a rare overlap only rewrites the same store twice
   for (const c of pickCandidates(signals, { minLive: settings.minLive, taken }).slice(0, room)) {
@@ -206,5 +252,4 @@ export async function runGuidesCron(started = Date.now()): Promise<CronResult> {
     const f = result.failed.at(-1)!;
     await notify([`⚠️ No se pudo escribir la guía de ${f.name}: ${f.problems.join("; ")}. En el panel puedes pulsar «Reescribir».`]);
   }
-  return result;
 }

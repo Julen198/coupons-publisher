@@ -2,6 +2,8 @@
 import { isPublic, statusOf } from "./coupon-status.ts";
 import { onSpanishSite, type CountryStore } from "./market.ts";
 import { dealPath, parseDealId } from "./site-text.ts";
+import { categoryOf, categoryPath } from "./catalog.ts";
+import { eventPageOf } from "./event-pages.ts";
 
 export type DealVisibility = "live" | "expired" | "gone";
 
@@ -57,4 +59,22 @@ export function isDocumentRequest(method: string, accept: string | null, url: UR
   if (method !== "GET" && method !== "HEAD") return false;
   if (url.searchParams.has("_rsc")) return false;
   return (accept ?? "").toLowerCase().includes("text/html");
+}
+
+// Pages whose URLs come from a fixed list, decided without the database: /categorias/<slug> and /ofertas/<event> exist
+// only for known slugs, and the old home-page category links (/?cat=moda, no search) moved to /categorias/moda
+export function fixedRouteVerdict(pathname: string, search: URLSearchParams): RouteVerdict | null {
+  const cat = /^\/categorias\/([^/]+)$/.exec(pathname);
+  if (cat) return categoryOf(cat[1]) ? { kind: "ok" } : { kind: "missing" };
+  const ev = /^\/ofertas\/([^/]+)$/.exec(pathname);
+  if (ev) return eventPageOf(ev[1]) ? { kind: "ok" } : { kind: "missing" };
+  if (pathname === "/" && search.has("cat") && !search.get("q")) {
+    const known = categoryOf(search.get("cat") ?? "");
+    const rest = new URLSearchParams(search);
+    rest.delete("cat");
+    const qs = rest.toString();
+    // an unknown ?cat= just shows every deal, as before
+    return known ? { kind: "moved", to: `${categoryPath(known.slug)}${qs ? `?${qs}` : ""}` } : null;
+  }
+  return null;
 }
