@@ -11,6 +11,7 @@ const eur = (v: number) => v.toLocaleString("es-ES", { style: "currency", curren
 const pct = (v: number) => `${(v * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 })} %`;
 const pos = (v: number | null) => (v == null ? "—" : v.toLocaleString("es-ES", { maximumFractionDigits: 1 }));
 const fmtDay = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
+const weekday = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "long", timeZone: "UTC" });
 
 // ▲/▼ against the previous period; for position, lower is better
 function Delta({ cur, prev, lowerIsBetter = false }: { cur: number | null; prev: number | null; lowerIsBetter?: boolean }) {
@@ -68,10 +69,17 @@ function DailyChart({ daily }: { daily: Stats["daily"] }) {
   return (
     <div>
       <div className="flex h-56 items-end gap-0.5 border-b border-neutral-300 dark:border-neutral-700" role="img" aria-label="Visitas y clics a tiendas por día">
-        {daily.map((d) => (
-          <div key={d.day} title={`${fmtDay(d.day)}: ${n(d.visits)} visitas, ${n(d.clicks)} clics a tiendas`} className="flex h-full flex-1 items-end gap-px">
-            <span className="block flex-1 rounded-t-sm bg-blue-300 dark:bg-blue-800" style={{ height: `${(d.visits / top) * 100}%` }} />
-            <span className="block flex-1 rounded-t-sm bg-orange-700 dark:bg-orange-400" style={{ height: `${(d.clicks / top) * 100}%` }} />
+        {daily.map((d, i) => (
+          // hover/focus tooltip with the day's numbers; it opens towards the middle so the edge days stay on screen
+          <div key={d.day} tabIndex={0} aria-label={`${fmtDay(d.day)}: ${n(d.visits)} visitas, ${n(d.clicks)} clics a tiendas`} className="group relative flex h-full flex-1 items-end gap-px outline-none">
+            <span className="block flex-1 rounded-t-sm bg-blue-300 transition-opacity group-hover:opacity-80 group-focus:opacity-80 dark:bg-blue-800" style={{ height: `${(d.visits / top) * 100}%` }} />
+            <span className="block flex-1 rounded-t-sm bg-orange-700 transition-opacity group-hover:opacity-80 group-focus:opacity-80 dark:bg-orange-400" style={{ height: `${(d.clicks / top) * 100}%` }} />
+            <div className={`pointer-events-none absolute top-0 z-10 hidden w-48 flex-col gap-1 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs shadow-md group-hover:flex group-focus:flex dark:border-neutral-700 dark:bg-neutral-900 ${i < daily.length / 2 ? "left-full ml-2" : "right-full mr-2"}`}>
+              <span className="font-semibold">{weekday(d.day)}, {fmtDay(d.day)}</span>
+              <span className="flex items-center gap-2"><span aria-hidden="true" className="size-2.5 rounded-sm bg-blue-300 dark:bg-blue-800" /><span className="flex-1">Visitas</span><span className="tabular-nums">{n(d.visits)}</span></span>
+              <span className="flex items-center gap-2"><span aria-hidden="true" className="size-2.5 rounded-sm bg-orange-700 dark:bg-orange-400" /><span className="flex-1">Clics a tiendas</span><span className="tabular-nums">{n(d.clicks)}</span></span>
+              {d.visits > 0 && <span className="text-neutral-500">{pct(d.clicks / d.visits)} de las visitas va a la tienda</span>}
+            </div>
           </div>
         ))}
       </div>
