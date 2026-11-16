@@ -2,6 +2,7 @@
 // rankings from one year to the next («ofertas black friday», «rebajas de enero»…). The text is hand-written and true
 // every year; the date, the countdown and the deals are worked out per request. Pure, so it tests without a database.
 import type { CategorySlug } from "./catalog.ts";
+import { isPerk } from "./perks.ts";
 import { eventsOf } from "./site-text.ts";
 
 export interface EventPage {
@@ -374,6 +375,18 @@ export const storeEventSeason = (e: EventPage, todayIso: string): boolean => {
 export const storeEventsInSeason = (todayIso: string): EventPage[] =>
   EVENT_PAGES.filter((e) => storeEventSeason(e, todayIso)).sort((a, b) => eventEdition(a, todayIso).date.localeCompare(eventEdition(b, todayIso).date));
 
-// A store × event page is worth indexing only with something of its own to show: live coupons of the store. Without
-// them it would be the event's text with another name (thin), so it stays out of the index but its links are followed.
-export const storeEventIndexable = (liveOfStore: number): boolean => liveOfStore > 0;
+// A store × event page is worth indexing only with something of its own to show: live coupons of the store that name
+// the event. With none it shows the store's ordinary coupons under the event's text with another name (thin, and the
+// same as its store page), so it stays out of the index and the sitemap, but its links are followed.
+export const storeEventIndexable = (eventCouponsOfStore: number): boolean => eventCouponsOfStore > 0;
+
+type StoreDeal = DealText & { store_slug: string; store_name: string; perk?: string | null };
+
+// Per store, how many of its live coupons name the event (standing offers left out: they never mention a date). Only
+// stores with at least one, most first: what the event's «por tienda» lists, the store × event pages and the sitemap use.
+export function eventCouponsByStore<T extends StoreDeal>(e: EventPage, live: readonly T[], todayIso: string): { slug: string; name: string; n: number }[] {
+  const { matched } = eventDeals(e, live.filter((c) => !isPerk(c)), todayIso);
+  const by = new Map<string, { slug: string; name: string; n: number }>();
+  for (const c of matched) by.set(c.store_slug, { slug: c.store_slug, name: c.store_name, n: (by.get(c.store_slug)?.n ?? 0) + 1 });
+  return [...by.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, "es"));
+}
