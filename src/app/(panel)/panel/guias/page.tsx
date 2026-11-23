@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { io } from "next/cache";
-import { publishGuideNow, rejectGuide, saveGuideSettings, writeGuideNow } from "@/app/actions-guides";
+import { publishGuideNow, rejectGuide, reviewFactCheck, saveGuideSettings, writeGuideNow } from "@/app/actions-guides";
+import { factCheckRows, type FactCheckRow } from "@/lib/store-facts-cron";
+import { sentenceDiff } from "@/lib/store-facts-check";
 import { btnCls, btnSecondaryCls, cardCls, fmtDateTime, inputCls, PageHeader } from "@/app/ui";
 import { requireEditor } from "@/lib/auth";
 import { guideRows, guideSettings, nextCandidates, storesMissingFacts, type GuideRow } from "@/lib/guides-cron";
@@ -44,10 +46,32 @@ function StoreButton({ action, id, label, secondary }: { action: (f: FormData) =
   );
 }
 
+const CHECK_STATUS: Record<FactCheckRow["status"], string> = { pending: "Primera lectura pendiente", ok: "Sin cambios", changed: "Ha cambiado", unreadable: "No se puede leer" };
+
+function ChangedCheck({ c }: { c: FactCheckRow }) {
+  const d = sentenceDiff(c.previous, c.sentences);
+  return (
+    <div className={`${cardCls} space-y-2 text-sm`}>
+      <p>
+        <Link href={`/panel/stores/${c.slug}`} className="font-medium underline">{c.name}</Link> · {c.labels.join(", ")} ·{" "}
+        <a href={c.url} target="_blank" rel="noreferrer" className="underline">ver la página</a>
+        {c.changed_at ? <span className="text-neutral-500"> · cambió el {fmtDateTime(c.changed_at)}</span> : null}
+      </p>
+      {d.added.length > 0 && <ul className="list-disc pl-5 text-green-800 dark:text-green-400">{d.added.map((x) => <li key={x}>Ahora: {x}</li>)}</ul>}
+      {d.removed.length > 0 && <ul className="list-disc pl-5 text-red-800 dark:text-red-400">{d.removed.map((x) => <li key={x}>Antes: {x}</li>)}</ul>}
+      <form action={reviewFactCheck}>
+        <input type="hidden" name="store_id" value={c.store_id} />
+        <input type="hidden" name="url" value={c.url} />
+        <button className={btnSecondaryCls}>Ya está revisado</button>
+      </form>
+    </div>
+  );
+}
+
 export default async function GuidesPage() {
   const user = await requireEditor();
   await io();
-  const [rows, settings, candidates, noFacts] = await Promise.all([guideRows(), guideSettings(), nextCandidates(10), storesMissingFacts(15)]);
+  const [rows, settings, candidates, noFacts, checks] = await Promise.all([guideRows(), guideSettings(), nextCandidates(10), storesMissingFacts(15), factCheckRows()]);
   // waiting: new guides, and rewrites of published ones (the live guide stays until then)
   const scheduled = rows.filter((r) => r.status === "scheduled" || r.draft).sort((a, b) => +a.publish_at - +b.publish_at);
   const rest = rows.filter((r) => r.status !== "scheduled");
@@ -116,6 +140,35 @@ export default async function GuidesPage() {
                   <td className="py-2"><Link href={`/panel/stores/${s.slug}`} className="underline">{s.name}</Link></td>
                   <td>{s.live}</td>
                   <td>{s.missing.join(", ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+
+      <section id="revision-datos" className="space-y-3">
+        <h2 className="text-lg font-semibold">Revisión de datos de tienda</h2>
+        <p className="text-sm text-neutral-500">
+          Cada mañana se vuelven a leer las páginas de donde se copiaron los datos (las líneas «Etiqueta | URL» de «Fuentes de los datos» en la
+          ficha de cada tienda). Si el texto de envío, devoluciones, códigos o pagos cambia, sale aquí y llega un aviso por Telegram. No se cambia
+          nada solo: corrige los datos en la ficha y pulsa «Ya está revisado».
+        </p>
+        {checks.length === 0 && <p className="text-sm text-neutral-500">Ninguna tienda tiene fuentes todavía.</p>}
+        {checks.filter((c) => c.status === "changed").map((c) => <ChangedCheck key={`${c.store_id} ${c.url}`} c={c} />)}
+        {checks.some((c) => c.status !== "changed") && (
+          <table className="w-full text-sm">
+            <thead className="text-left text-neutral-500">
+              <tr><th className="py-2">Tienda</th><th>Datos</th><th>Estado</th><th>Última lectura</th></tr>
+            </thead>
+            <tbody>
+              {checks.filter((c) => c.status !== "changed").map((c) => (
+                <tr key={`${c.store_id} ${c.url}`} className="border-t border-neutral-200 align-top dark:border-neutral-800">
+                  <td className="py-2"><Link href={`/panel/stores/${c.slug}`} className="underline">{c.name}</Link></td>
+                  <td><a href={c.url} target="_blank" rel="noreferrer" className="underline">{c.labels.join(", ")}</a></td>
+                  <td>{CHECK_STATUS[c.status]}{c.detail ? <span className="block text-xs text-neutral-500">{c.detail}{c.fails ? ` (${c.fails} intentos seguidos)` : ""}</span> : null}</td>
+                  <td>{c.checked_at ? fmtDateTime(c.checked_at) : "—"}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,5 +1,7 @@
 "use server";
 
+import { isMissingSchema } from "@/lib/schema-guard";
+
 import { openUnverifiedColumn } from "@/lib/open-stores";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
@@ -477,6 +479,17 @@ async function saveAltDomains(slug: string, domains: string): Promise<boolean> {
   }
 }
 
+// The pages each store fact was copied from ("Etiqueta | URL" lines); true when the column isn't there yet
+async function saveFactSources(slug: string, text: string): Promise<boolean> {
+  try {
+    await sql()`UPDATE stores SET facts_sources = ${text.trim()} WHERE slug = ${slug} AND facts_sources <> ${text.trim()}`;
+    return false;
+  } catch (e) {
+    if (isMissingSchema(e)) return text.trim() !== "";
+    throw e;
+  }
+}
+
 export async function updateStore(_prev: FormState, f: FormData): Promise<FormState> {
   const s = required(f, "slug");
   try {
@@ -492,6 +505,10 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
     if (country !== null) {
       const missing = await saveManualCountry(s, country);
       if (missing && country) return { error: "Guardado, salvo el país. Ejecuta npm run db:setup para poder guardarlo" };
+    }
+    if (f.has("facts_sources")) {
+      const missing = await saveFactSources(s, str(f, "facts_sources"));
+      if (missing) return { error: "Guardado, salvo las fuentes de los datos. Ejecuta npm run db:setup para poder guardarlas" };
     }
     if (f.has("alt_domains")) {
       const missing = await saveAltDomains(s, altDomainsInput(str(f, "alt_domains")));

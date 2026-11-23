@@ -417,6 +417,25 @@ CREATE TABLE IF NOT EXISTS anon_expiry_reports (
 CREATE INDEX IF NOT EXISTS anon_expiry_reports_coupon_idx ON anon_expiry_reports(coupon_id);
 CREATE INDEX IF NOT EXISTS anon_expiry_reports_ip_idx ON anon_expiry_reports(ip_hash, at) WHERE ip_hash <> '';
 ALTER TABLE anon_expiry_reports ENABLE ROW LEVEL SECURITY;
+-- where each store fact was copied from: "Etiqueta | URL" per line, same labels as stores.facts. The daily facts checker
+-- (store-facts-cron.ts) reads those pages and keeps one row per page: the policy sentences it read, and while a change
+-- waits for review, the ones from before (status: pending, ok, changed, unreadable)
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS facts_sources text NOT NULL DEFAULT '';
+CREATE TABLE IF NOT EXISTS store_fact_checks (
+  store_id int NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  url text NOT NULL,
+  labels text[] NOT NULL DEFAULT '{}',
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'ok', 'changed', 'unreadable')),
+  digest text NOT NULL DEFAULT '',
+  sentences jsonb NOT NULL DEFAULT '[]',
+  previous jsonb NOT NULL DEFAULT '[]',
+  fails int NOT NULL DEFAULT 0,
+  detail text NOT NULL DEFAULT '',
+  checked_at timestamptz,
+  changed_at timestamptz,
+  PRIMARY KEY (store_id, url)
+);
+ALTER TABLE store_fact_checks ENABLE ROW LEVEL SECURITY;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes (anonymous ones go with coupons, CASCADE), comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay

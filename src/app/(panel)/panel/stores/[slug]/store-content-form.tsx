@@ -13,7 +13,7 @@ import { NetworkFields } from "../network-fields";
 interface StoreContentProps {
   store: {
     slug: string; name: string; website: string; network: string; merchant_id: string; tracking_url: string; intro: string; faqs: string;
-    category: string; facts: string; country: string; country_source: string; alt_domains?: string; title_term: string;
+    category: string; facts: string; facts_sources: string; country: string; country_source: string; alt_domains?: string; title_term: string;
   };
   inferred: { country: string; reason: string } | null; // what the site reads from the name and web while País is empty
   discounts: string[];
@@ -29,6 +29,7 @@ export function StoreContentForm({ store, inferred, discounts }: StoreContentPro
   const [country, setCountry] = useState(store.country);
   const [term, setTerm] = useState(store.title_term);
   const [facts, setFacts] = useState(store.facts);
+  const [sources, setSources] = useState(store.facts_sources);
   const [aiError, setAiError] = useState("");
   const [generating, startGenerate] = useTransition();
   const [, startSave] = useTransition();
@@ -143,6 +144,12 @@ export function StoreContentForm({ store, inferred, discounts }: StoreContentPro
             <button type="button" onClick={() => setFacts(withFactTemplate(facts))} className={btnSecondaryCls}>Añadir líneas que faltan</button>
           </div>
         )}
+
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-neutral-600 dark:text-neutral-400">Fuentes de los datos. Una línea por dato: Envío | https://… (la página de la tienda de donde se copió)</span>
+          <textarea name="facts_sources" rows={4} value={sources} onChange={(e) => setSources(e.target.value)} className={`${inputCls} font-mono text-xs`} aria-describedby="sources-help" />
+          <span id="sources-help" className="text-xs text-neutral-600 dark:text-neutral-400">Cada mañana se vuelven a leer estas páginas y, si cambian, se avisa en Guías SEO y por Telegram.</span>
+        </label>
 
         {state.error && <p role="alert" className="text-sm text-red-800 dark:text-red-300">{state.error}</p>}
         <div className="flex items-center gap-3">
