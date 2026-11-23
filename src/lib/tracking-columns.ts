@@ -35,6 +35,8 @@ export const clickColumns = columnGuard(/\b(kind|ref|ua_hash)\b/);
 // clicks.source (the click's origin) came later than kind/ref/ua_hash: its own guard, so a database that has those but
 // not this one still records them
 export const clickSourceColumn = columnGuard(/\bsource\b/);
+// coupons.brand (the /marcas pages, see dealBrands)
+export const couponBrandColumn = columnGuard(/\bbrand\b/);
 
 // For SELECTs on stores aliased `alias`
 export const altDomainsSql = (present: boolean, alias: string, as = "store_alt_domains"): string =>

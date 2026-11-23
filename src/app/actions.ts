@@ -15,7 +15,8 @@ import { pastedTemplate } from "@/lib/networks/tradedoubler";
 import { storeCategory } from "@/lib/catalog";
 import { countryInput } from "@/lib/market";
 import { isMissingCountry } from "@/lib/country-column";
-import { altDomainsColumn } from "@/lib/tracking-columns";
+import { altDomainsColumn, couponBrandColumn } from "@/lib/tracking-columns";
+import { brandInput } from "@/lib/brands";
 import { couponFreshnessColumns, perkInput, titleTermColumn } from "@/lib/perks";
 import { titleTermInput } from "@/lib/deal-text";
 import { altDomainsInput } from "@/lib/tracked-link";
@@ -544,7 +545,9 @@ export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormSta
     const checkedNow = f.get("checked_now") === "on";
     // reader-shared deals waiting for review (or rejected) are only handled on /panel/moderacion: never published from here
     // an edit locks the text against the network sync (text_locked), so the correction survives the next sync
-    await couponFreshnessColumns.run(async (present) => {
+    // its brands for the /marcas pages: '' = read from the title, '-' = none, else the editor's pick (see dealBrands)
+    const brand = brandInput(str(f, "brand"));
+    const savedId = await couponFreshnessColumns.run(async (present) => {
       if (!present && perk) throw new Error("Para guardar ofertas permanentes ejecuta antes npm run db:setup");
       if (id) {
         if (present)
@@ -552,9 +555,14 @@ export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormSta
             checked_at = CASE WHEN ${checkedNow}::boolean OR (coupons.verified = 0 AND ${c.verified}::int = 1) THEN now() ELSE coupons.checked_at END
             WHERE id = ${id} AND review = ''`;
         else await sql()`UPDATE coupons SET ${sql()({ ...c, text_locked: true })} WHERE id = ${id} AND review = ''`;
-      } else {
-        await sql()`INSERT INTO coupons ${sql()(present ? { ...c, perk, checked_at: c.verified || checkedNow ? new Date() : null } : c)}`;
+        return id;
       }
+      const [row] = await sql()<{ id: number }[]>`INSERT INTO coupons ${sql()(present ? { ...c, perk, checked_at: c.verified || checkedNow ? new Date() : null } : c)} RETURNING id`;
+      return row.id;
+    });
+    await couponBrandColumn.run(async (present) => {
+      if (present) await sql()`UPDATE coupons SET brand = ${brand} WHERE id = ${savedId} AND review = ''`;
+      else if (brand) throw new Error("Para elegir la marca a mano ejecuta antes el SQL de marcas en Supabase");
     });
     if (!id) await logActivity(`Nuevo cupón: ${c.title}`);
   } catch (e) {

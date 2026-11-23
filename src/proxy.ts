@@ -5,7 +5,7 @@ import { fixedRouteVerdict, isDocumentRequest, needsSignIn, type RouteVerdict } 
 import { orNullAfter } from "@/lib/with-timeout";
 
 // The public deals site: indexable, open to everyone
-const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/tiendas\/[^/]+\/opengraph-image/, /^\/categorias\/[^/]+$/, /^\/categorias\/[^/]+\/opengraph-image/, /^\/opengraph-image/, /^\/ofertas\/[^/]+(\/[^/]+)?$/, /^\/ofertas\/[^/]+\/opengraph-image/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado)$/, /^\/sitemap\.xml$/];
+const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/tiendas\/[^/]+\/opengraph-image/, /^\/categorias\/[^/]+$/, /^\/categorias\/[^/]+\/opengraph-image/, /^\/marcas(\/[^/]+)?$/, /^\/opengraph-image/, /^\/ofertas\/[^/]+(\/[^/]+)?$/, /^\/ofertas\/[^/]+\/opengraph-image/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado)$/, /^\/sitemap\.xml$/];
 // Reachable without signing in: the public site, login, accepting an invitation, and what publishers embed on their sites
 const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/llms\.txt$/, /^\/indexnow\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//,
   // Telegram webhook and its daily cron: each checks its own secret header instead of a session
@@ -89,7 +89,7 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // categories and event pages: a fixed list, no database (their "moved" target already carries the query)
+  // categories, brands and event pages: a fixed list, no database (their "moved" target already carries the query)
   const fixed = fixedRouteVerdict(pathname, req.nextUrl.searchParams);
   if (fixed?.kind === "moved") return NextResponse.redirect(new URL(fixed.to, req.url), 308);
   if (fixed?.kind === "missing" && isDocumentRequest(req.method, req.headers.get("accept"), req.nextUrl)) return NextResponse.rewrite(new URL(NOT_FOUND_PAGE, req.url));

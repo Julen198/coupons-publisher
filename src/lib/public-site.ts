@@ -19,6 +19,7 @@ import { countrySql, withCountryColumn } from "./country-column.ts";
 import { publicText } from "./translation.ts";
 import { translationSql, withTranslationColumns } from "./translation-column.ts";
 import { titleTermColumn } from "./perks.ts";
+import { dealBrands } from "./brands.ts";
 
 // Readers wrapped in React cache() run once per render: generateMetadata, the page and its related deals share one
 // query. The memo lasts one request only (no cross-request caching), and callers copy before sorting.
@@ -45,6 +46,7 @@ export type SiteCoupon = Coupon & {
   expiry_reports: number; // readers who marked it as expired ("Marcar como caducado")
   image_url: string; // product image (https) from a network feed or the landing page's og:image, "" = show the store logo
   display_title: string; // the title as the site shows it (displayTitle with the known brands)
+  brand_slugs: string[]; // the brands it is a deal of (see dealBrands): it is listed on each one's /marcas page
 };
 
 // wordmark / country / alt: whether stores.wordmark_data, stores.country and stores.alt_domains exist yet (see
@@ -103,11 +105,16 @@ const knownBrands = cache(async (): Promise<string[]> => {
 // description become its translation (publicText), so every card, page, meta tag and slug uses it.
 // A coupon's own category (coupons.category, '' = its store's) wins over the store's: a sneaker shop's winter-clothing
 // sale belongs in Moda. Read off c.*, so it is simply absent until the migration has run.
-function titled<T extends { title: string; description: string; store_name: string; store_category: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string })[] {
+// Its brands (/marcas pages) come from the Spanish title, unless an editor set them (coupons.brand, also off c.*).
+function titled<T extends { title: string; description: string; store_name: string; store_category: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string; brand_slugs: string[] })[] {
   return rows.map((r) => {
     const text = publicText(r);
     const own = (r as { category?: unknown }).category;
-    return { ...r, ...text, ...(typeof own === "string" && own ? { store_category: own } : {}), display_title: displayTitle(text.title, r.store_name, brands) };
+    const brand = (r as { brand?: unknown }).brand;
+    return {
+      ...r, ...text, ...(typeof own === "string" && own ? { store_category: own } : {}), display_title: displayTitle(text.title, r.store_name, brands),
+      brand_slugs: dealBrands({ title: text.title, store_name: r.store_name, brand: typeof brand === "string" ? brand : "" }),
+    };
   });
 }
 

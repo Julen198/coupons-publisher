@@ -45,6 +45,7 @@ test("clickSource: the link's ?o= wins, else the page path tells, else unknown",
   assert.equal(clickSource("<script>", "/tiendas/fnac"), "script"); // cleaned to letters/digits
   assert.equal(clickSource("123", "/tiendas/fnac"), "tienda"); // a source starts with a letter
   assert.equal(clickSource(null, "/chollos/42-x"), "chollo");
+  assert.equal(clickSource(null, "/marcas/samsung"), "marca");
   assert.equal(clickSource(null, "/"), "portada");
   assert.equal(clickSource(null, "/p/medio/fnac"), "pagina");
   assert.equal(clickSource(null, "ext:www.medio.es"), "externo");

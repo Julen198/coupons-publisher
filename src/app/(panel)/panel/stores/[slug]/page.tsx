@@ -49,10 +49,10 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
         id: editing.id, store_id: editing.store_id, kind: editing.kind, title: editing.title, code: editing.code,
         discount: editing.discount, description: editing.description, target_url: editing.target_url,
         expires_at: editing.expires_at, verified: Boolean(editing.verified),
-        perk: editing.perk ?? "", checked_day: checkedDay(editing.checked_at),
+        perk: editing.perk ?? "", brand: editing.brand ?? "", checked_day: checkedDay(editing.checked_at),
       }
     : sp.new !== undefined
-      ? { store_id: store.id, kind: "code", title: "", code: "", discount: "", description: "", target_url: store.website, expires_at: "", verified: false, perk: "" }
+      ? { store_id: store.id, kind: "code", title: "", code: "", discount: "", description: "", target_url: store.website, expires_at: "", verified: false, perk: "", brand: "" }
       : undefined;
 
   return (

@@ -71,6 +71,8 @@ export type Coupon = {
   checked_at?: Date | null;
   // a standing offer of the store ("bienvenida", "newsletter"… see PERKS), "" = an ordinary coupon; optional until the column exists
   perk?: string;
+  // its brands for the /marcas pages (see dealBrands): '' = from the title, '-' = none, else slugs; optional until the column exists
+  brand?: string;
 };
 
 export type CouponWithStore = Coupon & { store_name: string; store_slug: string; store_has_logo: boolean };
