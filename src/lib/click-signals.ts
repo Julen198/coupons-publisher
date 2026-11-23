@@ -75,6 +75,7 @@ export function clickSource(param: string | null | undefined, ref: string): stri
   if (ref.startsWith("ext:")) return "externo";
   if (ref.startsWith("/chollos/")) return "chollo";
   if (ref.startsWith("/tiendas/")) return "tienda";
+  if (ref.startsWith("/marcas/")) return "marca";
   if (ref.startsWith("/p/")) return "pagina";
   if (ref === "/") return "portada";
   return "web";
@@ -91,6 +92,7 @@ export const SOURCE_LABEL: Record<string, string> = {
   "": "Sin origen",
   portada: "Portada de CuponLab",
   tienda: "Página de tienda",
+  marca: "Página de marca",
   chollo: "Ficha de chollo",
   web: "Otras páginas de CuponLab",
   pagina: "Página del medio",

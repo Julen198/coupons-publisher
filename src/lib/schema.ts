@@ -386,6 +386,9 @@ ALTER TABLE coupons ADD CONSTRAINT coupons_category_check
   CHECK (category IN ('', 'tecnologia', 'zapatillas', 'moda', 'hogar', 'deporte', 'viajes'));
 -- the words a store page's title leads with in Google ('' = «Código descuento», see TITLE_TERMS)
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS title_term text NOT NULL DEFAULT '';
+-- the coupon's brands for the /marcas pages, set by an editor: '' = read from its title (see dealBrands), '-' = none,
+-- else brand slugs (brands.ts) separated by commas
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS brand text NOT NULL DEFAULT '';
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
