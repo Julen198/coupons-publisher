@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import type postgres from "postgres";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
 import { cleanComment, cleanHandle, couponIdOf, flagOf, parseSharedDeal, replyParent, reportLimitReached, validEmail } from "@/lib/community";
@@ -14,9 +14,15 @@ import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, mis
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
 import { siteCoupon } from "@/lib/public-site";
+import { isUncheckedFind } from "@/lib/coupon-status";
 import { getReader } from "@/lib/reader";
 import { encodeFlash, FLASH_COOKIE, FLASH_MAX_AGE, type Flash } from "@/lib/reader-entry";
 import { READER_COOKIE, SESSION_MAX_AGE, safeNext, signReader } from "@/lib/session";
+import { readerAccountsEnabled } from "@/lib/settings";
+import { anonReportAllowed, anonReportsTable, anonVoteAllowed, anonVotesTable, ipKey, newVoterId, validVoterId, VOTER_COOKIE, VOTER_MAX_AGE, voterKey } from "@/lib/anon-votes";
+import { clientIp } from "@/lib/login-limit";
+
+const ACCOUNTS_OFF_MESSAGE = "Las cuentas de lectores no están disponibles ahora mismo.";
 
 // Links sent across all readers in the window before we stop sending (a bot could otherwise use us as an email cannon)
 const GLOBAL_LINK_LIMIT = 30;
@@ -24,6 +30,7 @@ const GLOBAL_LINK_WINDOW_MINUTES = 10;
 
 // Same answer for any valid email (new, known, blocked, or inside the cooldown), so the form can't probe who has an account
 export async function requestReaderLink(_prev: FormState, f: FormData): Promise<FormState & { sent?: boolean }> {
+  if (!(await readerAccountsEnabled())) return { error: ACCOUNTS_OFF_MESSAGE };
   const email = str(f, "email").toLowerCase();
   if (!validEmail(email)) return { error: "Escribe un email válido." };
   // the reader still sees "sent" (no account probing), so the server log is where a broken setup shows
@@ -86,6 +93,7 @@ export async function confirmReaderLink(f: FormData): Promise<void> {
   const next = str(f, "next");
   const secret = process.env.SESSION_SECRET;
   if (!secret) throw new Error("Falta SESSION_SECRET en el servidor");
+  if (!(await readerAccountsEnabled())) redirect("/");
   const [reader] = /^[0-9a-f]{64}$/.test(token)
     ? await sql()<{ id: number; session_version: number; handle: string | null }[]>`
         UPDATE readers SET login_token_hash = NULL, login_expires_at = NULL
@@ -141,23 +149,63 @@ async function asReader<T>(scope: keyof typeof LOCK, readerId: number, run: (tx:
   })) as T;
 }
 
-// Works without client JS: a plain form post. Signed-out readers go to sign in and come back.
+// Works without client JS: a plain form post. A signed-in reader votes as themselves; anyone else votes anonymously.
 export async function vote(f: FormData): Promise<void> {
-  const next = safeNext(str(f, "next"), "/");
-  const reader = await getReader();
-  if (!reader) redirect(`/entrar?next=${encodeURIComponent(next)}`);
   const req = voteRequest(str(f, "coupon_id"), str(f, "value"));
   if (!req) return;
   const { couponId, pressed } = req;
   const found = await siteCoupon(couponId);
   if (!found?.live) return;
-  // pressing the vote you already gave clears it, otherwise it is set (nextVote): one statement, under the reader's lock
-  await asReader("vote", reader.id, (tx) => tx`
-    WITH cleared AS (DELETE FROM votes WHERE reader_id = ${reader.id} AND coupon_id = ${couponId} AND value = ${pressed} RETURNING 1)
-    INSERT INTO votes (reader_id, coupon_id, value)
-    SELECT ${reader.id}, ${couponId}, ${pressed} WHERE NOT EXISTS (SELECT 1 FROM cleared)
-    ON CONFLICT (reader_id, coupon_id) DO UPDATE SET value = EXCLUDED.value, at = now()`);
+  const reader = await getReader();
+  if (reader) {
+    // pressing the vote you already gave clears it, otherwise it is set (nextVote): one statement, under the reader's lock
+    await asReader("vote", reader.id, (tx) => tx`
+      WITH cleared AS (DELETE FROM votes WHERE reader_id = ${reader.id} AND coupon_id = ${couponId} AND value = ${pressed} RETURNING 1)
+      INSERT INTO votes (reader_id, coupon_id, value)
+      SELECT ${reader.id}, ${couponId}, ${pressed} WHERE NOT EXISTS (SELECT 1 FROM cleared)
+      ON CONFLICT (reader_id, coupon_id) DO UPDATE SET value = EXCLUDED.value, at = now()`);
+  } else {
+    await anonVote(couponId, pressed);
+  }
   refresh();
+}
+
+// A visitor without an account (anon-votes.ts): one vote per deal and cookie, with per-IP limits for cleared cookies
+// and scripts. Over a limit the press is ignored, the same as a vote that didn't change anything.
+// Who a visitor without an account is: their cl_voter cookie (created here, when they press a vote or «Marcar como
+// caducado», never on a plain visit) and the per-day hash of their IP
+async function anonVisitor(): Promise<{ voter: string; ip: string }> {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) throw new Error("Falta SESSION_SECRET en el servidor");
+  const jar = await cookies();
+  const current = jar.get(VOTER_COOKIE)?.value;
+  const id = validVoterId(current) ? current : newVoterId();
+  jar.set(VOTER_COOKIE, id, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: VOTER_MAX_AGE });
+  const h = await headers();
+  return { voter: voterKey(id), ip: ipKey(secret, clientIp(h.get("x-forwarded-for"), h.get("x-real-ip")), new Date()) };
+}
+
+async function anonVote(couponId: number, pressed: -1 | 1): Promise<void> {
+  const { voter, ip } = await anonVisitor();
+  // No transaction: sql().begin fails on this pool (max_pipeline: 0, see db.ts). Two presses fired at the same moment
+  // can both pass the counts, so a burst of simultaneous presses may slip a few past a limit.
+  try {
+    const [c] = await sql()<{ hour: number; others: number; mine: boolean }[]>`
+      SELECT (SELECT count(*) FROM anon_votes WHERE ip_hash = ${ip} AND at > now() - interval '1 hour')::int AS hour,
+             (SELECT count(*) FROM anon_votes WHERE ip_hash = ${ip} AND coupon_id = ${couponId} AND voter <> ${voter}
+                AND at > now() - interval '24 hours')::int AS others,
+             EXISTS (SELECT 1 FROM anon_votes WHERE voter = ${voter} AND coupon_id = ${couponId}) AS mine`;
+    if (!anonVoteAllowed({ ipVotesLastHour: c.hour, otherVotersOnDeal: c.others, alreadyOnDeal: c.mine })) return;
+    // pressing the vote you already gave clears it, otherwise it is set: one statement, like a reader's vote
+    await sql()`
+      WITH cleared AS (DELETE FROM anon_votes WHERE voter = ${voter} AND coupon_id = ${couponId} AND value = ${pressed} RETURNING 1)
+      INSERT INTO anon_votes (voter, coupon_id, value, ip_hash)
+      SELECT ${voter}, ${couponId}, ${pressed}, ${ip} WHERE NOT EXISTS (SELECT 1 FROM cleared)
+      ON CONFLICT (voter, coupon_id) DO UPDATE SET value = EXCLUDED.value, ip_hash = EXCLUDED.ip_hash, at = now()`;
+  } catch (e) {
+    // the table comes with the migration: until then the press does nothing instead of failing
+    if (!anonVotesTable.isMissing(e)) throw e;
+  }
 }
 
 const COMMENT_COOLDOWN_SECONDS = 30;
@@ -265,13 +313,18 @@ export async function toggleSaved(f: FormData): Promise<void> {
   refresh();
 }
 
-// "Marcar como caducado": one report per reader and deal (the primary key), ten a day per reader
+// "Marcar como caducado": one report per reader and deal (the primary key), ten a day per reader. Without an account
+// it works only on unchecked web finds (two reports hide one, see openFindShown), with the per-IP limits of anonReport.
 export async function reportExpired(_prev: FormState & { done?: boolean }, f: FormData): Promise<FormState & { done?: boolean }> {
   const back = safeNext(str(f, "back"), "/");
-  const reader = await getReader();
-  if (!reader) redirect(`/entrar?next=${encodeURIComponent(back)}`);
   const couponId = couponIdOf(str(f, "coupon_id"));
   const found = couponId ? await siteCoupon(couponId) : undefined;
+  const reader = await getReader();
+  if (!reader) {
+    if (found?.live && isUncheckedFind(found.coupon)) return anonReport(found.coupon.id);
+    if (await readerAccountsEnabled()) redirect(`/entrar?next=${encodeURIComponent(back)}`);
+    return { error: REPORT_INACTIVE_MESSAGE };
+  }
   if (!found?.live) return { error: REPORT_INACTIVE_MESSAGE };
   const limited = await asReader("expiry", reader.id, async (tx) => {
     const [today] = await tx<{ n: number }[]>`
@@ -281,6 +334,24 @@ export async function reportExpired(_prev: FormState & { done?: boolean }, f: Fo
     return false;
   });
   if (limited) return { error: expiryLimitMessage };
+  refresh();
+  return { done: true };
+}
+
+// Over a limit the visitor sees the same "Avisado, gracias" (telling them would only show how to get round it)
+async function anonReport(couponId: number): Promise<FormState & { done?: boolean }> {
+  const { voter, ip } = await anonVisitor();
+  try {
+    const [c] = await sql()<{ today: number; others: number }[]>`
+      SELECT (SELECT count(*) FROM anon_expiry_reports WHERE ip_hash = ${ip} AND at > now() - interval '24 hours')::int AS today,
+             (SELECT count(*) FROM anon_expiry_reports WHERE ip_hash = ${ip} AND coupon_id = ${couponId} AND voter <> ${voter})::int AS others`;
+    if (anonReportAllowed({ ipReportsToday: c.today, otherReportersOnDeal: c.others })) {
+      await sql()`INSERT INTO anon_expiry_reports (voter, coupon_id, ip_hash) VALUES (${voter}, ${couponId}, ${ip}) ON CONFLICT DO NOTHING`;
+    }
+  } catch (e) {
+    // the table comes with the migration: until then the press does nothing instead of failing
+    if (!anonReportsTable.isMissing(e)) throw e;
+  }
   refresh();
   return { done: true };
 }

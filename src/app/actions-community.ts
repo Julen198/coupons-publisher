@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activity";
 import { requireEditor } from "@/lib/auth";
 import { moderationFlag, moderationId, publishedActivity, readerBlockChange, rejectReasonOf, sharedReviewPatch } from "@/lib/community-rules";
 import { isMissingSchema } from "@/lib/schema-guard";
+import { anonReportsTable } from "@/lib/anon-votes";
 import { errorMessage, str } from "@/lib/form";
 import { generateDealAbout } from "@/lib/ai-content";
 import { AiBudgetError } from "@/lib/ai-budget";
@@ -79,6 +80,10 @@ export async function retireReported(f: FormData) {
   const rows = await sql()<{ title: string; n: number }[]>`
     UPDATE coupons SET archived = 1 WHERE id = ${id} AND archived = 0
     RETURNING title, (SELECT count(*)::int FROM expiry_reports WHERE coupon_id = coupons.id) AS n`;
+  if (rows[0]) {
+    rows[0].n += await anonReportsTable.run(async (present) =>
+      present ? (await sql()<{ n: number }[]>`SELECT count(*)::int AS n FROM anon_expiry_reports WHERE coupon_id = ${id}`)[0].n : 0);
+  }
   if (rows[0]) await logActivity(`Retirado por avisos de caducado (${rows[0].n}): ${rows[0].title}`);
   refresh();
 }
@@ -88,6 +93,7 @@ export async function dismissExpiryReports(f: FormData) {
   await requireEditor();
   const id = idOf(f);
   await sql()`DELETE FROM expiry_reports WHERE coupon_id = ${id}`;
+  await anonReportsTable.run(async (present) => { if (present) await sql()`DELETE FROM anon_expiry_reports WHERE coupon_id = ${id}`; });
   refresh();
 }
 

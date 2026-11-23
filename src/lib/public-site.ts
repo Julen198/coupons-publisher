@@ -9,7 +9,9 @@ import { withSource } from "./click-signals.ts";
 import { isTracked, trackedLinkOf } from "./tracked-link.ts";
 import { accountsFor, siteLinks, SITE_CLIENT_SLUG, type ClientLinks } from "./link-accounts";
 import { altDomainsColumn, altDomainsSql } from "./tracking-columns.ts";
+import { cookies } from "next/headers";
 import { getReader } from "./reader";
+import { anonReportsTable, anonVotesTable, validVoterId, VOTER_COOKIE, voterKey } from "./anon-votes.ts";
 import { madridToday } from "./site-text.ts";
 import { BRAND_ALLOWLIST, dedupeDeals, displayTitle } from "./deal-text.ts";
 import { onSpanishSite } from "./market.ts";
@@ -53,7 +55,9 @@ export type SiteCoupon = Coupon & {
 
 // wordmark / country / alt / open: whether stores.wordmark_data, stores.country, stores.alt_domains and
 // stores.open_unverified exist yet (see withWordmarkColumn, withCountryColumn, altDomainsColumn, openUnverifiedColumn)
-const couponSelect = (wordmark: boolean, country: boolean, alt: boolean, open: boolean) => `
+// anon / reports: whether anon_votes and anon_expiry_reports exist yet (anonVotesTable, anonReportsTable); the score and
+// the expiry reports add visitors without an account to signed-in readers
+const couponSelect = (wordmark: boolean, country: boolean, alt: boolean, open: boolean, anon: boolean, reports: boolean) => `
   SELECT c.*, s.name AS store_name, s.slug AS store_slug, s.logo_data <> '' AS store_has_logo,
          ${hasWordmarkSql(wordmark, "s")} AS store_has_wordmark, s.category AS store_category, s.website AS store_website,
          s.network AS store_network, s.merchant_id AS store_merchant_id, s.tracking_url AS store_tracking_url,
@@ -61,7 +65,12 @@ const couponSelect = (wordmark: boolean, country: boolean, alt: boolean, open: b
          coalesce(v.score, 0)::int AS score, coalesce(cm.n, 0)::int AS comments,
          CASE WHEN sb.status = 'active' THEN sb.handle END AS shared_by_handle, coalesce(er.n, 0)::int AS expiry_reports
   FROM coupons c JOIN stores s ON s.id = c.store_id
-  LEFT JOIN (SELECT vt.coupon_id, sum(vt.value) AS score FROM votes vt JOIN readers vr ON vr.id = vt.reader_id WHERE vr.status = 'active' GROUP BY vt.coupon_id) v ON v.coupon_id = c.id
+  LEFT JOIN (
+    SELECT x.coupon_id, sum(x.value) AS score FROM (
+      SELECT vt.coupon_id, vt.value FROM votes vt JOIN readers vr ON vr.id = vt.reader_id WHERE vr.status = 'active'
+      ${anon ? "UNION ALL SELECT av.coupon_id, av.value FROM anon_votes av" : ""}
+    ) x GROUP BY x.coupon_id
+  ) v ON v.coupon_id = c.id
   LEFT JOIN (
     SELECT k.coupon_id, count(*) AS n FROM comments k JOIN readers r ON r.id = k.reader_id
     LEFT JOIN comments pk ON pk.id = k.parent_id LEFT JOIN readers pr ON pr.id = pk.reader_id
@@ -69,13 +78,18 @@ const couponSelect = (wordmark: boolean, country: boolean, alt: boolean, open: b
     GROUP BY k.coupon_id
   ) cm ON cm.coupon_id = c.id
   LEFT JOIN readers sb ON sb.id = c.shared_by
-  LEFT JOIN (SELECT e.coupon_id, count(*) AS n FROM expiry_reports e JOIN readers er_r ON er_r.id = e.reader_id WHERE er_r.status = 'active' GROUP BY e.coupon_id) er ON er.coupon_id = c.id`;
+  LEFT JOIN (
+    SELECT y.coupon_id, count(*) AS n FROM (
+      SELECT e.coupon_id FROM expiry_reports e JOIN readers er_r ON er_r.id = e.reader_id WHERE er_r.status = 'active'
+      ${reports ? "UNION ALL SELECT ae.coupon_id FROM anon_expiry_reports ae" : ""}
+    ) y GROUP BY y.coupon_id
+  ) er ON er.coupon_id = c.id`;
 
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
 // couponSelect with whichever of its optional columns exist
 const withCouponSelect = <T>(query: (select: string) => Promise<T>): Promise<T> =>
-  withWordmarkColumn((w) => withCountryColumn((c) => altDomainsColumn.run((a) => openUnverifiedColumn.run((o) => query(couponSelect(w, c, a, o))))));
+  withWordmarkColumn((w) => withCountryColumn((c) => altDomainsColumn.run((a) => openUnverifiedColumn.run((o) => anonVotesTable.run((v) => anonReportsTable.run((r) => query(couponSelect(w, c, a, o, v, r))))))));
 
 // Whose links the public site builds (the cuponlab client, its own accounts' links, our Awin publisher ids): once per request
 const publicLinks = cache(async (): Promise<ClientLinks> => {
@@ -199,15 +213,38 @@ export async function readerVotes(readerId: number): Promise<Map<number, -1 | 1>
   return new Map(rows.map((r) => [r.coupon_id, r.value === 1 ? 1 : -1]));
 }
 
-// The signed-in reader's votes, or none. One query per request.
+// What a visitor without an account has voted (their cl_voter cookie), by coupon id; none before they first vote
+async function anonVotes(): Promise<Map<number, -1 | 1>> {
+  const id = (await cookies()).get(VOTER_COOKIE)?.value;
+  if (!validVoterId(id)) return new Map();
+  return anonVotesTable.run(async (present) => {
+    if (!present) return new Map();
+    const rows = await sql()<{ coupon_id: number; value: number }[]>`SELECT coupon_id, value FROM anon_votes WHERE voter = ${voterKey(id)}`;
+    return new Map(rows.map((r) => [r.coupon_id, r.value === 1 ? 1 : -1]));
+  });
+}
+
+// The signed-in reader's votes, else the anonymous visitor's. One query per request.
 export const currentVotes = cache(async (): Promise<Map<number, -1 | 1>> => {
   const reader = await getReader();
-  return reader ? readerVotes(reader.id) : new Map();
+  return reader ? readerVotes(reader.id) : anonVotes();
 });
 
-// What the signed-in reader did on one deal: saved it (Guardar), reported it as expired (Marcar como caducado)
+// Whether this visitor without an account (cl_voter cookie) already marked the deal as expired
+async function anonReported(couponId: number): Promise<boolean> {
+  const id = (await cookies()).get(VOTER_COOKIE)?.value;
+  if (!validVoterId(id)) return false;
+  return anonReportsTable.run(async (present) => {
+    if (!present) return false;
+    const [row] = await sql()<{ n: number }[]>`SELECT count(*)::int AS n FROM anon_expiry_reports WHERE voter = ${voterKey(id)} AND coupon_id = ${couponId}`;
+    return row.n > 0;
+  });
+}
+
+// What the signed-in reader did on one deal: saved it (Guardar), reported it as expired (Marcar como caducado); signed
+// out, only whether they reported it without an account
 export async function readerDealMarks(readerId: number | null, couponId: number): Promise<{ saved: boolean; reported: boolean }> {
-  if (!readerId) return { saved: false, reported: false };
+  if (!readerId) return { saved: false, reported: await anonReported(couponId) };
   await io();
   const [row] = await sql()<{ saved: boolean; reported: boolean }[]>`
     SELECT EXISTS (SELECT 1 FROM saved_deals WHERE reader_id = ${readerId} AND coupon_id = ${couponId}) AS saved,

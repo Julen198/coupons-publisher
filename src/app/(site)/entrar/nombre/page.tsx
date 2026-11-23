@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { readerAccountsEnabled } from "@/lib/settings";
 import { getReader } from "@/lib/reader";
 import { safeNext } from "@/lib/session";
 import { NombreForm } from "./nombre-form";
@@ -8,6 +9,7 @@ import { OverHome } from "../over-home";
 export const metadata: Metadata = { title: "Elige tu nombre público", robots: { index: false } };
 
 export default async function NombrePage({ searchParams }: PageProps<"/entrar/nombre">) {
+  if (!(await readerAccountsEnabled())) notFound();
   const reader = await getReader();
   if (!reader) redirect("/entrar");
   const { next } = await searchParams;
