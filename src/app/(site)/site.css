@@ -181,6 +181,7 @@ body:has(.cl) { background: #f3f5fa; }
 .cl .deal-foot a { color: var(--ink-2); text-decoration: none; font-weight: 600; }
 .cl .deal-foot a:hover { text-decoration: underline; }
 .cl .deal-foot time { font-variant-numeric: tabular-nums; }
+.cl .used { color: var(--ink-2); font-weight: 600; font-variant-numeric: tabular-nums; }
 @media (max-width: 560px) {
   .cl .deal { grid-template-columns: 64px minmax(0, 1fr); gap: 10px 12px; padding: 14px; }
   .cl .thumb { width: 64px; height: 64px; grid-column: 1; grid-row: 1; }

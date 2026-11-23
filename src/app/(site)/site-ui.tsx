@@ -8,6 +8,7 @@ import { mayHaveExpired, timeAgo } from "@/lib/community";
 import { httpsImage } from "@/lib/networks/types";
 import { daysBetween, dealPath, shortDate } from "@/lib/site-text";
 import { checkedDay, checkedLabel, perkOf } from "@/lib/perks";
+import { usageLine } from "@/lib/usage-signals";
 import { vote } from "./actions-reader";
 import { CopyCode } from "./copy-code";
 import { DealImg, StoreLogoImg } from "./store-logo-img";
@@ -110,6 +111,12 @@ export function VoteColumn({ couponId, score, mine, next, readOnly = false }: { 
   );
 }
 
+// "Usado 12 veces esta semana · último uso hace 2 h": real uses only, nothing under the minimum (see usage-signals.ts)
+export function UsageNote({ c, now }: { c: Pick<SiteCoupon, "uses_week" | "last_used_at">; now: Date }) {
+  const line = usageLine(c, now);
+  return line ? <span className="used">{line}</span> : null;
+}
+
 // hideStore: on the store's own page the card leaves out its logo and name; viewerHandle: the signed-in reader's @handle;
 // source: the origin its clicks and copies count under
 type CardProps = { c: SiteCoupon; client: Client | undefined; today: string; now: Date; mine: Map<number, -1 | 1>; next: string; hideStore?: boolean; viewerHandle?: string | null; source?: string };
@@ -163,6 +170,7 @@ export function DealCard({ c, client, today, now, mine, next, hideStore = false,
         <span>
           {c.shared_by_handle ? <>Compartido por <SharedBy handle={c.shared_by_handle} viewerHandle={viewerHandle} /> · </> : "Publicado "}{timeAgo(new Date(c.created_at), now)}
         </span>
+        <UsageNote c={c} now={now} />
         <Link href={`${dealPath(c)}#comentarios`}>{c.comments === 1 ? "1 comentario" : `${c.comments} comentarios`}</Link>
         <span>{c.expires_at ? <>Válido hasta el <time dateTime={c.expires_at}>{shortDate(c.expires_at)}</time></> : "Sin fecha de caducidad"}</span>
       </div>

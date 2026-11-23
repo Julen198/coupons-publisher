@@ -12,6 +12,7 @@ import { dealPath, longDate, madridToday, percentOf, shortDate, siteUrl } from "
 import { storeGuide } from "@/lib/store-guides";
 import { eventEdition, storeEventPath, storeEventsInSeason } from "@/lib/event-pages";
 import { checkedLabel, isPerk, lastChecked } from "@/lib/perks";
+import { storeUsesLabel } from "@/lib/usage-signals";
 import { publishedGuide } from "@/lib/store-guides-db";
 import { publishedGuides } from "@/lib/guide-index";
 import { relatedGuides } from "@/lib/seo-auto";
@@ -94,6 +95,8 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   // standing offers (newsletter, app…) get their own block under the coupons, and are counted apart from them
   const perks = coupons.filter(isPerk);
   const regular = coupons.filter((c) => !isPerk(c));
+  // real uses of its live coupons in the last 7 days, "" under the minimum (see usage-signals.ts)
+  const uses = storeUsesLabel(coupons);
   const codes = regular.filter((c) => c.kind === "code" && c.code).length;
   const verified = regular.filter((c) => c.verified).length;
   const best = [...(regular.length ? regular : coupons)].sort((a, b) => percentOf(b.discount) - percentOf(a.discount) || b.verified - a.verified)[0];
@@ -166,6 +169,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
           <div className="meta-line">
             {checked ? <span className="live">Última comprobación: {checkedLabel(checked, today).replace(/^Comprobado /, "")}</span> : <span className="live">Actualizado a las {time}</span>}
             <span>{regular.length === 1 ? "1 cupón activo" : `${regular.length} cupones activos`}</span>
+            {uses && <span>{uses}</span>}
             {domain && <span>{domain}</span>}
           </div>
           <p className="answer" data-seo="Respuesta citable (GEO)">
