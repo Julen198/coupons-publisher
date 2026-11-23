@@ -194,6 +194,18 @@ test("tidyPrices: € next to its figure, EUR as €", () => {
   assert.equal(displayTitle("Black Friday Clear Bundle por 43,99 EUR", "Myprotein"), "Black Friday Clear Bundle por 43,99 €");
 });
 
+test("tidyPrices: a price written the English way (€ first, dot for cents) reads the Spanish way", () => {
+  assert.equal(tidyPrices("HONOR 600 256GB solo €404.10!"), "HONOR 600 256GB solo 404,10 €");
+  assert.equal(tidyPrices("HONOR Magic V6 solo €1,499.00!"), "HONOR Magic V6 solo 1.499 €");
+  assert.equal(tidyPrices("Pack of HONOR 600 Pro - Solo €849.15!"), "Pack of HONOR 600 Pro - Solo 849,15 €");
+  assert.equal(tidyPrices("HONOR Pad X9 Max con Keyboard y Pen solo €314.10"), "HONOR Pad X9 Max con Keyboard y Pen solo 314,10 €");
+  assert.equal(tidyPrices("Desde €1.299 y envío gratis"), "Desde 1.299 € y envío gratis", "already Spanish thousands: only the sign moves");
+  assert.equal(tidyPrices("Ahorra € 50 en tu pedido"), "Ahorra 50 € en tu pedido");
+  // nothing to do: the sign is already after its figure, and an exclamation that follows no price stays
+  assert.equal(tidyPrices("Galaxy S26 256GB por 740,05€"), "Galaxy S26 256GB por 740,05€");
+  assert.equal(tidyPrices("¡Solo hoy!"), "¡Solo hoy!");
+});
+
 test("conditionsOf leaves out a bullet that only repeats the discount", () => {
   assert.deepEqual(conditionsOf("20% de descuento"), []);
   assert.deepEqual(conditionsOf("10 % descuento. Solo en la app"), ["Solo en la app"]);

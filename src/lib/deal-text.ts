@@ -23,9 +23,18 @@ const FOR_PUBLISHERS =
   /\b(tu|vuestra|su) audiencia\b|\btus (ventas|seguidores|lectores|usuarios|visitantes|suscriptores)\b|\bimpulsar (tus|las) ventas\b|\bpromocional[oa]s?\b|\bpromocion(a|ad|en) (esta|la|el|estos|estas)\b|\b(publishers?|editores|afiliados)\b|\bcomision(es)?\b|\bmaterial(es)? (creativo|grafico)s?\b|\bbanners?\b|\bdeep ?links?\b/;
 
 // Prices as the site writes them: "34,99 EUR" → "34,99 €", and a euro sign left after a bracket goes back next to its
-// figure ("17,99 (-51% descuento) €" → "17,99 € (-51% descuento)"). Only moves what the feed says; adds nothing.
+// figure ("17,99 (-51% descuento) €" → "17,99 € (-51% descuento)"). Only rewrites what the feed says; adds nothing.
+// "€1,499.00" / "€404.10" (sign first, comma for thousands, dot for cents) → "1.499" / "404,10"; anything else as written
+const spanishFigure = (n: string): string => {
+  const m = /^(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{2}))?$/.exec(n);
+  if (!m || (!m[2] && !n.includes(","))) return n;
+  return `${m[1].replace(/,/g, ".")}${m[2] && m[2] !== "00" ? `,${m[2]}` : ""}`;
+};
+
 export const tidyPrices = (s: string): string =>
   s
+    // a feed written for another market puts the sign first: "solo €404.10!" → "solo 404,10 €" (the "!" goes with it)
+    .replace(/€\s?(\d[\d.,]*\d|\d)!*/g, (_, n: string) => `${spanishFigure(n)} €`)
     .replace(/(\d(?:[\d.]*\d)?(?:,\d{1,2})?)\s?EUR\b/g, "$1 €")
     .replace(/(\d(?:[\d.]*\d)?(?:,\d{1,2})?)\s*(\([^()]*\))\s*€/g, "$1 € $2");
 
