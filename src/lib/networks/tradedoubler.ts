@@ -6,7 +6,7 @@ import { allPages, getJson, isoDay, required, siteOf, type Credentials, type Net
 // so advertisers come from the vouchers themselves.
 const PAGE = 1000;
 
-interface Voucher {
+export interface Voucher {
   id: number;
   programId: number;
   programName: string;
@@ -63,6 +63,26 @@ export function advertiserOf(v: Voucher): NetAdvertiser {
   return { id: String(v.programId), name: v.programName.trim(), website: siteOf(v.landingUrl), trackingTemplate: trackingTemplate(v.defaultTrackUri) };
 }
 
+// The plain call (vouchers.json?token=) answers; with minEndDate and page=1 it came back empty for every programme, so
+// it sends neither: expired ones are dropped here, and the pages are read from 0 and from 1 and joined by id, which is
+// right whichever of the two Tradedoubler counts from. Dates come as epoch milliseconds in strings.
+async function allVouchers(token: string): Promise<Voucher[]> {
+  const page = (n: number) =>
+    getJson<Voucher[]>(`https://api.tradedoubler.com/1.0/vouchers.json;pageSize=${PAGE};page=${n}?token=${encodeURIComponent(token)}`);
+  const first = await page(0).catch(() => [] as Voucher[]);
+  const rest = await allPages(PAGE, page);
+  return [...new Map([...first, ...rest].map((v) => [v.id, v])).values()];
+}
+
+// Still running at `now`: an end date that is missing or not past
+export function liveVouchers(vouchers: Voucher[], now: number): Voucher[] {
+  return vouchers.filter((v) => {
+    if (v.endDate === undefined || v.endDate === null || v.endDate === "") return true;
+    const end = /^\d+$/.test(String(v.endDate)) ? Number(v.endDate) : Date.parse(String(v.endDate));
+    return Number.isNaN(end) || end >= now;
+  });
+}
+
 export const tradedoubler: NetworkAdapter = {
   id: "tradedoubler",
   label: "Tradedoubler",
@@ -72,12 +92,7 @@ export const tradedoubler: NetworkAdapter = {
   ref: (c) => `Token …${c.token.slice(-4)}`,
   async fetchFeed(c: Credentials) {
     required(c, "token");
-    const now = new Date().toISOString().slice(0, 19) + "Z";
-    const vouchers = await allPages(PAGE, (page) =>
-      getJson<Voucher[]>(
-        `https://api.tradedoubler.com/1.0/vouchers.json;pageSize=${PAGE};page=${page};minEndDate=${now};dateOutputFormat=iso8601?token=${encodeURIComponent(c.token)}`,
-      ),
-    );
+    const vouchers = liveVouchers(await allVouchers(c.token), Date.now());
     const advertisers = new Map<string, NetAdvertiser>();
     for (const v of vouchers) {
       const a = advertiserOf(v);

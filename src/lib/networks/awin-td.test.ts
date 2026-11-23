@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { forSpain, mapPromotion, mapProgramme } from "./awin.ts";
-import { mapVoucher, pastedTemplate, trackingTemplate } from "./tradedoubler.ts";
+import { liveVouchers, mapVoucher, pastedTemplate, trackingTemplate, type Voucher } from "./tradedoubler.ts";
 
 test("Awin voucher → code coupon; hidden code is skipped; promotion → deal", () => {
   const base = { promotionId: 5, advertiser: { id: 77008, name: "adidas" }, title: "15% en todo", endDate: "2026-12-31T00:00:00.000", url: "https://www.adidas.es/x" };
@@ -51,4 +51,22 @@ test("a Tradedoubler link pasted by hand becomes a template with its programme i
   assert.equal(pastedTemplate("https://clk.tradedoubler.com/click?p=1&a=2&epi={ref}&url={url}"), null);
   assert.equal(pastedTemplate("https://ad.admitad.com/g/abc/"), null);
   assert.equal(pastedTemplate("https://clk.tradedoubler.com/click?p=270504"), null);
+});
+
+test("Tradedoubler vouchers as the API sends them: dates in epoch ms strings, expired ones dropped", () => {
+  const huawei = {
+    id: 13577029, programId: 304859, programName: "Huawei ES", code: "ABF26MARV", endDate: "1796166000000",
+    title: "HUAWEI Black Friday - 10% Cupón extra", voucherTypeId: 1, discountAmount: 10, isPercentage: true,
+    defaultTrackUri: "https://clk.tradedoubler.com/click?a(2334356)p(304859)ttid(13)url(https://consumer.huawei.com/es/offer/black-friday/)",
+    landingUrl: "https://consumer.huawei.com/es/offer/black-friday/",
+  } as Voucher;
+  const old = { ...huawei, id: 1, endDate: "1700000000000" } as Voucher;
+  const open = { ...huawei, id: 2, endDate: undefined } as Voucher;
+  const now = Date.parse("2026-11-23T08:00:00Z");
+  assert.deepEqual(liveVouchers([huawei, old, open], now).map((v) => v.id), [13577029, 2]);
+  const o = mapVoucher(huawei);
+  assert.equal(o.expires, "2026-12-01");
+  assert.equal(o.code, "ABF26MARV");
+  assert.equal(o.discount, "10%");
+  assert.equal(trackingTemplate(huawei.defaultTrackUri), "https://clk.tradedoubler.com/click?p=304859&a=2334356&epi={ref}&url={url}");
 });
