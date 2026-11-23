@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, categoryPath, factsOf, ordenOf, type Orden } from "@/lib/catalog";
+import { BRANDS, brandPath } from "@/lib/brands";
 import { sortDeals } from "@/lib/community";
 import { badgeInSentence, storeH1, storeHeading } from "@/lib/deal-text";
 import { currentVotes, nearFirstPageStores, siteClient, siteCoupons, siteRecentlyExpired, siteStore } from "@/lib/public-site";
@@ -117,6 +118,10 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
   // same category first; within it, pages close to Google's first page (nearFirstPageStores), then the most coupons
   const otherStores = [...counts.values()].sort((a, b) => Number(b.same) - Number(a.same) || boost(a.slug) - boost(b.slug) || b.n - a.n).slice(0, 6);
   const otherTitle = cat && otherStores.some((s) => s.same) ? `Otras tiendas de ${cat.label.toLowerCase()}` : "Otras tiendas con cupones";
+  // the brands of its live deals (/marcas pages), most deals first; its own brand (the Nike shop's Nike) leads
+  const brandCount = new Map<string, number>();
+  for (const c of regular) for (const b of c.brand_slugs) brandCount.set(b, (brandCount.get(b) ?? 0) + 1);
+  const storeBrands = BRANDS.filter((b) => brandCount.has(b.slug)).sort((a, b) => brandCount.get(b.slug)! - brandCount.get(a.slug)!).slice(0, 8);
 
   return (
     <main>
@@ -271,6 +276,21 @@ export default async function StorePage({ params, searchParams }: PageProps<"/ti
                       <Link href={storeEventPath(e.slug, store.slug)}>
                         {e.name} {store.name}
                         <small>{longDate(eventEdition(e, today).date)}</small>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {storeBrands.length > 0 && (
+              <section className="panel" data-seo="Enlazado interno tienda → marcas">
+                <h2>Marcas en oferta en {store.name}</h2>
+                <ul className="stores">
+                  {storeBrands.map((b) => (
+                    <li key={b.slug}>
+                      <Link href={brandPath(b.slug)}>
+                        Ofertas de {b.name}
+                        <small>{brandCount.get(b.slug)} en {store.name}</small>
                       </Link>
                     </li>
                   ))}

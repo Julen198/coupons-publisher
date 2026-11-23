@@ -3,10 +3,12 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { parseFaqs } from "@/lib/affiliate";
 import { categoryOf, categoryPath, factsOf } from "@/lib/catalog";
+import { brandOf, brandPath } from "@/lib/brands";
 import { pageSource } from "@/lib/click-signals";
 import { copyBeaconHref, currentVotes, dealComments, readerDealMarks, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
 import { readerAccountsEnabled } from "@/lib/settings";
+import { isUncheckedFind } from "@/lib/coupon-status";
 import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
 import { badgeInSentence, conditionsOf, lowerFirst, mentionsBadge } from "@/lib/deal-text";
 import { aboutParagraphs, aboutSnippet } from "@/lib/deal-about";
@@ -267,6 +269,9 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
                 })}
               </div>
               {fromStore > 0 && <Link href={`/tiendas/${c.store_slug}`}>Ver todos los cupones de {c.store_name}</Link>}
+              {c.brand_slugs.map(brandOf).filter((b) => !!b).map((b) => (
+                <Link key={b.slug} href={brandPath(b.slug)}>Más ofertas de {b.name}</Link>
+              ))}
             </section>
           )}
         </div>
@@ -284,7 +289,10 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
             <>
               {hasCode && <CopyCode code={c.code} beacon={copyBeaconHref(client, c, source)} />}
               <GoButton client={client} c={c} source={source} />
-              {accounts && <DealActions couponId={c.id} back={dealPath(c)} saved={marks.saved} reported={marks.reported} />}
+              {/* reader accounts off: no Guardar, but anyone can still mark an unchecked web find as expired (two reports hide it) */}
+              {(accounts || isUncheckedFind(c)) && (
+                <DealActions couponId={c.id} back={dealPath(c)} saved={marks.saved} reported={marks.reported} canSave={accounts} />
+              )}
             </>
           ) : (
             <Link className="btn" href={`/tiendas/${c.store_slug}`}>

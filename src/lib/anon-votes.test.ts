@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ANON_VOTERS_PER_IP_PER_DEAL, ANON_VOTES_PER_IP_PER_HOUR, anonVoteAllowed, ipKey, newVoterId, validVoterId, voterKey } from "./anon-votes.ts";
+import { ANON_REPORTS_PER_IP_PER_DAY, ANON_VOTERS_PER_IP_PER_DEAL, ANON_VOTES_PER_IP_PER_HOUR, anonReportAllowed, anonVoteAllowed, ipKey, newVoterId, validVoterId, voterKey } from "./anon-votes.ts";
 
 test("voter ids: 32 hex chars, and only those pass", () => {
   const id = newVoterId();
@@ -34,4 +34,11 @@ test("anonVoteAllowed: hourly cap per IP, and a few new voters per IP and deal",
   assert.equal(anonVoteAllowed({ ipVotesLastHour: 1, otherVotersOnDeal: ANON_VOTERS_PER_IP_PER_DEAL, alreadyOnDeal: false }), false);
   // changing your own vote is never blocked by other voters on the same IP
   assert.equal(anonVoteAllowed({ ipVotesLastHour: 1, otherVotersOnDeal: 10, alreadyOnDeal: true }), true);
+});
+
+test("anonReportAllowed: a daily cap per IP and one reporter per IP and deal", () => {
+  assert.equal(anonReportAllowed({ ipReportsToday: 0, otherReportersOnDeal: 0 }), true);
+  assert.equal(anonReportAllowed({ ipReportsToday: ANON_REPORTS_PER_IP_PER_DAY, otherReportersOnDeal: 0 }), false);
+  // a second browser on the same connection can't add the second report that would hide the find
+  assert.equal(anonReportAllowed({ ipReportsToday: 1, otherReportersOnDeal: 1 }), false);
 });

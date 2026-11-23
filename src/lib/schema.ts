@@ -386,6 +386,12 @@ ALTER TABLE coupons ADD CONSTRAINT coupons_category_check
   CHECK (category IN ('', 'tecnologia', 'zapatillas', 'moda', 'hogar', 'deporte', 'viajes'));
 -- the words a store page's title leads with in Google ('' = «Código descuento», see TITLE_TERMS)
 ALTER TABLE stores ADD COLUMN IF NOT EXISTS title_term text NOT NULL DEFAULT '';
+-- the coupon's brands for the /marcas pages, set by an editor: '' = read from its title (see dealBrands), '-' = none,
+-- else brand slugs (brands.ts) separated by commas
+ALTER TABLE coupons ADD COLUMN IF NOT EXISTS brand text NOT NULL DEFAULT '';
+-- «Cupones de internet sin verificar»: the store shows web finds nobody checked yet (and links straight to the shop while
+-- it has no tracked link) until an affiliate network brings live coupons of it (see open-stores.ts)
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS open_unverified boolean NOT NULL DEFAULT false;
 -- votes from visitors without an account (anon-votes.ts): voter = sha256 of a random id in their cl_voter cookie, never
 -- the id itself; ip_hash = a per-day HMAC of the IP, only for the abuse limits and blanked after two days by the clicks cron
 CREATE TABLE IF NOT EXISTS anon_votes (
@@ -399,6 +405,18 @@ CREATE TABLE IF NOT EXISTS anon_votes (
 CREATE INDEX IF NOT EXISTS anon_votes_coupon_idx ON anon_votes(coupon_id);
 CREATE INDEX IF NOT EXISTS anon_votes_ip_idx ON anon_votes(ip_hash, at) WHERE ip_hash <> '';
 ALTER TABLE anon_votes ENABLE ROW LEVEL SECURITY;
+-- «Marcar como caducado» from visitors without an account, only on unchecked web finds (anon-votes.ts): same voter and
+-- ip_hash as anon_votes; they count with readers' expiry_reports
+CREATE TABLE IF NOT EXISTS anon_expiry_reports (
+  voter text NOT NULL,
+  coupon_id int NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+  ip_hash text NOT NULL DEFAULT '',
+  at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (voter, coupon_id)
+);
+CREATE INDEX IF NOT EXISTS anon_expiry_reports_coupon_idx ON anon_expiry_reports(coupon_id);
+CREATE INDEX IF NOT EXISTS anon_expiry_reports_ip_idx ON anon_expiry_reports(ip_hash, at) WHERE ip_hash <> '';
+ALTER TABLE anon_expiry_reports ENABLE ROW LEVEL SECURITY;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes (anonymous ones go with coupons, CASCADE), comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay

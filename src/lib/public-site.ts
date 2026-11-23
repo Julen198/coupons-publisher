@@ -11,7 +11,7 @@ import { accountsFor, siteLinks, SITE_CLIENT_SLUG, type ClientLinks } from "./li
 import { altDomainsColumn, altDomainsSql } from "./tracking-columns.ts";
 import { cookies } from "next/headers";
 import { getReader } from "./reader";
-import { anonVotesTable, validVoterId, VOTER_COOKIE, voterKey } from "./anon-votes.ts";
+import { anonReportsTable, anonVotesTable, validVoterId, VOTER_COOKIE, voterKey } from "./anon-votes.ts";
 import { madridToday } from "./site-text.ts";
 import { BRAND_ALLOWLIST, dedupeDeals, displayTitle } from "./deal-text.ts";
 import { onSpanishSite } from "./market.ts";
@@ -21,6 +21,8 @@ import { countrySql, withCountryColumn } from "./country-column.ts";
 import { publicText } from "./translation.ts";
 import { translationSql, withTranslationColumns } from "./translation-column.ts";
 import { titleTermColumn } from "./perks.ts";
+import { dealBrands } from "./brands.ts";
+import { openUnverifiedColumn, storeOpenSql } from "./open-stores.ts";
 
 // Readers wrapped in React cache() run once per render: generateMetadata, the page and its related deals share one
 // query. The memo lasts one request only (no cross-request caching), and callers copy before sorting.
@@ -47,16 +49,19 @@ export type SiteCoupon = Coupon & {
   expiry_reports: number; // readers who marked it as expired ("Marcar como caducado")
   image_url: string; // product image (https) from a network feed or the landing page's og:image, "" = show the store logo
   display_title: string; // the title as the site shows it (displayTitle with the known brands)
+  brand_slugs: string[]; // the brands it is a deal of (see dealBrands): it is listed on each one's /marcas page
+  store_open: boolean; // shows unchecked web finds, and goes straight to the shop while it has no tracked link (see open-stores.ts)
 };
 
-// wordmark / country / alt: whether stores.wordmark_data, stores.country and stores.alt_domains exist yet (see
-// withWordmarkColumn, withCountryColumn, altDomainsColumn)
-// anon: whether anon_votes exists yet (anonVotesTable); the score adds visitors' votes to signed-in readers'
-const couponSelect = (wordmark: boolean, country: boolean, alt: boolean, anon: boolean) => `
+// wordmark / country / alt / open: whether stores.wordmark_data, stores.country, stores.alt_domains and
+// stores.open_unverified exist yet (see withWordmarkColumn, withCountryColumn, altDomainsColumn, openUnverifiedColumn)
+// anon / reports: whether anon_votes and anon_expiry_reports exist yet (anonVotesTable, anonReportsTable); the score and
+// the expiry reports add visitors without an account to signed-in readers
+const couponSelect = (wordmark: boolean, country: boolean, alt: boolean, open: boolean, anon: boolean, reports: boolean) => `
   SELECT c.*, s.name AS store_name, s.slug AS store_slug, s.logo_data <> '' AS store_has_logo,
          ${hasWordmarkSql(wordmark, "s")} AS store_has_wordmark, s.category AS store_category, s.website AS store_website,
          s.network AS store_network, s.merchant_id AS store_merchant_id, s.tracking_url AS store_tracking_url,
-         coalesce(s.publisher_id, '') AS store_publisher_id, ${countrySql(country, "s")}, ${altDomainsSql(alt, "s")},
+         coalesce(s.publisher_id, '') AS store_publisher_id, ${countrySql(country, "s")}, ${altDomainsSql(alt, "s")}, ${storeOpenSql(open, "s")},
          coalesce(v.score, 0)::int AS score, coalesce(cm.n, 0)::int AS comments,
          CASE WHEN sb.status = 'active' THEN sb.handle END AS shared_by_handle, coalesce(er.n, 0)::int AS expiry_reports
   FROM coupons c JOIN stores s ON s.id = c.store_id
@@ -73,13 +78,18 @@ const couponSelect = (wordmark: boolean, country: boolean, alt: boolean, anon: b
     GROUP BY k.coupon_id
   ) cm ON cm.coupon_id = c.id
   LEFT JOIN readers sb ON sb.id = c.shared_by
-  LEFT JOIN (SELECT e.coupon_id, count(*) AS n FROM expiry_reports e JOIN readers er_r ON er_r.id = e.reader_id WHERE er_r.status = 'active' GROUP BY e.coupon_id) er ON er.coupon_id = c.id`;
+  LEFT JOIN (
+    SELECT y.coupon_id, count(*) AS n FROM (
+      SELECT e.coupon_id FROM expiry_reports e JOIN readers er_r ON er_r.id = e.reader_id WHERE er_r.status = 'active'
+      ${reports ? "UNION ALL SELECT ae.coupon_id FROM anon_expiry_reports ae" : ""}
+    ) y GROUP BY y.coupon_id
+  ) er ON er.coupon_id = c.id`;
 
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
 // couponSelect with whichever of its optional columns exist
 const withCouponSelect = <T>(query: (select: string) => Promise<T>): Promise<T> =>
-  withWordmarkColumn((w) => withCountryColumn((c) => altDomainsColumn.run((a) => anonVotesTable.run((v) => query(couponSelect(w, c, a, v))))));
+  withWordmarkColumn((w) => withCountryColumn((c) => altDomainsColumn.run((a) => openUnverifiedColumn.run((o) => anonVotesTable.run((v) => anonReportsTable.run((r) => query(couponSelect(w, c, a, o, v, r))))))));
 
 // Whose links the public site builds (the cuponlab client, its own accounts' links, our Awin publisher ids): once per request
 const publicLinks = cache(async (): Promise<ClientLinks> => {
@@ -95,6 +105,8 @@ const linkOf = (c: SiteCoupon, links: ClientLinks) =>
     publisher_id: c.store_publisher_id, website: c.store_website, alt_domains: c.store_alt_domains,
   }, accountsFor(links, { id: c.store_id, network: c.store_network }));
 const tracked = (c: SiteCoupon, links: ClientLinks) => isTracked(linkOf(c, links));
+// …or the store is open (see open-stores.ts): /go then sends the reader straight to the shop
+const reachable = (c: SiteCoupon, links: ClientLinks) => c.store_open || tracked(c, links);
 
 // The store fields onSpanishSite reads, from a coupon row
 export const couponStore = (c: Pick<SiteCoupon, "store_name" | "store_slug" | "store_website" | "store_country" | "store_country_source" | "store_tracking_url">) => ({
@@ -111,11 +123,16 @@ const knownBrands = cache(async (): Promise<string[]> => {
 // description become its translation (publicText), so every card, page, meta tag and slug uses it.
 // A coupon's own category (coupons.category, '' = its store's) wins over the store's: a sneaker shop's winter-clothing
 // sale belongs in Moda. Read off c.*, so it is simply absent until the migration has run.
-function titled<T extends { title: string; description: string; store_name: string; store_category: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string })[] {
+// Its brands (/marcas pages) come from the Spanish title, unless an editor set them (coupons.brand, also off c.*).
+function titled<T extends { title: string; description: string; store_name: string; store_category: string }>(rows: readonly T[], brands: readonly string[]): (T & { display_title: string; brand_slugs: string[] })[] {
   return rows.map((r) => {
     const text = publicText(r);
     const own = (r as { category?: unknown }).category;
-    return { ...r, ...text, ...(typeof own === "string" && own ? { store_category: own } : {}), display_title: displayTitle(text.title, r.store_name, brands) };
+    const brand = (r as { brand?: unknown }).brand;
+    return {
+      ...r, ...text, ...(typeof own === "string" && own ? { store_category: own } : {}), display_title: displayTitle(text.title, r.store_name, brands),
+      brand_slugs: dealBrands({ title: text.title, store_name: r.store_name, brand: typeof brand === "string" ? brand : "" }),
+    };
   });
 }
 
@@ -130,7 +147,7 @@ export const siteCoupons = cache(async (): Promise<SiteCoupon[]> => {
     publicLinks(),
   ]);
   const t = madridToday().iso;
-  return dedupeDeals(titled(rows, brands).filter((c) => isPublic(c, t, unverified) && onSpanishSite(couponStore(c)) && tracked(c, links)));
+  return dedupeDeals(titled(rows, brands).filter((c) => isPublic(c, t, unverified) && onSpanishSite(couponStore(c)) && reachable(c, links)));
 });
 
 // How long a store keeps its page in the index after its last coupon expired, listing the latest expired ones
@@ -150,7 +167,7 @@ export const siteRecentlyExpired = cache(async (): Promise<SiteCoupon[]> => {
     knownBrands(),
     publicLinks(),
   ]);
-  return dedupeDeals(titled(rows, brands).filter((c) => dealVisibility(c, t, unverified, tracked(c, links)) === "expired"));
+  return dedupeDeals(titled(rows, brands).filter((c) => dealVisibility(c, t, unverified, reachable(c, links)) === "expired"));
 });
 
 // The store pages Google shows between 8 and 30 (settings, written daily by the guides cron): linked from the home page
@@ -185,7 +202,7 @@ export const siteCoupon = cache(async (id: number): Promise<{ coupon: SiteCoupon
   ]);
   if (!row) return undefined;
   const [coupon] = titled([row], brands);
-  const seen = dealVisibility(coupon, madridToday().iso, unverified, tracked(coupon, links));
+  const seen = dealVisibility(coupon, madridToday().iso, unverified, reachable(coupon, links));
   return seen === "gone" ? undefined : { coupon, live: seen === "live" };
 });
 
@@ -213,9 +230,21 @@ export const currentVotes = cache(async (): Promise<Map<number, -1 | 1>> => {
   return reader ? readerVotes(reader.id) : anonVotes();
 });
 
-// What the signed-in reader did on one deal: saved it (Guardar), reported it as expired (Marcar como caducado)
+// Whether this visitor without an account (cl_voter cookie) already marked the deal as expired
+async function anonReported(couponId: number): Promise<boolean> {
+  const id = (await cookies()).get(VOTER_COOKIE)?.value;
+  if (!validVoterId(id)) return false;
+  return anonReportsTable.run(async (present) => {
+    if (!present) return false;
+    const [row] = await sql()<{ n: number }[]>`SELECT count(*)::int AS n FROM anon_expiry_reports WHERE voter = ${voterKey(id)} AND coupon_id = ${couponId}`;
+    return row.n > 0;
+  });
+}
+
+// What the signed-in reader did on one deal: saved it (Guardar), reported it as expired (Marcar como caducado); signed
+// out, only whether they reported it without an account
 export async function readerDealMarks(readerId: number | null, couponId: number): Promise<{ saved: boolean; reported: boolean }> {
-  if (!readerId) return { saved: false, reported: false };
+  if (!readerId) return { saved: false, reported: await anonReported(couponId) };
   await io();
   const [row] = await sql()<{ saved: boolean; reported: boolean }[]>`
     SELECT EXISTS (SELECT 1 FROM saved_deals WHERE reader_id = ${readerId} AND coupon_id = ${couponId}) AS saved,
@@ -328,7 +357,7 @@ async function withVisibility(rows: readonly SiteCoupon[]): Promise<AccountCoupo
   const [unverified, brands, links] = await Promise.all([publishUnverified(), knownBrands(), publicLinks()]);
   const t = madridToday().iso;
   return titled(rows, brands).map((c) => {
-    const seen = dealVisibility(c, t, unverified, tracked(c, links));
+    const seen = dealVisibility(c, t, unverified, reachable(c, links));
     return { ...c, live: seen === "live", page: seen !== "gone" };
   });
 }

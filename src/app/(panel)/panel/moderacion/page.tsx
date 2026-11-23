@@ -5,6 +5,7 @@ import { REJECT_REASONS } from "@/lib/community-rules";
 import { requireEditor } from "@/lib/auth";
 import { io } from "next/cache";
 import { sql } from "@/lib/db";
+import { anonReportsTable } from "@/lib/anon-votes";
 import { dealPath } from "@/lib/site-text";
 import { AboutDraftForm, DraftAboutsButton } from "./about-drafts";
 import { approveTranslation } from "@/app/actions-translations";
@@ -34,15 +35,17 @@ async function loadShared() {
 
 type Reported = { id: number; title: string; store_name: string; reports: number; last_at: Date };
 
-// Live (not archived) coupons readers marked as expired, most recently reported first
+// Live (not archived) coupons readers marked as expired (with an account or, on unchecked finds, without), most recently
+// reported first
 async function loadReported() {
-  return (await sql()<Reported[]>`
+  return anonReportsTable.run(async (anon) => (await sql()<Reported[]>`
     SELECT c.id, c.title, s.name AS store_name, count(*)::int AS reports, max(e.at) AS last_at
-    FROM expiry_reports e JOIN coupons c ON c.id = e.coupon_id JOIN stores s ON s.id = c.store_id
+    FROM (SELECT coupon_id, at FROM expiry_reports ${anon ? sql()`UNION ALL SELECT coupon_id, at FROM anon_expiry_reports` : sql()``}) e
+    JOIN coupons c ON c.id = e.coupon_id JOIN stores s ON s.id = c.store_id
     WHERE c.archived = 0
     GROUP BY c.id, s.id
     ORDER BY max(e.at) DESC
-    LIMIT 100`).map((r) => ({ ...r }));
+    LIMIT 100`).map((r) => ({ ...r })));
 }
 
 type AboutDraft = { id: number; title: string; about: string; store_name: string };

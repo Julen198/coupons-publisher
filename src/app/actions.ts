@@ -1,5 +1,6 @@
 "use server";
 
+import { openUnverifiedColumn } from "@/lib/open-stores";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { attemptKeys, blockedFor, clientIp, LOGIN_LIMITS } from "@/lib/login-limit";
@@ -11,10 +12,12 @@ import { sql, type Client } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
 import { mapStoreLines } from "@/lib/store-import";
 import { asNetwork } from "@/lib/affiliate";
+import { pastedTemplate } from "@/lib/networks/tradedoubler";
 import { storeCategory } from "@/lib/catalog";
 import { countryInput } from "@/lib/market";
 import { isMissingCountry } from "@/lib/country-column";
-import { altDomainsColumn } from "@/lib/tracking-columns";
+import { altDomainsColumn, couponBrandColumn } from "@/lib/tracking-columns";
+import { brandInput } from "@/lib/brands";
 import { couponFreshnessColumns, perkInput, titleTermColumn } from "@/lib/perks";
 import { titleTermInput } from "@/lib/deal-text";
 import { altDomainsInput } from "@/lib/tracked-link";
@@ -350,6 +353,8 @@ function storeTracking(f: FormData) {
   if (network === "awin") return { network, merchant_id, tracking_url: "" };
   // "{url}?ae=…" (Affilae) tracks on the shop's own page: it isn't a URL by itself
   const template = str(f, "tracking_url");
+  const td = network === "tradedoubler" ? pastedTemplate(template) : null;
+  if (td) return { network, merchant_id: merchant_id || td.programId, tracking_url: td.template };
   if (/^\{url\}[?&][^\s]+$/.test(template)) return { network, merchant_id, tracking_url: template };
   return { network, merchant_id, tracking_url: template ? url(f, "tracking_url", "El enlace de seguimiento") : "" };
 }
@@ -508,6 +513,20 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
   return {};
 }
 
+// «Cupones de internet sin verificar» on a store's page (see open-stores.ts)
+export async function setStoreOpen(f: FormData) {
+  await requireEditor();
+  const slug = required(f, "slug");
+  const on = f.get("open") === "1";
+  await openUnverifiedColumn.run(async (present) => {
+    if (!present) throw new Error("Para usar los cupones sin verificar ejecuta antes el SQL en Supabase");
+    await sql()`UPDATE stores SET open_unverified = ${on} WHERE slug = ${slug}`;
+  });
+  await logActivity(`${on ? "Activados" : "Desactivados"} los cupones de internet sin verificar en ${slug}`);
+  revalidatePath(`/panel/stores/${slug}`);
+  revalidatePath("/panel/stores");
+}
+
 // ---------- coupons ----------
 
 export async function deleteCoupon(f: FormData) {
@@ -541,7 +560,9 @@ export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormSta
     const checkedNow = f.get("checked_now") === "on";
     // reader-shared deals waiting for review (or rejected) are only handled on /panel/moderacion: never published from here
     // an edit locks the text against the network sync (text_locked), so the correction survives the next sync
-    await couponFreshnessColumns.run(async (present) => {
+    // its brands for the /marcas pages: '' = read from the title, '-' = none, else the editor's pick (see dealBrands)
+    const brand = brandInput(str(f, "brand"));
+    const savedId = await couponFreshnessColumns.run(async (present) => {
       if (!present && perk) throw new Error("Para guardar ofertas permanentes ejecuta antes npm run db:setup");
       if (id) {
         if (present)
@@ -549,9 +570,16 @@ export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormSta
             checked_at = CASE WHEN ${checkedNow}::boolean OR (coupons.verified = 0 AND ${c.verified}::int = 1) THEN now() ELSE coupons.checked_at END
             WHERE id = ${id} AND review = ''`;
         else await sql()`UPDATE coupons SET ${sql()({ ...c, text_locked: true })} WHERE id = ${id} AND review = ''`;
-      } else {
-        await sql()`INSERT INTO coupons ${sql()(present ? { ...c, perk, checked_at: c.verified || checkedNow ? new Date() : null } : c)}`;
+        return id;
       }
+      // a code copied from the web («Encontrado en internet»): an unchecked web find, shown only on open stores until verified
+      const added = f.get("from_web") === "on" ? { ...c, source: "web" } : c;
+      const [row] = await sql()<{ id: number }[]>`INSERT INTO coupons ${sql()(present ? { ...added, perk, checked_at: c.verified || checkedNow ? new Date() : null } : added)} RETURNING id`;
+      return row.id;
+    });
+    await couponBrandColumn.run(async (present) => {
+      if (present) await sql()`UPDATE coupons SET brand = ${brand} WHERE id = ${savedId} AND review = ''`;
+      else if (brand) throw new Error("Para elegir la marca a mano ejecuta antes el SQL de marcas en Supabase");
     });
     if (!id) await logActivity(`Nuevo cupón: ${c.title}`);
   } catch (e) {

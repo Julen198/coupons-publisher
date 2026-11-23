@@ -14,11 +14,12 @@ import { appUrl, hashToken, MAGIC_LINK_COOLDOWN_SECONDS, MAGIC_LINK_MINUTES, mis
 import { str, type FormState } from "@/lib/form";
 import { newToken } from "@/lib/password";
 import { siteCoupon } from "@/lib/public-site";
+import { isUncheckedFind } from "@/lib/coupon-status";
 import { getReader } from "@/lib/reader";
 import { encodeFlash, FLASH_COOKIE, FLASH_MAX_AGE, type Flash } from "@/lib/reader-entry";
 import { READER_COOKIE, SESSION_MAX_AGE, safeNext, signReader } from "@/lib/session";
 import { readerAccountsEnabled } from "@/lib/settings";
-import { anonVoteAllowed, anonVotesTable, ipKey, newVoterId, validVoterId, VOTER_COOKIE, VOTER_MAX_AGE, voterKey } from "@/lib/anon-votes";
+import { anonReportAllowed, anonReportsTable, anonVoteAllowed, anonVotesTable, ipKey, newVoterId, validVoterId, VOTER_COOKIE, VOTER_MAX_AGE, voterKey } from "@/lib/anon-votes";
 import { clientIp } from "@/lib/login-limit";
 
 const ACCOUNTS_OFF_MESSAGE = "Las cuentas de lectores no están disponibles ahora mismo.";
@@ -171,17 +172,21 @@ export async function vote(f: FormData): Promise<void> {
 
 // A visitor without an account (anon-votes.ts): one vote per deal and cookie, with per-IP limits for cleared cookies
 // and scripts. Over a limit the press is ignored, the same as a vote that didn't change anything.
-async function anonVote(couponId: number, pressed: -1 | 1): Promise<void> {
+// Who a visitor without an account is: their cl_voter cookie (created here, when they press a vote or «Marcar como
+// caducado», never on a plain visit) and the per-day hash of their IP
+async function anonVisitor(): Promise<{ voter: string; ip: string }> {
   const secret = process.env.SESSION_SECRET;
   if (!secret) throw new Error("Falta SESSION_SECRET en el servidor");
   const jar = await cookies();
   const current = jar.get(VOTER_COOKIE)?.value;
   const id = validVoterId(current) ? current : newVoterId();
-  // set here, when the visitor presses a vote, never on a plain visit
   jar.set(VOTER_COOKIE, id, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: VOTER_MAX_AGE });
-  const voter = voterKey(id);
   const h = await headers();
-  const ip = ipKey(secret, clientIp(h.get("x-forwarded-for"), h.get("x-real-ip")), new Date());
+  return { voter: voterKey(id), ip: ipKey(secret, clientIp(h.get("x-forwarded-for"), h.get("x-real-ip")), new Date()) };
+}
+
+async function anonVote(couponId: number, pressed: -1 | 1): Promise<void> {
+  const { voter, ip } = await anonVisitor();
   // No transaction: sql().begin fails on this pool (max_pipeline: 0, see db.ts). Two presses fired at the same moment
   // can both pass the counts, so a burst of simultaneous presses may slip a few past a limit.
   try {
@@ -308,13 +313,18 @@ export async function toggleSaved(f: FormData): Promise<void> {
   refresh();
 }
 
-// "Marcar como caducado": one report per reader and deal (the primary key), ten a day per reader
+// "Marcar como caducado": one report per reader and deal (the primary key), ten a day per reader. Without an account
+// it works only on unchecked web finds (two reports hide one, see openFindShown), with the per-IP limits of anonReport.
 export async function reportExpired(_prev: FormState & { done?: boolean }, f: FormData): Promise<FormState & { done?: boolean }> {
   const back = safeNext(str(f, "back"), "/");
-  const reader = await getReader();
-  if (!reader) redirect(`/entrar?next=${encodeURIComponent(back)}`);
   const couponId = couponIdOf(str(f, "coupon_id"));
   const found = couponId ? await siteCoupon(couponId) : undefined;
+  const reader = await getReader();
+  if (!reader) {
+    if (found?.live && isUncheckedFind(found.coupon)) return anonReport(found.coupon.id);
+    if (await readerAccountsEnabled()) redirect(`/entrar?next=${encodeURIComponent(back)}`);
+    return { error: REPORT_INACTIVE_MESSAGE };
+  }
   if (!found?.live) return { error: REPORT_INACTIVE_MESSAGE };
   const limited = await asReader("expiry", reader.id, async (tx) => {
     const [today] = await tx<{ n: number }[]>`
@@ -324,6 +334,24 @@ export async function reportExpired(_prev: FormState & { done?: boolean }, f: Fo
     return false;
   });
   if (limited) return { error: expiryLimitMessage };
+  refresh();
+  return { done: true };
+}
+
+// Over a limit the visitor sees the same "Avisado, gracias" (telling them would only show how to get round it)
+async function anonReport(couponId: number): Promise<FormState & { done?: boolean }> {
+  const { voter, ip } = await anonVisitor();
+  try {
+    const [c] = await sql()<{ today: number; others: number }[]>`
+      SELECT (SELECT count(*) FROM anon_expiry_reports WHERE ip_hash = ${ip} AND at > now() - interval '24 hours')::int AS today,
+             (SELECT count(*) FROM anon_expiry_reports WHERE ip_hash = ${ip} AND coupon_id = ${couponId} AND voter <> ${voter})::int AS others`;
+    if (anonReportAllowed({ ipReportsToday: c.today, otherReportersOnDeal: c.others })) {
+      await sql()`INSERT INTO anon_expiry_reports (voter, coupon_id, ip_hash) VALUES (${voter}, ${couponId}, ${ip}) ON CONFLICT DO NOTHING`;
+    }
+  } catch (e) {
+    // the table comes with the migration: until then the press does nothing instead of failing
+    if (!anonReportsTable.isMissing(e)) throw e;
+  }
   refresh();
   return { done: true };
 }

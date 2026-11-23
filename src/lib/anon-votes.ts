@@ -34,6 +34,16 @@ export function anonVoteAllowed(c: { ipVotesLastHour: number; otherVotersOnDeal:
   return c.alreadyOnDeal || c.otherVotersOnDeal < ANON_VOTERS_PER_IP_PER_DEAL;
 }
 
+// «Marcar como caducado» without an account (only on unchecked web finds, where two reports hide the deal): reports one
+// IP may send in 24 hours, and one reporter per IP and deal, so one person with two browsers can't hide a find alone
+export const ANON_REPORTS_PER_IP_PER_DAY = 10;
+export const ANON_REPORTERS_PER_IP_PER_DEAL = 1;
+
+export function anonReportAllowed(c: { ipReportsToday: number; otherReportersOnDeal: number }): boolean {
+  return c.ipReportsToday < ANON_REPORTS_PER_IP_PER_DAY && c.otherReportersOnDeal < ANON_REPORTERS_PER_IP_PER_DEAL;
+}
+
 // anon_votes arrives with a migration (SCHEMA_SQL / sql in the project files): until it exists, scores leave it out
 // and anonymous votes are not taken, instead of failing the page
 export const anonVotesTable = columnGuard(/\banon_votes\b/);
+export const anonReportsTable = columnGuard(/\banon_expiry_reports\b/);

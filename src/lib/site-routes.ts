@@ -4,6 +4,7 @@ import { onSpanishSite, type CountryStore } from "./market.ts";
 import { dealPath, parseDealId } from "./site-text.ts";
 import { categoryOf, categoryPath } from "./catalog.ts";
 import { eventPageOf } from "./event-pages.ts";
+import { brandOf } from "./brands.ts";
 
 export type DealVisibility = "live" | "expired" | "gone";
 
@@ -19,6 +20,10 @@ export type VisibilityFields = {
   store_country?: string; // "" or missing = unknown, see onSpanishSite
   store_country_source?: string;
   store_tracking_url?: string;
+  store_open?: boolean; // the store shows unchecked web finds and needs no tracked link right now (see open-stores.ts)
+  created_at?: Date | string;
+  score?: number;
+  expiry_reports?: number;
 };
 
 const storeOf = (c: VisibilityFields): CountryStore => ({
@@ -27,9 +32,9 @@ const storeOf = (c: VisibilityFields): CountryStore => ({
 
 // live: shown everywhere. expired: once public, its page stays up marked as expired.
 // gone: archived, pending, never-checked web finds, other markets and links we can't track (tracked = false, see
-// trackedLinkOf) have no page.
+// trackedLinkOf) have no page, unless the store is open (see open-stores.ts): then an untracked link goes straight to the shop.
 export function dealVisibility(c: VisibilityFields, today: string, unverified: boolean, tracked = true): DealVisibility {
-  if (!tracked || !onSpanishSite(storeOf(c))) return "gone";
+  if (!(tracked || c.store_open) || !onSpanishSite(storeOf(c))) return "gone";
   if (isPublic(c, today, unverified)) return "live";
   const wasPublic = statusOf(c, today) === "expired" && (unverified || c.source !== "web" || c.verified);
   return wasPublic ? "expired" : "gone";
@@ -61,11 +66,13 @@ export function isDocumentRequest(method: string, accept: string | null, url: UR
   return (accept ?? "").toLowerCase().includes("text/html");
 }
 
-// Pages whose URLs come from a fixed list, decided without the database: /categorias/<slug> and /ofertas/<event> exist
-// only for known slugs, and the old home-page category links (/?cat=moda, no search) moved to /categorias/moda
+// Pages whose URLs come from a fixed list, decided without the database: /categorias/<slug>, /marcas/<slug> and
+// /ofertas/<event> exist only for known slugs, and the old home-page category links (/?cat=moda, no search) moved to /categorias/moda
 export function fixedRouteVerdict(pathname: string, search: URLSearchParams): RouteVerdict | null {
   const cat = /^\/categorias\/([^/]+)$/.exec(pathname);
   if (cat) return categoryOf(cat[1]) ? { kind: "ok" } : { kind: "missing" };
+  const brand = /^\/marcas\/([^/]+)$/.exec(pathname);
+  if (brand) return brandOf(brand[1]) ? { kind: "ok" } : { kind: "missing" };
   const ev = /^\/ofertas\/([^/]+)$/.exec(pathname);
   if (ev) return eventPageOf(ev[1]) ? { kind: "ok" } : { kind: "missing" };
   // /ofertas/<event>/<store>: an unknown event is missing here; the store is looked up like /tiendas/<slug> (proxy)

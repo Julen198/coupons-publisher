@@ -4,10 +4,10 @@ import { FindCouponsButton } from "../../coupons/find-coupons-button";
 import { networkLabel } from "@/lib/affiliate";
 import { problemLabel, storeLinkProblem } from "@/lib/tracked-link";
 import { notFound } from "next/navigation";
-import { verifyCoupons } from "@/app/actions";
+import { setStoreOpen, verifyCoupons } from "@/app/actions";
 import { canEdit, onlyVisible, requireUser } from "@/lib/auth";
-import { getStore, listCoupons, listPages, listStores } from "@/lib/db";
-import { expiresSoon, statusOf, today } from "@/lib/coupon-status";
+import { getStore, listCoupons, listPages, listStores, type Coupon, type Store } from "@/lib/db";
+import { expiresSoon, isUncheckedFind, OPEN_FIND_DAYS, openFindShown, statusOf, today } from "@/lib/coupon-status";
 import { coverageOf, DELIVERY_LABEL } from "@/lib/page-status";
 import { btnCls, btnSecondaryCls, CoverageBadge, PageHeader } from "@/app/ui";
 import { translationDraft } from "@/lib/translation";
@@ -49,10 +49,10 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
         id: editing.id, store_id: editing.store_id, kind: editing.kind, title: editing.title, code: editing.code,
         discount: editing.discount, description: editing.description, target_url: editing.target_url,
         expires_at: editing.expires_at, verified: Boolean(editing.verified),
-        perk: editing.perk ?? "", checked_day: checkedDay(editing.checked_at),
+        perk: editing.perk ?? "", brand: editing.brand ?? "", checked_day: checkedDay(editing.checked_at),
       }
     : sp.new !== undefined
-      ? { store_id: store.id, kind: "code", title: "", code: "", discount: "", description: "", target_url: store.website, expires_at: "", verified: false, perk: "" }
+      ? { store_id: store.id, kind: "code", title: "", code: "", discount: "", description: "", target_url: store.website, expires_at: "", verified: false, perk: "", brand: "" }
       : undefined;
 
   return (
@@ -101,6 +101,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
 
       {tab === "cupones" && (
         <div className="flex flex-wrap items-start gap-6">
+          <OpenSwitch store={store} editable={editable} finds={coupons.filter((c) => !c.archived && isUncheckedFind(c) && statusOf(c, t) === "pending")} shown={coupons.filter((c) => !c.archived && isUncheckedFind(c) && statusOf(c, t) === "pending" && openFindShown({ ...c, store_open: !!store.store_open }, t)).length} />
           <div className="min-w-0 flex-[999_1_560px] overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
             {coupons.map((c) => (
               <form key={c.id} id={`verify-${c.id}`} action={verifyCoupons} hidden>
@@ -126,7 +127,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
                       <td className="px-4 py-2.5 text-base font-bold whitespace-nowrap">{c.discount}</td>
                       <td className="px-2 py-2.5">
                         <span className="flex flex-col"><span className="font-medium">{c.title}</span>
-                          <span className="text-xs text-neutral-500">{c.description}{c.source === "awin" && " · Importado de Awin"}</span></span>
+                          <span className="text-xs text-neutral-500">{c.description}{c.source === "awin" && " · Importado de Awin"}{c.source === "web" && " · Encontrado en internet"}</span></span>
                       </td>
                       <td className="px-2 py-2.5">{c.kind === "code" ? <code className="rounded border border-dashed border-neutral-400 bg-neutral-50 px-2 py-0.5 font-mono text-xs dark:bg-neutral-900">{c.code}</code> : <span className="text-xs text-neutral-500">Oferta</span>}</td>
                       <td className="px-2 py-2.5"><span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${BADGES[st][1]}`}>{BADGES[st][0]}</span></td>
@@ -170,5 +171,31 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
         </ul>
       )}
     </div>
+  );
+}
+
+// «Cupones de internet sin verificar» (see open-stores.ts): the switch, and what it does right now
+function OpenSwitch({ store, editable, finds, shown }: { store: Store; editable: boolean; finds: Coupon[]; shown: number }) {
+  if (store.open_unverified === undefined) return null; // column not there yet
+  const on = store.open_unverified;
+  const covered = on && !store.store_open; // a network brings live coupons: only those show
+  return (
+    <form action={setStoreOpen} className="flex basis-full flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-200 p-4 text-sm dark:border-neutral-800">
+      <input type="hidden" name="slug" value={store.slug} />
+      <input type="hidden" name="open" value={on ? "0" : "1"} />
+      <div className="min-w-0 flex-[1_1_320px]">
+        <p className="font-semibold">
+          Cupones de internet sin verificar: <span className={on ? "text-green-800 dark:text-green-300" : "text-neutral-600 dark:text-neutral-400"}>{on ? "activados" : "desactivados"}</span>
+        </p>
+        <p className="text-neutral-600 dark:text-neutral-400">
+          {!on
+            ? `Actívalo en tiendas sin red de afiliación todavía: los cupones encontrados en internet salen en la web marcados «Sin verificar» durante ${OPEN_FIND_DAYS} días (o hasta que los verifiques), y el botón lleva directo a la tienda mientras no haya enlace de seguimiento.`
+            : covered
+              ? "Ya hay cupones de una red de afiliación de esta tienda: solo salen esos. La próxima sincronización retira los de internet sin verificar."
+              : `Salen en la web ${shown} de ${finds.length} cupones de internet sin verificar (cada uno ${OPEN_FIND_DAYS} días desde que entró, salvo que los lectores lo voten en negativo o lo marquen como caducado). En cuanto una red traiga cupones de la tienda, quedan solo los de la red.`}
+        </p>
+      </div>
+      {editable && <button className={on ? btnSecondaryCls : btnCls}>{on ? "Desactivar" : "Activar"}</button>}
+    </form>
   );
 }

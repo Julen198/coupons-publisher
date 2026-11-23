@@ -91,6 +91,9 @@ test("fixedRouteVerdict: known categories and events exist, unknown ones are mis
   assert.deepEqual(fixedRouteVerdict("/ofertas/black-friday", none), { kind: "ok" });
   assert.deepEqual(fixedRouteVerdict("/ofertas/prime-week", none), { kind: "missing" });
   assert.equal(fixedRouteVerdict("/tiendas/nike", none), null);
+  assert.deepEqual(fixedRouteVerdict("/marcas/samsung", none), { kind: "ok" });
+  assert.deepEqual(fixedRouteVerdict("/marcas/marca-inventada", none), { kind: "missing" });
+  assert.equal(fixedRouteVerdict("/marcas", none), null);
   // a store's page for an event: the event is checked here, the store later (null = go on)
   assert.equal(fixedRouteVerdict("/ofertas/black-friday/myprotein", none), null);
   assert.deepEqual(fixedRouteVerdict("/ofertas/prime-week/myprotein", none), { kind: "missing" });
@@ -109,4 +112,12 @@ test("fixedRouteVerdict: an old /?cat= link moves to the category page and keeps
 test("needsSignIn: only the panel, client demos and the API ask to sign in; anything else unknown is a 404", () => {
   for (const p of ["/panel", "/panel/coupons", "/demo/runnea", "/demo-preview", "/api/export"]) assert.equal(needsSignIn(p), true, p);
   for (const p of ["/algo-mal-escrito", "/black-friday", "/paneles", "/apis", "/tienda/myprotein"]) assert.equal(needsSignIn(p), false, p);
+});
+
+test("dealVisibility: an open store needs no tracked link, and shows its fresh unchecked finds", () => {
+  const find = row({ source: "web", verified: 0 });
+  assert.equal(dealVisibility(row(), T, false, false), "gone");
+  assert.equal(dealVisibility(row({ store_open: true }), T, false, false), "live");
+  assert.equal(dealVisibility(find, T, false, true), "gone");
+  assert.equal(dealVisibility({ ...find, store_open: true }, T, false, false), "live");
 });

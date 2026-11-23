@@ -5,9 +5,10 @@ import { slugify } from "./form.ts";
 import { decryptJson } from "./secrets.ts";
 import { adapterFor } from "./networks/index.ts";
 import { cleanAdvertiserName, matchStore, type StoreRef } from "./networks/match.ts";
+import { networkLabel } from "./affiliate.ts";
 import { isMissingCountry } from "./country-column.ts";
 import { couponFreshnessColumns } from "./perks.ts";
-import { archiveMissing } from "./sync-archive";
+import { archiveMissing, archiveOpenFinds } from "./sync-archive";
 import { recordSuccess } from "./sync-success";
 import { httpsImage, networkCountries, type Credentials, type NetAdvertiser, type NetFeed, type NetOffer, type NetworkAdapter } from "./networks/types.ts";
 
@@ -25,7 +26,10 @@ export interface SyncSummary {
   newStores: string[]; // slugs, for the icon lookup
   linkedStores: number; // existing stores tied to their advertiser
   otherNetwork: number; // advertisers whose shop already goes through another network
+  otherNetworkStores?: string[]; // their store names, so the sync result says which ones were left out
+  noWebsite?: string[]; // new stores the network gave no website for: the panel needs one before they go public
   archived?: number; // live coupons that left the feed (see archiveMissing)
+  webFindsRetired?: number; // unchecked web finds of open stores the network now covers (see archiveOpenFinds)
 }
 
 // Pull one account's advertisers and offers and fold them into stores and coupons.
@@ -72,12 +76,17 @@ async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, clientId: numbe
       summary.linkedStores++;
     } else if (m.kind === "other-network") {
       summary.otherNetwork++;
-    } else if (withOffers.has(adv.id) && adv.website) {
+      summary.otherNetworkStores = [...(summary.otherNetworkStores ?? []), `${cleanAdvertiserName(adv.name)} (va por ${networkLabel(m.store.network)})`];
+    } else if (withOffers.has(adv.id)) {
+      // Tradedoubler vouchers often come without a landing page (About You ES): the store is still made, without a
+      // website, so its coupons come in; it stays off the public site (no website, no checked link) until an editor
+      // fills the website in the panel. The sync result names these stores.
       const created = await createStore(net, adv);
       if (created) {
         stores = [...stores, created];
         storeOf.set(adv.id, created.id);
         summary.newStores.push(created.slug);
+        if (!adv.website) summary.noWebsite = [...(summary.noWebsite ?? []), created.slug];
       }
     }
   }
@@ -90,7 +99,8 @@ async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, clientId: numbe
   }
   const { created, updated } = await upsertCoupons(net, feed.offers, storeOf, publisherId);
   const archived = await archiveMissing(net, feed.offers, [...new Set(storeOf.values())], publisherId, ownAccount);
-  return { ...summary, created, updated, archived };
+  const webFindsRetired = await archiveOpenFinds([...new Set(storeOf.values())]);
+  return { ...summary, created, updated, archived, webFindsRetired };
 }
 
 // A client's own account: keep its link per store so that client's clicks go through its account, not ours
@@ -188,14 +198,23 @@ async function upsertCoupons(net: string, offers: NetOffer[], storeOf: Map<strin
   return { created, updated };
 }
 
+// "MediaMarkt (va por Awin)": their coupons are skipped, so say which stores they are
+const otherNames = (s: SyncSummary) => {
+  const names = s.otherNetworkStores ?? [];
+  if (!names.length) return "";
+  return `: ${names.slice(0, 5).join(", ")}${names.length > 5 ? ` y ${names.length - 5} más` : ""}`;
+};
+
 export const describeSync = (s: SyncSummary) =>
   [
     `${s.created} cupones nuevos`,
     `${s.updated} actualizados`,
     s.newStores.length ? `${s.newStores.length} tiendas nuevas` : "",
     s.linkedStores ? `${s.linkedStores} tiendas vinculadas` : "",
-    s.otherNetwork ? `${s.otherNetwork} anunciantes ya en otra red` : "",
+    s.otherNetwork ? `${s.otherNetwork} anunciantes ya en otra red${otherNames(s)}` : "",
     s.archived ? `${s.archived} retirados del feed` : "",
+    s.webFindsRetired ? `${s.webFindsRetired} cupones de internet sin verificar retirados (ya hay cupones de la red)` : "",
+    s.noWebsite?.length ? `${s.noWebsite.length} tiendas sin web (ponla en el panel): ${s.noWebsite.slice(0, 5).join(", ")}${s.noWebsite.length > 5 ? ` y ${s.noWebsite.length - 5} más` : ""}` : "",
   ].filter(Boolean).join(" · ");
 
 export async function recordSync(account: NetworkAccount, result: { summary?: SyncSummary; error?: string }) {

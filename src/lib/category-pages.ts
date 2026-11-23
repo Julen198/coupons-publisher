@@ -18,7 +18,7 @@ export interface CategoryContent {
   faqs: { q: string; a: string }[];
 }
 
-const RETURNS = "Las compras online en España tienen 14 días naturales de desistimiento desde que recibes el pedido, salvo excepciones como productos personalizados o precintados que se han abierto. Cada tienda indica en su web cómo devolver.";
+export const RETURNS = "Las compras online en España tienen 14 días naturales de desistimiento desde que recibes el pedido, salvo excepciones como productos personalizados o precintados que se han abierto. Cada tienda indica en su web cómo devolver.";
 
 export const CATEGORY_CONTENT: Record<CategorySlug, CategoryContent> = {
   tecnologia: {

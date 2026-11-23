@@ -8,6 +8,7 @@ import { Combobox } from "@/app/combobox";
 import type { TranslationDraft } from "@/lib/translation";
 import { TranslationEditor } from "./translation-editor";
 import { PERKS } from "@/lib/perks";
+import { BRANDS, BRAND_NONE, brandOf, dealBrands } from "@/lib/brands";
 import { shortDate } from "@/lib/site-text";
 
 export interface CouponDraft {
@@ -22,6 +23,7 @@ export interface CouponDraft {
   expires_at: string;
   verified: boolean;
   perk: string; // a standing offer of the store (see PERKS), "" = an ordinary coupon
+  brand: string; // its brands for the /marcas pages: "" = read from the title, "-" = none, else brand slugs (see dealBrands)
   checked_day?: string; // the day of its last real check, "" = never dated
 }
 
@@ -37,6 +39,10 @@ export function CouponForm({ initial, stores, back, translation }: CouponFormPro
   const [state, formAction, saving] = useActionState<FormState, FormData>(saveCoupon, {});
   const set = (key: keyof CouponDraft) => (e: { target: { value: string } }) => setC({ ...c, [key]: e.target.value });
   const isNew = !initial.id;
+  // what «Automática» would give with the title as it is typed now
+  const storeName = stores.find((s) => s.id === c.store_id)?.name ?? "";
+  const detected = dealBrands({ title: c.title, store_name: storeName }).map((b) => brandOf(b)?.name ?? b);
+  const brandNames = (v: string) => v.split(",").map((b) => brandOf(b)?.name ?? b).join(" + ");
 
   return (
     <aside aria-labelledby="coupon-form-title" className={`flex ${translation ? "max-w-2xl" : "max-w-md"} min-w-0 flex-1 basis-80 flex-col gap-4 rounded-lg border border-neutral-200 p-5 shadow-lg dark:border-neutral-800`}>
@@ -115,6 +121,20 @@ export function CouponForm({ initial, stores, back, translation }: CouponFormPro
             Las que la tienda mantiene siempre. Sale en su página y no en la portada. Cópiala de la web de la tienda, no la supongas.
           </span>
         </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-neutral-600 dark:text-neutral-400">Marca</span>
+          <select name="brand" value={c.brand} onChange={set("brand")} className={inputCls} aria-describedby="brand-note">
+            <option value="">Automática{detected.length ? `: ${detected.join(" + ")}` : ": ninguna detectada"}</option>
+            <option value={BRAND_NONE}>Ninguna marca</option>
+            {c.brand.includes(",") && <option value={c.brand}>{brandNames(c.brand)}</option>}
+            {BRANDS.map((b) => (
+              <option key={b.slug} value={b.slug}>{b.name}</option>
+            ))}
+          </select>
+          <span id="brand-note" className="text-xs text-neutral-600 dark:text-neutral-400">
+            Sale en la página de esa marca (/marcas). «Automática» la lee del título; elige otra si se equivoca, o «Ninguna» si es un accesorio para la marca.
+          </span>
+        </label>
         <div className="grid grid-cols-2 items-end gap-3">
           <Field label="Caduca" name="expires_at" type="date" value={c.expires_at} onChange={set("expires_at")} />
           <label className="flex min-h-11 items-center gap-2 text-sm">
@@ -122,6 +142,17 @@ export function CouponForm({ initial, stores, back, translation }: CouponFormPro
             Verificado
           </label>
         </div>
+        {isNew && (
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input type="checkbox" name="from_web" className="size-5" />
+            <span>
+              Encontrado en internet
+              <span className="block text-xs text-neutral-600 dark:text-neutral-400">
+                Sin verificar, solo sale en tiendas con «Cupones de internet sin verificar» activado, durante 14 días o hasta que lo verifiques. Solo códigos públicos, nunca exclusivos de otras webs.
+              </span>
+            </span>
+          </label>
+        )}
         <label className="flex min-h-11 items-center gap-2 text-sm">
           <input type="checkbox" name="checked_now" className="size-5" />
           <span>

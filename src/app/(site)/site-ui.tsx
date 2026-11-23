@@ -54,6 +54,9 @@ export function StatusBadges({ c, today, live = true }: { c: SiteCoupon; today: 
     <>
       {perkOf(c.perk) ? <span className="badge b-exp">Permanente · {perkOf(c.perk)!.label}</span> : null}
       {c.verified ? <span className="badge b-ok">{checkedLabel(checkedDay(c.checked_at), today)}</span> : null}
+      {c.source === "web" && !c.verified ? (
+        <span className="badge b-low" title="Lo hemos encontrado publicado en internet y aún no lo ha comprobado nadie del equipo. Vota si te ha funcionado">Sin verificar</span>
+      ) : null}
       {left !== null && left <= 7 && (
         <span className="badge b-low">{left <= 0 ? "Caduca hoy" : left === 1 ? "Caduca mañana" : `Caduca en ${left} días`}</span>
       )}
