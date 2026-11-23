@@ -70,7 +70,12 @@ async function sitePageVerdict(req: NextRequest): Promise<RouteVerdict | null> {
   // still remembered for the next request.
   const lookup = deal ? dealRoute(deal[1]) : storeRoute(slug);
   lookup.then((v) => remember(key, v), () => {});
-  return orNullAfter(lookup, ROUTE_LOOKUP_TIMEOUT_MS, (e) => console.error("[proxy] route lookup failed", pathname, e));
+  // A timeout is expected now and then (cold start) and the page still answers: a warning. Anything else (the
+  // database refusing, a bad query) stays an error, so the error list shows only what needs a look.
+  return orNullAfter(lookup, ROUTE_LOOKUP_TIMEOUT_MS, (e) => {
+    const slow = e instanceof Error && e.message.startsWith("timed out");
+    (slow ? console.warn : console.error)("[proxy] route lookup failed", pathname, slow ? e.message : e);
+  });
 }
 
 // First gate only (signature check, no DB). Pages and actions re-check the user, role and session version.
