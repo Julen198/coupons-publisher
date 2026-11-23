@@ -11,6 +11,7 @@ import { sql, type Client } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
 import { mapStoreLines } from "@/lib/store-import";
 import { asNetwork } from "@/lib/affiliate";
+import { pastedTemplate } from "@/lib/networks/tradedoubler";
 import { storeCategory } from "@/lib/catalog";
 import { countryInput } from "@/lib/market";
 import { isMissingCountry } from "@/lib/country-column";
@@ -350,6 +351,8 @@ function storeTracking(f: FormData) {
   if (network === "awin") return { network, merchant_id, tracking_url: "" };
   // "{url}?ae=…" (Affilae) tracks on the shop's own page: it isn't a URL by itself
   const template = str(f, "tracking_url");
+  const td = network === "tradedoubler" ? pastedTemplate(template) : null;
+  if (td) return { network, merchant_id: merchant_id || td.programId, tracking_url: td.template };
   if (/^\{url\}[?&][^\s]+$/.test(template)) return { network, merchant_id, tracking_url: template };
   return { network, merchant_id, tracking_url: template ? url(f, "tracking_url", "El enlace de seguimiento") : "" };
 }

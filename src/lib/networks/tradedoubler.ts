@@ -29,6 +29,15 @@ export function trackingTemplate(defaultTrackUri = ""): string {
   return p && a ? `https://clk.tradedoubler.com/click?p=${p}&a=${a}&epi={ref}&url={url}` : "";
 }
 
+// A link pasted by hand in the store form, as Tradedoubler hands it out (My Programs → tracking link generator:
+// "click?p=270504&a=3123456&g=25987654", no placeholders). Without {url} every click would land on the home page and
+// carry no subid, so it becomes the same template the sync writes. Anything else is left as typed.
+export function pastedTemplate(link: string): { template: string; programId: string } | null {
+  if (!link || link.includes("{url}") || !/^https?:\/\/clk\.tradedoubler\.com\//i.test(link.trim())) return null;
+  const template = trackingTemplate(link.trim());
+  return template ? { template, programId: template.match(/[?&]p=(\d+)/)?.[1] ?? "" } : null;
+}
+
 const discountOf = (v: Voucher) => {
   if (v.discountAmount) return `${v.discountAmount}${v.isPercentage ? "%" : "€"}`;
   if (v.voucherTypeId === 4) return "Envío gratis";
