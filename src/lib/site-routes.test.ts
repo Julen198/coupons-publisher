@@ -113,3 +113,11 @@ test("needsSignIn: only the panel, client demos and the API ask to sign in; anyt
   for (const p of ["/panel", "/panel/coupons", "/demo/runnea", "/demo-preview", "/api/export"]) assert.equal(needsSignIn(p), true, p);
   for (const p of ["/algo-mal-escrito", "/black-friday", "/paneles", "/apis", "/tienda/myprotein"]) assert.equal(needsSignIn(p), false, p);
 });
+
+test("dealVisibility: an open store needs no tracked link, and shows its fresh unchecked finds", () => {
+  const find = row({ source: "web", verified: 0 });
+  assert.equal(dealVisibility(row(), T, false, false), "gone");
+  assert.equal(dealVisibility(row({ store_open: true }), T, false, false), "live");
+  assert.equal(dealVisibility(find, T, false, true), "gone");
+  assert.equal(dealVisibility({ ...find, store_open: true }, T, false, false), "live");
+});

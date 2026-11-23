@@ -389,6 +389,9 @@ ALTER TABLE stores ADD COLUMN IF NOT EXISTS title_term text NOT NULL DEFAULT '';
 -- the coupon's brands for the /marcas pages, set by an editor: '' = read from its title (see dealBrands), '-' = none,
 -- else brand slugs (brands.ts) separated by commas
 ALTER TABLE coupons ADD COLUMN IF NOT EXISTS brand text NOT NULL DEFAULT '';
+-- «Cupones de internet sin verificar»: the store shows web finds nobody checked yet (and links straight to the shop while
+-- it has no tracked link) until an affiliate network brings live coupons of it (see open-stores.ts)
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS open_unverified boolean NOT NULL DEFAULT false;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes, comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay

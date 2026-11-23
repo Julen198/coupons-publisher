@@ -35,10 +35,10 @@ export default async function StoresPage({ searchParams }: PageProps<"/panel/sto
   const storeById = new Map(stores.map((s) => [s.id, s]));
   const linked = (c: (typeof coupons)[number]) => {
     const s = storeById.get(c.store_id);
-    return !!s && isTracked(trackedLinkOf(c, s, { client: { slug: "panel", awin_affiliate_id: "" } }));
+    return !!s && (!!s.store_open || isTracked(trackedLinkOf(c, s, { client: { slug: "panel", awin_affiliate_id: "" } })));
   };
   for (const c of coupons) {
-    const bucket = isPublic(c, t, unverified) && linked(c) ? live : c.source === "web" && !c.verified && statusOf(c, t) === "pending" ? review : null;
+    const bucket = isPublic({ ...c, store_open: !!storeById.get(c.store_id)?.store_open }, t, unverified) && linked(c) ? live : c.source === "web" && !c.verified && statusOf(c, t) === "pending" ? review : null;
     bucket?.set(c.store_id, (bucket.get(c.store_id) ?? 0) + 1);
   }
   const anyCoupons = new Map(stores.map((s) => [s.id, (live.get(s.id) ?? 0) + (review.get(s.id) ?? 0)]));

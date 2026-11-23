@@ -25,9 +25,9 @@ async function load(ctx: RouteContext<"/go/[client]/[coupon]">): Promise<Target 
   ]);
   const [store] = coupon ? await db<Store[]>`SELECT *, logo_data <> '' AS has_logo FROM stores WHERE id = ${coupon.store_id}` : [];
   if (!client || !coupon || !store) return null;
-  // pending/rejected reader shares, unchecked web finds: no redirect and no click (expired and archived still go through:
+  // pending/rejected reader shares, unchecked web finds (but on an open store, see open-stores.ts): no redirect and no click (expired and archived still go through:
   // clients' exported pages may still link them)
-  if (!canRedirect(coupon, madridToday().iso, await publishUnverified())) return null;
+  if (!canRedirect({ ...coupon, store_open: !!store.open_unverified }, madridToday().iso, await publishUnverified())) return null;
   return { client, coupon, store };
 }
 

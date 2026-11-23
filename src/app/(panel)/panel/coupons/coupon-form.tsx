@@ -142,6 +142,17 @@ export function CouponForm({ initial, stores, back, translation }: CouponFormPro
             Verificado
           </label>
         </div>
+        {isNew && (
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input type="checkbox" name="from_web" className="size-5" />
+            <span>
+              Encontrado en internet
+              <span className="block text-xs text-neutral-600 dark:text-neutral-400">
+                Sin verificar, solo sale en tiendas con «Cupones de internet sin verificar» activado, durante 14 días o hasta que lo verifiques. Solo códigos públicos, nunca exclusivos de otras webs.
+              </span>
+            </span>
+          </label>
+        )}
         <label className="flex min-h-11 items-center gap-2 text-sm">
           <input type="checkbox" name="checked_now" className="size-5" />
           <span>

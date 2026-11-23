@@ -2,6 +2,7 @@ import { poolerUrl } from "./pooler.ts";
 import { countrySql, withCountryColumn } from "./country-column.ts";
 import { altDomainsColumn, altDomainsSql } from "./tracking-columns.ts";
 import { titleTermColumn } from "./perks.ts";
+import { openSwitchSql, openUnverifiedColumn, storeOpenSql } from "./open-stores.ts";
 import type { CategorySlug } from "./catalog.ts";
 import postgres from "postgres";
 import { io } from "next/cache";
@@ -39,6 +40,8 @@ export type Store = {
   country_source: "" | "network" | "inferred" | "manual";
   alt_domains?: string; // other domains the store sells on, comma-separated (see storeDomains); "" or missing until npm run db:setup adds it
   title_term?: string; // what its page title leads with in Google (see TITLE_TERMS); "" or missing until npm run db:setup adds it
+  open_unverified?: boolean; // «Cupones de internet sin verificar» switched on (see open-stores.ts); missing until the column exists
+  store_open?: boolean; // …and no live coupon of an affiliate network: it shows them right now
 };
 
 export type Coupon = {
@@ -124,17 +127,18 @@ export const listClients = () => q(async (s) => plain(await s<Client[]>`SELECT *
 export const getClient = (slug: string) =>
   q(async (s) => plain(await s<Client[]>`SELECT * FROM clients WHERE slug = ${slug}`)[0] as Client | undefined);
 
-// country / alt: whether stores.country and stores.alt_domains exist yet (see withCountryColumn, altDomainsColumn)
-const storeCols = (country: boolean, alt: boolean) =>
-  `id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo, ${countrySql(country, "stores", "")}, ${altDomainsSql(alt, "stores", "alt_domains")}`;
+// country / alt / open: whether stores.country, stores.alt_domains and stores.open_unverified exist yet (see
+// withCountryColumn, altDomainsColumn, openUnverifiedColumn)
+const storeCols = (country: boolean, alt: boolean, open: boolean) =>
+  `id, name, slug, website, network, merchant_id, tracking_url, publisher_id, intro, faqs, category, facts, logo_data <> '' AS has_logo, ${countrySql(country, "stores", "")}, ${altDomainsSql(alt, "stores", "alt_domains")}, ${openSwitchSql(open, "stores")}, ${storeOpenSql(open, "stores")}`;
 
 export const listStores = () =>
-  q(async (s) => plain(await withCountryColumn((c) => altDomainsColumn.run((a) => s<Store[]>`SELECT ${s.unsafe(storeCols(c, a))} FROM stores ORDER BY lower(name)`))));
+  q(async (s) => plain(await withCountryColumn((c) => altDomainsColumn.run((a) => openUnverifiedColumn.run((o) => s<Store[]>`SELECT ${s.unsafe(storeCols(c, a, o))} FROM stores ORDER BY lower(name)`)))));
 
 export const getStore = (slug: string) =>
   q(async (s) =>
-    plain(await withCountryColumn((c) => altDomainsColumn.run((a) => titleTermColumn.run((t) =>
-      s<Store[]>`SELECT ${s.unsafe(storeCols(c, a))}, ${s.unsafe(t ? "title_term" : "'' AS title_term")} FROM stores WHERE slug = ${slug}`))))[0] as Store | undefined);
+    plain(await withCountryColumn((c) => altDomainsColumn.run((a) => titleTermColumn.run((t) => openUnverifiedColumn.run((o) =>
+      s<Store[]>`SELECT ${s.unsafe(storeCols(c, a, o))}, ${s.unsafe(t ? "title_term" : "'' AS title_term")} FROM stores WHERE slug = ${slug}`)))))[0] as Store | undefined);
 
 export const listCoupons = (storeId: number) =>
   q(async (s) => plain(await s<Coupon[]>`SELECT * FROM coupons WHERE store_id = ${storeId} AND review = '' ORDER BY verified DESC, id`));

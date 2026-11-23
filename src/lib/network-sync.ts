@@ -8,7 +8,7 @@ import { cleanAdvertiserName, matchStore, type StoreRef } from "./networks/match
 import { networkLabel } from "./affiliate.ts";
 import { isMissingCountry } from "./country-column.ts";
 import { couponFreshnessColumns } from "./perks.ts";
-import { archiveMissing } from "./sync-archive";
+import { archiveMissing, archiveOpenFinds } from "./sync-archive";
 import { recordSuccess } from "./sync-success";
 import { httpsImage, networkCountries, type Credentials, type NetAdvertiser, type NetFeed, type NetOffer, type NetworkAdapter } from "./networks/types.ts";
 
@@ -29,6 +29,7 @@ export interface SyncSummary {
   otherNetworkStores?: string[]; // their store names, so the sync result says which ones were left out
   noWebsite?: string[]; // new stores the network gave no website for: the panel needs one before they go public
   archived?: number; // live coupons that left the feed (see archiveMissing)
+  webFindsRetired?: number; // unchecked web finds of open stores the network now covers (see archiveOpenFinds)
 }
 
 // Pull one account's advertisers and offers and fold them into stores and coupons.
@@ -98,7 +99,8 @@ async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, clientId: numbe
   }
   const { created, updated } = await upsertCoupons(net, feed.offers, storeOf, publisherId);
   const archived = await archiveMissing(net, feed.offers, [...new Set(storeOf.values())], publisherId, ownAccount);
-  return { ...summary, created, updated, archived };
+  const webFindsRetired = await archiveOpenFinds([...new Set(storeOf.values())]);
+  return { ...summary, created, updated, archived, webFindsRetired };
 }
 
 // A client's own account: keep its link per store so that client's clicks go through its account, not ours
@@ -211,6 +213,7 @@ export const describeSync = (s: SyncSummary) =>
     s.linkedStores ? `${s.linkedStores} tiendas vinculadas` : "",
     s.otherNetwork ? `${s.otherNetwork} anunciantes ya en otra red${otherNames(s)}` : "",
     s.archived ? `${s.archived} retirados del feed` : "",
+    s.webFindsRetired ? `${s.webFindsRetired} cupones de internet sin verificar retirados (ya hay cupones de la red)` : "",
     s.noWebsite?.length ? `${s.noWebsite.length} tiendas sin web (ponla en el panel): ${s.noWebsite.slice(0, 5).join(", ")}${s.noWebsite.length > 5 ? ` y ${s.noWebsite.length - 5} más` : ""}` : "",
   ].filter(Boolean).join(" · ");
 
