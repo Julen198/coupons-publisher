@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { InfoPage } from "../info-page";
+import { USES_MIN } from "@/lib/usage-signals";
 
 export const metadata: Metadata = {
   title: "Cómo elegimos y comprobamos los cupones",
@@ -25,6 +26,13 @@ export default function MethodologyPage() {
       <h2>Qué significa «Comprobado»</h2>
       <p>
         Que el cupón viene de la red de afiliación de la tienda, con sus condiciones oficiales, o que lo ha revisado una persona del equipo. Si no lleva la etiqueta, lo hemos añadido a mano o lo hemos encontrado en la web y todavía no está comprobado.
+      </p>
+      <h2>Qué significa «Usado N veces esta semana»</h2>
+      <p>
+        Es el número real de veces que alguien ha copiado el código o ha ido a la tienda desde CuponLab en los últimos 7 días. Contamos una vez a cada navegador por cupón y día, y dejamos fuera robots y comprobadores de enlaces, así que la cifra nunca es mayor que el uso real. «Último uso» es la hora del más reciente. No sabemos si la compra se completó, solo que se usó.
+      </p>
+      <p>
+        Por debajo de {USES_MIN} usos no mostramos la cifra, y el último uso solo sale si fue en los últimos 3 días. No inventamos ni redondeamos estos números.
       </p>
       <h2>Cuándo retiramos un cupón</h2>
       <p>

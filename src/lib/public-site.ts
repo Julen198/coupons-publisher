@@ -8,7 +8,7 @@ import { couponAffiliateUrl } from "./render-page.ts";
 import { withSource } from "./click-signals.ts";
 import { isTracked, trackedLinkOf } from "./tracked-link.ts";
 import { accountsFor, siteLinks, SITE_CLIENT_SLUG, type ClientLinks } from "./link-accounts";
-import { altDomainsColumn, altDomainsSql } from "./tracking-columns.ts";
+import { altDomainsColumn, altDomainsSql, clickColumns } from "./tracking-columns.ts";
 import { cookies } from "next/headers";
 import { getReader } from "./reader";
 import { anonReportsTable, anonVotesTable, validVoterId, VOTER_COOKIE, voterKey } from "./anon-votes.ts";
@@ -51,19 +51,23 @@ export type SiteCoupon = Coupon & {
   display_title: string; // the title as the site shows it (displayTitle with the known brands)
   brand_slugs: string[]; // the brands it is a deal of (see dealBrands): it is listed on each one's /marcas page
   store_open: boolean; // shows unchecked web finds, and goes straight to the shop while it has no tracked link (see open-stores.ts)
+  uses_week: number; // readers who copied it or went to the store in the last 7 days, one per browser and day (usage-signals.ts)
+  last_used_at: Date | null; // the latest of those, null = none in 7 days
 };
 
 // wordmark / country / alt / open: whether stores.wordmark_data, stores.country, stores.alt_domains and
 // stores.open_unverified exist yet (see withWordmarkColumn, withCountryColumn, altDomainsColumn, openUnverifiedColumn)
 // anon / reports: whether anon_votes and anon_expiry_reports exist yet (anonVotesTable, anonReportsTable); the score and
 // the expiry reports add visitors without an account to signed-in readers
-const couponSelect = (wordmark: boolean, country: boolean, alt: boolean, open: boolean, anon: boolean, reports: boolean) => `
+// hashed: whether clicks.ua_hash exists yet (clickColumns); without it every click row counts as one use
+const couponSelect = (wordmark: boolean, country: boolean, alt: boolean, open: boolean, anon: boolean, reports: boolean, hashed: boolean) => `
   SELECT c.*, s.name AS store_name, s.slug AS store_slug, s.logo_data <> '' AS store_has_logo,
          ${hasWordmarkSql(wordmark, "s")} AS store_has_wordmark, s.category AS store_category, s.website AS store_website,
          s.network AS store_network, s.merchant_id AS store_merchant_id, s.tracking_url AS store_tracking_url,
          coalesce(s.publisher_id, '') AS store_publisher_id, ${countrySql(country, "s")}, ${altDomainsSql(alt, "s")}, ${storeOpenSql(open, "s")},
          coalesce(v.score, 0)::int AS score, coalesce(cm.n, 0)::int AS comments,
-         CASE WHEN sb.status = 'active' THEN sb.handle END AS shared_by_handle, coalesce(er.n, 0)::int AS expiry_reports
+         CASE WHEN sb.status = 'active' THEN sb.handle END AS shared_by_handle, coalesce(er.n, 0)::int AS expiry_reports,
+         coalesce(us.n, 0)::int AS uses_week, us.last_at AS last_used_at
   FROM coupons c JOIN stores s ON s.id = c.store_id
   LEFT JOIN (
     SELECT x.coupon_id, sum(x.value) AS score FROM (
@@ -83,13 +87,17 @@ const couponSelect = (wordmark: boolean, country: boolean, alt: boolean, open: b
       SELECT e.coupon_id FROM expiry_reports e JOIN readers er_r ON er_r.id = e.reader_id WHERE er_r.status = 'active'
       ${reports ? "UNION ALL SELECT ae.coupon_id FROM anon_expiry_reports ae" : ""}
     ) y GROUP BY y.coupon_id
-  ) er ON er.coupon_id = c.id`;
+  ) er ON er.coupon_id = c.id
+  LEFT JOIN (
+    SELECT u.coupon_id, ${hashed ? "count(DISTINCT CASE WHEN u.ua_hash <> '' THEN u.ua_hash ELSE u.id::text END)" : "count(*)"} AS n, max(u.at) AS last_at
+    FROM clicks u WHERE u.at > now() - interval '7 days' AND u.coupon_id IS NOT NULL GROUP BY u.coupon_id
+  ) us ON us.coupon_id = c.id`;
 
 const plain = <T>(rows: readonly T[]): T[] => rows.map((r) => ({ ...r }));
 
 // couponSelect with whichever of its optional columns exist
 const withCouponSelect = <T>(query: (select: string) => Promise<T>): Promise<T> =>
-  withWordmarkColumn((w) => withCountryColumn((c) => altDomainsColumn.run((a) => openUnverifiedColumn.run((o) => anonVotesTable.run((v) => anonReportsTable.run((r) => query(couponSelect(w, c, a, o, v, r))))))));
+  withWordmarkColumn((w) => withCountryColumn((c) => altDomainsColumn.run((a) => openUnverifiedColumn.run((o) => anonVotesTable.run((v) => anonReportsTable.run((r) => clickColumns.run((h) => query(couponSelect(w, c, a, o, v, r, h)))))))));
 
 // Whose links the public site builds (the cuponlab client, its own accounts' links, our Awin publisher ids): once per request
 const publicLinks = cache(async (): Promise<ClientLinks> => {

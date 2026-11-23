@@ -19,7 +19,7 @@ import { CommentItem } from "./comment-item";
 import { DealActions } from "./deal-actions";
 import { CopyCode, CopyCodeButton } from "../../copy-code";
 import { StoreLogoImg } from "../../store-logo-img";
-import { Crumbs, DealPicture, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, VoteColumn, badgeOf, crumbsLd, faqLd, isWordBadge, offerLd, priceClass, titleOf } from "../../site-ui";
+import { Crumbs, DealPicture, Faqs, GoButton, JsonLd, StatusBadges, StoreThumb, UsageNote, VoteColumn, badgeOf, crumbsLd, faqLd, isWordBadge, offerLd, priceClass, titleOf } from "../../site-ui";
 
 const EXPIRED_INDEX_DAYS = 30;
 
@@ -169,6 +169,7 @@ export default async function DealPage({ params, searchParams }: PageProps<"/cho
                   <span>Publicado el <b>{shortDate(published)}</b></span>
                 )}
                 <span>{c.expires_at ? <>{live ? "Válido hasta el" : "Caducó el"} <b>{shortDate(c.expires_at)}</b></> : "Sin fecha de caducidad"}</span>
+                {live && <UsageNote c={c} now={now} />}
                 <span><b>{comments.length}</b> {comments.length === 1 ? "comentario" : "comentarios"}</span>
               </div>
             </div>
