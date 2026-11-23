@@ -27,6 +27,7 @@ export interface SyncSummary {
   linkedStores: number; // existing stores tied to their advertiser
   otherNetwork: number; // advertisers whose shop already goes through another network
   otherNetworkStores?: string[]; // their store names, so the sync result says which ones were left out
+  noWebsite?: string[]; // new stores the network gave no website for: the panel needs one before they go public
   archived?: number; // live coupons that left the feed (see archiveMissing)
 }
 
@@ -75,12 +76,16 @@ async function mergeFeed(adapter: NetworkAdapter, feed: NetFeed, clientId: numbe
     } else if (m.kind === "other-network") {
       summary.otherNetwork++;
       summary.otherNetworkStores = [...(summary.otherNetworkStores ?? []), `${cleanAdvertiserName(adv.name)} (va por ${networkLabel(m.store.network)})`];
-    } else if (withOffers.has(adv.id) && adv.website) {
+    } else if (withOffers.has(adv.id)) {
+      // Tradedoubler vouchers often come without a landing page (About You ES): the store is still made, without a
+      // website, so its coupons come in; it stays off the public site (no website, no checked link) until an editor
+      // fills the website in the panel. The sync result names these stores.
       const created = await createStore(net, adv);
       if (created) {
         stores = [...stores, created];
         storeOf.set(adv.id, created.id);
         summary.newStores.push(created.slug);
+        if (!adv.website) summary.noWebsite = [...(summary.noWebsite ?? []), created.slug];
       }
     }
   }
@@ -206,6 +211,7 @@ export const describeSync = (s: SyncSummary) =>
     s.linkedStores ? `${s.linkedStores} tiendas vinculadas` : "",
     s.otherNetwork ? `${s.otherNetwork} anunciantes ya en otra red${otherNames(s)}` : "",
     s.archived ? `${s.archived} retirados del feed` : "",
+    s.noWebsite?.length ? `${s.noWebsite.length} tiendas sin web (ponla en el panel): ${s.noWebsite.slice(0, 5).join(", ")}${s.noWebsite.length > 5 ? ` y ${s.noWebsite.length - 5} más` : ""}` : "",
   ].filter(Boolean).join(" · ");
 
 export async function recordSync(account: NetworkAccount, result: { summary?: SyncSummary; error?: string }) {
