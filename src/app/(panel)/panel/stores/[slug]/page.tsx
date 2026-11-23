@@ -14,6 +14,7 @@ import { translationDraft } from "@/lib/translation";
 import { checkedDay } from "@/lib/perks";
 import { CouponForm, type CouponDraft } from "@/app/(panel)/panel/coupons/coupon-form";
 import { StoreContentForm } from "./store-content-form";
+import { storeFactSources } from "@/lib/store-facts-cron";
 import { inferStoreCountry } from "@/lib/market";
 
 const TABS = [
@@ -33,7 +34,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const [store, stores, allPages] = await Promise.all([getStore(slug), listStores(), listPages()]);
   if (!store) notFound();
-  const coupons = await listCoupons(store.id);
+  const [coupons, factsSources] = await Promise.all([listCoupons(store.id), storeFactSources(store.id)]);
   const user = await requireUser();
   const editable = canEdit(user);
   const pages = onlyVisible(user, allPages).filter((p) => p.store_id === store.id);
@@ -151,7 +152,7 @@ export default async function StorePage({ params, searchParams }: PageProps<"/pa
 
       {tab === "contenido" && (
         <StoreContentForm
-          store={{ slug: store.slug, name: store.name, website: store.website, network: store.network, merchant_id: store.merchant_id, tracking_url: store.tracking_url, intro: store.intro, faqs: store.faqs, category: store.category, facts: store.facts, country: store.country, country_source: store.country_source, title_term: store.title_term ?? "" }}
+          store={{ slug: store.slug, name: store.name, website: store.website, network: store.network, merchant_id: store.merchant_id, tracking_url: store.tracking_url, intro: store.intro, faqs: store.faqs, category: store.category, facts: store.facts, facts_sources: factsSources, country: store.country, country_source: store.country_source, title_term: store.title_term ?? "" }}
           inferred={inferStoreCountry({ name: store.name, slug: store.slug, website: store.website, trackingUrl: store.tracking_url })}
           discounts={coupons.filter((c) => !c.archived && statusOf(c, t) !== "expired").map((c) => c.discount)}
         />

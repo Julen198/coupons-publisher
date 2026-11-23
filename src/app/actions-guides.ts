@@ -7,6 +7,7 @@ import { requireAdmin, requireEditor } from "@/lib/auth";
 import { guideSettings, scheduleGuide, storeSignals, writeGuide } from "@/lib/guides-cron";
 import { scoreOf } from "@/lib/guide-rules";
 import { pingIndexNow } from "@/lib/guide-index";
+import { markFactCheckReviewed } from "@/lib/store-facts-cron";
 
 const storeIdOf = (f: FormData) => {
   const id = Number(f.get("store_id"));
@@ -72,4 +73,13 @@ export async function saveGuideSettings(f: FormData) {
     await sql()`INSERT INTO settings (key, value) VALUES (${key}, ${value}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
   }
   await done("Ajustes de guías SEO guardados"); // settingsOf clamps whatever was typed
+}
+
+// «Ya está revisado» on a changed store-facts page: what the page says now becomes the new baseline
+export async function reviewFactCheck(f: FormData) {
+  await requireEditor();
+  const id = storeIdOf(f);
+  const url = String(f.get("url") ?? "");
+  const name = await markFactCheckReviewed(id, url);
+  await done(`Datos de tienda revisados: ${name ?? id} (${url})`);
 }
