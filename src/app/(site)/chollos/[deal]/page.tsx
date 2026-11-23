@@ -7,6 +7,7 @@ import { brandOf, brandPath } from "@/lib/brands";
 import { pageSource } from "@/lib/click-signals";
 import { copyBeaconHref, currentVotes, dealComments, readerDealMarks, siteClient, siteCoupon, siteCoupons, siteStoreById } from "@/lib/public-site";
 import { getReader } from "@/lib/reader";
+import { dealRoute } from "@/lib/route-lookup";
 import { readerAccountsEnabled } from "@/lib/settings";
 import { isUncheckedFind } from "@/lib/coupon-status";
 import { couponIdOf, threadComments, timeAgo } from "@/lib/community";
@@ -56,6 +57,12 @@ export async function generateMetadata({ params }: PageProps<"/chollos/[deal]">)
 export default async function DealPage({ params, searchParams }: PageProps<"/chollos/[deal]">) {
   const param = (await params).deal;
   const found = await load(param);
+  // no longer live: the same product's current deal, when there is one (the proxy answers this first; this is for when
+  // its lookup ran out of time)
+  if (!found?.live) {
+    const verdict = await dealRoute(param);
+    if (verdict.kind === "moved") permanentRedirect(verdict.to);
+  }
   if (!found) notFound();
   const { coupon: c, live } = found;
   // old or mistyped words after the id: send readers and crawlers to the one canonical URL

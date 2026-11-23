@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dealRouteVerdict, dealVisibility, isDocumentRequest, storeRouteVerdict, needsSignIn } from "./site-routes.ts";
+import { dealRouteVerdict, dealVisibility, isDocumentRequest, isProductLanding, storeRouteVerdict, needsSignIn } from "./site-routes.ts";
+import { dealPath as dealPathOf } from "./site-text.ts";
 import { fixedRouteVerdict } from "./site-routes.ts";
 
 const T = "2026-11-06";
@@ -120,4 +121,29 @@ test("dealVisibility: an open store needs no tracked link, and shows its fresh u
   assert.equal(dealVisibility(row({ store_open: true }), T, false, false), "live");
   assert.equal(dealVisibility(find, T, false, true), "gone");
   assert.equal(dealVisibility({ ...find, store_open: true }, T, false, false), "live");
+});
+
+test("isProductLanding: a page of its own, not the shop's front door", () => {
+  const home = "https://www.samsung.com/es";
+  assert.equal(isProductLanding("https://www.samsung.com/es/audio-devices/soundbar/q990h-q-series-soundbar/", home), true);
+  assert.equal(isProductLanding("https://www.jdsports.es/hombre/", "https://www.jdsports.es"), true);
+  assert.equal(isProductLanding("https://www.samsung.com/es", home), false);
+  assert.equal(isProductLanding("https://www.samsung.com/es/", home), false);
+  assert.equal(isProductLanding("https://www.adidas.es/", "https://www.adidas.es"), false);
+  assert.equal(isProductLanding("https://www.honor.com/es-es/", ""), false, "a bare locale is still the front door");
+  assert.equal(isProductLanding("", home), false);
+  assert.equal(isProductLanding("not a url", home), false);
+});
+
+test("dealRouteVerdict: a deal no longer live moves to the live deal for the same product", () => {
+  const next = { id: 77, title: "Barra Q990H por 393,10€", store_name: "43einhalb" };
+  const moved = (over: Parameters<typeof row>[0]) => dealRouteVerdict("42-43einhalb-15-extra-con-clab15", row(over), T, false, true, next);
+  assert.equal(moved({ expires_at: "2026-10-01" }).kind, "moved", "expired");
+  assert.equal(moved({ archived: 1 }).kind, "moved", "archived, which had no page at all");
+  assert.deepEqual(moved({ archived: 1 }), { kind: "moved", to: dealPathOf(next) });
+  // a live deal stays where it is, and without a replacement nothing changes
+  assert.deepEqual(dealRouteVerdict("42-43einhalb-15-extra-con-clab15", row(), T, false, true, next), { kind: "ok" });
+  assert.deepEqual(dealRouteVerdict("42-x", row({ archived: 1 }), T, false, true), { kind: "missing" });
+  // a deal that is not ours to show (another market) never redirects
+  assert.deepEqual(dealRouteVerdict("42-x", undefined, T, false, true, next), { kind: "missing" });
 });

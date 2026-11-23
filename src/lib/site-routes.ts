@@ -44,10 +44,31 @@ export type RouteVerdict = { kind: "ok" } | { kind: "missing" } | { kind: "moved
 
 export type DealRouteRow = VisibilityFields & { id: number; title: string; store_name: string };
 
-// /chollos/<param>: missing when there is no page for it, moved when the words after the id are not the canonical ones
-export function dealRouteVerdict(param: string, row: DealRouteRow | undefined, today: string, unverified: boolean, tracked = true): RouteVerdict {
+// A landing page of its own (a product, a category), not the shop's front door: only those tell two deals apart.
+// "https://www.samsung.com/es" is Samsung's home, shared by every general promotion it runs.
+export function isProductLanding(targetUrl: string, storeWebsite: string): boolean {
+  if (!URL.canParse(targetUrl)) return false;
+  const page = (raw: string) => {
+    const u = new URL(raw);
+    return `${u.hostname.replace(/^www\./, "")}${u.pathname.replace(/\/+$/, "")}`.toLowerCase();
+  };
+  const segments = new URL(targetUrl).pathname.split("/").filter(Boolean);
+  if (!segments.length || (segments.length === 1 && /^[a-z]{2}([-_][a-z]{2})?$/i.test(segments[0]))) return false;
+  return !URL.canParse(storeWebsite) || page(targetUrl) !== page(storeWebsite);
+}
+
+export type DealSuccessor = { id: number; title: string; store_name: string };
+
+// /chollos/<param>: missing when there is no page for it, moved when the words after the id are not the canonical ones.
+// `successor` is the live deal for the same product (see liveSuccessor in route-lookup): a network re-issues a product's
+// offer under a new id when its price or dates change, and the address people and assistants already link to must
+// keep leading to the current one. Only a deal that is no longer live moves there.
+export function dealRouteVerdict(param: string, row: DealRouteRow | undefined, today: string, unverified: boolean, tracked = true, successor?: DealSuccessor): RouteVerdict {
   const id = parseDealId(param);
-  if (!id || !row || row.id !== id || dealVisibility(row, today, unverified, tracked) === "gone") return { kind: "missing" };
+  if (!id || !row || row.id !== id) return { kind: "missing" };
+  const seen = dealVisibility(row, today, unverified, tracked);
+  if (seen !== "live" && successor) return { kind: "moved", to: dealPath(successor) };
+  if (seen === "gone") return { kind: "missing" };
   const canonical = dealPath(row);
   return `/chollos/${param}` === canonical ? { kind: "ok" } : { kind: "moved", to: canonical };
 }
