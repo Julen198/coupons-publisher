@@ -76,3 +76,16 @@ test("canRedirect only for public, reviewed coupons", () => {
   assert.equal(canRedirect({ ...live, source: "web", verified: 0 }, T, false), false);
   assert.equal(canRedirect({ ...live, source: "web", verified: 0 }, T, true), true);
 });
+
+test("unchecked web finds show on open stores for a while, until readers sink them", () => {
+  const t = "2026-11-23";
+  const find = { verified: 0, archived: 0, expires_at: "", source: "web", created_at: new Date("2026-11-20T10:00:00Z") };
+  assert.equal(isPublic(find, t), false);
+  assert.equal(isPublic({ ...find, store_open: true }, t), true);
+  assert.equal(isPublic({ ...find, store_open: true, created_at: new Date("2026-11-01T10:00:00Z") }, t), false);
+  assert.equal(isPublic({ ...find, store_open: true, score: -2 }, t), false);
+  assert.equal(isPublic({ ...find, store_open: true, expiry_reports: 2 }, t), false);
+  assert.equal(isPublic({ ...find, store_open: true, verified: 1, created_at: new Date("2026-01-01T10:00:00Z") }, t), true);
+  assert.equal(canRedirect(find, t), false);
+  assert.equal(canRedirect({ ...find, store_open: true }, t), true);
+});

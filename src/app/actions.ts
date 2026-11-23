@@ -1,5 +1,6 @@
 "use server";
 
+import { openUnverifiedColumn } from "@/lib/open-stores";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { attemptKeys, blockedFor, clientIp, LOGIN_LIMITS } from "@/lib/login-limit";
@@ -512,6 +513,20 @@ export async function updateStore(_prev: FormState, f: FormData): Promise<FormSt
   return {};
 }
 
+// «Cupones de internet sin verificar» on a store's page (see open-stores.ts)
+export async function setStoreOpen(f: FormData) {
+  await requireEditor();
+  const slug = required(f, "slug");
+  const on = f.get("open") === "1";
+  await openUnverifiedColumn.run(async (present) => {
+    if (!present) throw new Error("Para usar los cupones sin verificar ejecuta antes el SQL en Supabase");
+    await sql()`UPDATE stores SET open_unverified = ${on} WHERE slug = ${slug}`;
+  });
+  await logActivity(`${on ? "Activados" : "Desactivados"} los cupones de internet sin verificar en ${slug}`);
+  revalidatePath(`/panel/stores/${slug}`);
+  revalidatePath("/panel/stores");
+}
+
 // ---------- coupons ----------
 
 export async function deleteCoupon(f: FormData) {
@@ -557,7 +572,9 @@ export async function saveCoupon(_prev: FormState, f: FormData): Promise<FormSta
         else await sql()`UPDATE coupons SET ${sql()({ ...c, text_locked: true })} WHERE id = ${id} AND review = ''`;
         return id;
       }
-      const [row] = await sql()<{ id: number }[]>`INSERT INTO coupons ${sql()(present ? { ...c, perk, checked_at: c.verified || checkedNow ? new Date() : null } : c)} RETURNING id`;
+      // a code copied from the web («Encontrado en internet»): an unchecked web find, shown only on open stores until verified
+      const added = f.get("from_web") === "on" ? { ...c, source: "web" } : c;
+      const [row] = await sql()<{ id: number }[]>`INSERT INTO coupons ${sql()(present ? { ...added, perk, checked_at: c.verified || checkedNow ? new Date() : null } : added)} RETURNING id`;
       return row.id;
     });
     await couponBrandColumn.run(async (present) => {
