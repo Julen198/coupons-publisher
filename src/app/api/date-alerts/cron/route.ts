@@ -2,6 +2,7 @@ import { alertDeals, dateAlertEmail, eventKey, eventsDueOn, unsubscribeUrl } fro
 import { claimSend, dueSubscribers, releaseSend } from "@/lib/date-alert-subs";
 import { missingEmailConfig, sendEmail } from "@/lib/email";
 import { siteCoupons } from "@/lib/public-site";
+import { isUncheckedFind } from "@/lib/coupon-status";
 import { isMissingSchema } from "@/lib/schema-guard";
 import { madridToday, siteUrl } from "@/lib/site-text";
 import { cronAuthorized } from "@/lib/telegram";
@@ -23,7 +24,8 @@ export async function GET(req: Request) {
   if (!due.length) return Response.json({ due: [], sent: 0, failed: 0 });
   try {
     const base = siteUrl();
-    const deals = alertDeals(await siteCoupons());
+    // unchecked web finds (see open-stores.ts) stay out of emails: only the site shows them, labelled «Sin verificar»
+    const deals = alertDeals((await siteCoupons()).filter((c) => !isUncheckedFind(c)));
     let sent = 0;
     let failed = 0;
     for (const event of due) {

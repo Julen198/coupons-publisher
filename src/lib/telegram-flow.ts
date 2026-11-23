@@ -9,6 +9,7 @@ import { SITE_CLIENT_SLUG } from "./link-accounts";
 import { dealPath, siteUrl } from "./site-text";
 import { dealMessage, editPrompt, parseCallback, promptCouponId, reviewKeyboard, tg, type DealFields, type TelegramConfig } from "./telegram";
 import { withoutPerks } from "./perks.ts";
+import { isUncheckedFind } from "./coupon-status.ts";
 
 const BATCH = 10;
 // ponytail: only coupons from the last 3 days reach the admin chat, so switching the bot on doesn't flood it with the whole catalogue
@@ -44,8 +45,9 @@ function dealPost(cfg: TelegramConfig, c: PostableDeal, title?: string) {
 // public channel yet, just a link to the deal)
 export async function sendQueue(cfg: TelegramConfig): Promise<{ sent: number; left: number }> {
   const since = Date.now() - FRESH_DAYS * 86_400_000;
-  // standing offers (newsletter, app…) are not news: they never go to the channel
-  const fresh = withoutPerks(await siteCoupons()).filter((c) => new Date(c.created_at).getTime() >= since);
+  // standing offers (newsletter, app…) are not news: they never go to the channel; nor unchecked web finds, which only
+  // the site shows, labelled «Sin verificar» (see open-stores.ts)
+  const fresh = withoutPerks(await siteCoupons()).filter((c) => !isUncheckedFind(c) && new Date(c.created_at).getTime() >= since);
   if (!fresh.length) return { sent: 0, left: 0 };
   const byId = new Map(fresh.map((c) => [c.id, c]));
   const ids = [...byId.keys()];
@@ -80,6 +82,7 @@ export async function publish(cfg: TelegramConfig, id: number, title?: string): 
   if (!cfg.channelId) return { ok: false, note: "Falta el canal público (TELEGRAM_CHANNEL_ID)" };
   const found = await siteCoupon(id);
   if (!found?.live) return { ok: false, note: "Ya no está activo en la web" };
+  if (isUncheckedFind(found.coupon)) return { ok: false, note: "Está sin verificar: verifícalo en el panel antes de publicarlo" };
   const [claimed] = await sql()`UPDATE coupons SET telegram_status = 'published' WHERE id = ${id} AND telegram_status IN ('', 'review') RETURNING id`;
   if (!claimed) return { ok: false, note: "Ya estaba publicado o descartado" };
   const { url, body } = dealPost(cfg, found.coupon, title);
