@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { siteUrl } from "@/lib/site-text";
 import { io } from "next/cache";
 import { cardCls, PageHeader } from "@/app/ui";
 import { canEdit, requireUser } from "@/lib/auth";
@@ -233,7 +234,7 @@ export default async function StatsPage({ searchParams }: PageProps<"/panel/esta
               <tbody>
                 {s.stores.map((r) => (
                   <tr key={r.slug} className="border-t border-neutral-100 dark:border-neutral-800">
-                    <td className="px-3 py-2 pl-5 font-medium"><Link href={`/tiendas/${r.slug}`} className="hover:underline">{r.name}</Link></td>
+                    <td className="px-3 py-2 pl-5 font-medium"><a href={`${siteUrl()}/tiendas/${r.slug}`} className="hover:underline">{r.name}</a></td>
                     <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${GUIDE[r.guide][1]}`}>{GUIDE[r.guide][0]}</span></td>
                     <td className={td}>{n(r.impressions)}</td><td className={td}>{pos(r.position)}</td><td className={td}>{n(r.visits)}</td><td className={td}>{n(r.clicks)}</td>
                     <td className={`${td} text-neutral-500`}>{r.visits ? pct(r.clicks / r.visits) : "—"}</td>

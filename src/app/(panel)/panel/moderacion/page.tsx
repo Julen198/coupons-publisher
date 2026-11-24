@@ -6,7 +6,7 @@ import { requireEditor } from "@/lib/auth";
 import { io } from "next/cache";
 import { sql } from "@/lib/db";
 import { anonReportsTable } from "@/lib/anon-votes";
-import { dealPath } from "@/lib/site-text";
+import { dealPath, siteUrl } from "@/lib/site-text";
 import { AboutDraftForm, DraftAboutsButton } from "./about-drafts";
 import { approveTranslation } from "@/app/actions-translations";
 import { publicText } from "@/lib/translation";
@@ -139,7 +139,7 @@ export default async function ModerationPage() {
               <p className="text-sm text-neutral-500">
                 {d.store_name} · {d.reports === 1 ? "1 aviso" : `${d.reports} avisos`} · último {fmtDateTime(d.last_at)}
               </p>
-              <a href={dealPath(d)} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-700 underline dark:text-blue-400">{d.title}</a>
+              <a href={`${siteUrl()}${dealPath(d)}`} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-700 underline dark:text-blue-400">{d.title}</a>
             </div>
             <div className="flex gap-2">
               <form action={retireReported}>
@@ -166,7 +166,7 @@ export default async function ModerationPage() {
           <div key={d.id} className={`${cardCls} space-y-3`}>
             <p className="text-sm text-neutral-500">
               {d.store_name} ·{" "}
-              <a href={dealPath(d)} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-700 underline dark:text-blue-400">{d.title}</a>
+              <a href={`${siteUrl()}${dealPath(d)}`} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-700 underline dark:text-blue-400">{d.title}</a>
             </p>
             <AboutDraftForm id={d.id} about={d.about} />
           </div>

@@ -7,6 +7,7 @@ import { sql } from "./db";
 import { siteCoupon, siteCoupons } from "./public-site";
 import { SITE_CLIENT_SLUG } from "./link-accounts";
 import { dealPath, siteUrl } from "./site-text";
+import { appUrl } from "./email";
 import { dealMessage, editPrompt, parseCallback, promptCouponId, reviewKeyboard, tg, type DealFields, type TelegramConfig } from "./telegram";
 import { withoutPerks } from "./perks.ts";
 import { isUncheckedFind } from "./coupon-status.ts";
@@ -205,6 +206,6 @@ export async function newStoresSummary(): Promise<string> {
   }
   if (!byClient.size) return "";
   const lines = [...byClient].map(([slug, c]) =>
-    `• ${c.name}: ${c.stores.length} sin revisar (${c.stores.slice(0, 5).join(", ")}${c.stores.length > 5 ? "…" : ""})\n  ${siteUrl()}/panel/clients/${slug}?estado=nuevas`);
+    `• ${c.name}: ${c.stores.length} sin revisar (${c.stores.slice(0, 5).join(", ")}${c.stores.length > 5 ? "…" : ""})\n  ${appUrl()}/panel/clients/${slug}?estado=nuevas`);
   return ["🆕 Tiendas nuevas esta semana, inactivas hasta que las actives o bloquees:", ...lines].join("\n");
 }

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { panelOrigin } from "./hosts.ts";
 
 export const MAGIC_LINK_MINUTES = 15;
 // one email per user per minute, so the form can't be used to flood an inbox
@@ -8,7 +9,10 @@ export const MAGIC_LINK_COOLDOWN_SECONDS = 60;
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
 // Never built from the request Host header: a forged Host would put an attacker's domain in the emailed link
+// The panel's origin: PANEL_URL once the panel has its own host (see hosts.ts), else APP_URL
 export function appUrl(): string {
+  const panel = panelOrigin();
+  if (panel) return panel;
   if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   return "http://localhost:3000";
