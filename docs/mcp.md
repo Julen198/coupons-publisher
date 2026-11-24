@@ -31,4 +31,4 @@ Que el asistente lo use solo, sin que el usuario lo pida, pasa únicamente para 
 
 **ChatGPT** (developers.openai.com/apps-sdk/deploy/submission): ahora se publica como plugin desde el portal de OpenAI, con la organización verificada. Pide nombre, logo, descripción, web y política de privacidad, información del MCP y las herramientas, capturas y prompts de prueba con sus respuestas.
 
-Antes de enviar: una página de política de privacidad que diga que el servidor no guarda nada de la conversación (solo cuenta el clic, igual que la web) y una de documentación (puede ser esta, resumida, en la web).
+Páginas para el formulario: documentación en `/asistentes-ia`, privacidad en `/privacidad-asistentes`, soporte en `/contacto` (necesita SITE_CONTACT_EMAIL), icono en `/icon.svg`.

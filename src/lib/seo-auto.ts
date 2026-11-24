@@ -50,7 +50,7 @@ export function llmsTxt(base: string, guides: readonly GuideLink[], stores: read
     "",
     "## Para asistentes de IA",
     "",
-    `- Servidor MCP (Streamable HTTP, sin login, solo lectura): ${base}/mcp. Herramientas: search_coupons, top_deals, get_coupon, list_stores.`,
+    `- Servidor MCP (Streamable HTTP, sin login, solo lectura): ${base}/mcp. Herramientas: search_coupons, top_deals, get_coupon, list_stores. [Cómo conectarlo](${base}/asistentes-ia)`,
     "",
   ].join("\n");
 }
