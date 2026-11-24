@@ -17,6 +17,16 @@ export function contactEmail(raw = process.env.SITE_CONTACT_EMAIL): string {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
 }
 
+// The address for data and privacy requests (SITE_PRIVACY_EMAIL), falling back to the contact address
+export function privacyEmail(raw = process.env.SITE_PRIVACY_EMAIL, fallback = process.env.SITE_CONTACT_EMAIL): string {
+  return contactEmail(raw) || contactEmail(fallback);
+}
+
+// The address for stores, affiliate networks and press (SITE_PARTNERS_EMAIL), falling back to the contact address
+export function partnersEmail(raw = process.env.SITE_PARTNERS_EMAIL, fallback = process.env.SITE_CONTACT_EMAIL): string {
+  return contactEmail(raw) || contactEmail(fallback);
+}
+
 // "Código 15% en 43einhalb" → "codigo-15-en-43einhalb"
 export function slugify(s: string): string {
   return s

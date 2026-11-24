@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { contactEmail } from "@/lib/site-text";
+import { privacyEmail } from "@/lib/site-text";
 import { InfoPage } from "../info-page";
 
 export const metadata: Metadata = {
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 // /go links it hands out actually keep. Keep it in step with clicks.ts and click-signals.ts.
 export default async function AssistantsPrivacyPage() {
   await connection(); // the address is read per request
-  const email = contactEmail();
+  const email = privacyEmail();
   return (
     <InfoPage name="Privacidad para asistentes" title="Privacidad del conector para asistentes de IA">
       <p>Esta política cubre el servidor MCP de CuponLab (<Link href="/asistentes-ia">cómo funciona</Link>), el que usan Claude, ChatGPT y otros asistentes para buscar cupones.</p>

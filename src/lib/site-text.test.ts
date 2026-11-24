@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blackFriday, calendarGroups, contactEmail, untilLabel, copiedMessage, mothersDay, dealPath, longDate, parseDealId, percentOf, savingOf, shortDate, slugify, upcomingEvents } from "./site-text.ts";
+import { blackFriday, calendarGroups, contactEmail, partnersEmail, privacyEmail, untilLabel, copiedMessage, mothersDay, dealPath, longDate, parseDealId, percentOf, savingOf, shortDate, slugify, upcomingEvents } from "./site-text.ts";
 
 test("slugify drops accents and symbols", () => {
   assert.equal(slugify("El Corte Inglés: 15% en Moda"), "el-corte-ingles-15-en-moda");
@@ -48,6 +48,13 @@ test("contactEmail is the trimmed env address, or empty when unset or not an ema
   assert.equal(contactEmail(""), "");
   assert.equal(contactEmail(undefined), "");
   assert.equal(contactEmail("no es un email"), "");
+});
+
+test("privacyEmail and partnersEmail use their own address, or fall back to the contact one", () => {
+  assert.equal(privacyEmail("privacidad@cuponlab.com", "hello@cuponlab.com"), "privacidad@cuponlab.com");
+  assert.equal(privacyEmail("", "hello@cuponlab.com"), "hello@cuponlab.com");
+  assert.equal(partnersEmail(" partners@cuponlab.com ", "hello@cuponlab.com"), "partners@cuponlab.com");
+  assert.equal(partnersEmail(undefined, undefined), "");
 });
 
 test("percentOf reads normalised badges and minus signs too", () => {
