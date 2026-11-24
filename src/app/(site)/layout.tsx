@@ -67,7 +67,7 @@ export default function SiteLayout({ children, modal }: LayoutProps<"/">) {
           </nav>
           <span>
             <Link href="/tiendas">Tiendas</Link> · <Link href="/marcas">Marcas</Link> · <Link href="/calendario">Calendario de ofertas</Link> · <Link href="/metodologia">Metodología</Link> ·{" "}
-            <Link href="/aviso-de-afiliacion">Aviso de afiliación</Link>
+            <Link href="/aviso-de-afiliacion">Aviso de afiliación</Link> · <Link href="/aviso-legal">Aviso legal</Link>
             {gaId && (
               <>
                 {" "}· <CookieSettingsLink />

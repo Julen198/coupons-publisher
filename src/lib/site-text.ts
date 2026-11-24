@@ -17,6 +17,13 @@ export function contactEmail(raw = process.env.SITE_CONTACT_EMAIL): string {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
 }
 
+// The company behind CuponLab, shown in /aviso-legal and the privacy policy (LSSI art. 10)
+export const COMPANY = {
+  name: "Betangor Horizon S.L.",
+  cif: "B24934283",
+  address: "Calle El Porvenir, 16 Bajo, 48902 Barakaldo (Bizkaia)",
+} as const;
+
 // The address for data and privacy requests (SITE_PRIVACY_EMAIL), falling back to the contact address
 export function privacyEmail(raw = process.env.SITE_PRIVACY_EMAIL, fallback = process.env.SITE_CONTACT_EMAIL): string {
   return contactEmail(raw) || contactEmail(fallback);

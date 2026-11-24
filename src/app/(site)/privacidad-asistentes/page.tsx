@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { privacyEmail } from "@/lib/site-text";
+import { COMPANY, privacyEmail } from "@/lib/site-text";
 import { InfoPage } from "../info-page";
 
 export const metadata: Metadata = {
@@ -18,6 +18,9 @@ export default async function AssistantsPrivacyPage() {
   return (
     <InfoPage name="Privacidad para asistentes" title="Privacidad del conector para asistentes de IA">
       <p>Esta política cubre el servidor MCP de CuponLab (<Link href="/asistentes-ia">cómo funciona</Link>), el que usan Claude, ChatGPT y otros asistentes para buscar cupones.</p>
+      <p>
+        Responsable: {COMPANY.name}, CIF {COMPANY.cif}, {COMPANY.address} (<Link href="/aviso-legal">aviso legal</Link>).
+      </p>
       <h2>Qué recibe el servidor</h2>
       <p>Solo lo que el asistente envía para buscar: el texto de la búsqueda, la tienda o la categoría. No pide ni recibe tu nombre, tu correo, tu cuenta ni tu conversación.</p>
       <h2>Qué guardamos</h2>
