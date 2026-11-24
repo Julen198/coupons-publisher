@@ -32,3 +32,9 @@ Que el asistente lo use solo, sin que el usuario lo pida, pasa únicamente para 
 **ChatGPT** (developers.openai.com/apps-sdk/deploy/submission): ahora se publica como plugin desde el portal de OpenAI, con la organización verificada. Pide nombre, logo, descripción, web y política de privacidad, información del MCP y las herramientas, capturas y prompts de prueba con sus respuestas.
 
 Páginas para el formulario: documentación en `/asistentes-ia`, privacidad en `/privacidad-asistentes`, soporte en `/contacto` y email de contacto hello@cuponlab.com (SITE_CONTACT_EMAIL, también en `/asistentes-ia`) y de privacidad privacidad@cuponlab.com (SITE_PRIVACY_EMAIL, en `/privacidad-asistentes`); SITE_PARTNERS_EMAIL (partners@cuponlab.com) sale en `/contacto`; las tres reenvían al Gmail de Julen. Icono en `/icon.svg`.
+
+## ChatGPT: paquete y verificación del dominio
+
+- El paquete ZIP para el portal de plugins de OpenAI (plugin.json, mcp.json y logo) está en los archivos del proyecto, en `mcp/chatgpt-plugin/`.
+- Verificación del dominio: el portal muestra un token. Ponlo en la variable `OPENAI_APPS_CHALLENGE` de Vercel (Production) y vuelve a desplegar. `https://www.cuponlab.com/.well-known/openai-apps-challenge` lo devuelve en texto plano.
+- Condiciones de uso (termsOfServiceURL): `/condiciones-de-uso`.
