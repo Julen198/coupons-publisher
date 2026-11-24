@@ -50,7 +50,7 @@ async function google(r: ReturnType<typeof dateRange>): Promise<Google> {
     Promise.all([
       searchAnalytics(r.start, r.end, ["date"]),
       searchAnalytics(r.prevStart, r.prevEnd, ["date"]),
-      searchAnalytics(r.start, r.end, ["query"], 250),
+      searchAnalytics(r.start, r.end, ["query"], 1000),
       searchAnalytics(r.start, r.end, ["page"], 1000),
     ]),
     Promise.all([
@@ -125,7 +125,7 @@ export async function loadStats(d: StatsRange): Promise<Stats> {
   const origins = [...cur.filter((x) => isClick(x.kind)).reduce((m, x) => m.set(x.source, (m.get(x.source) ?? 0) + x.n), new Map<string, number>())]
     .map(([source, clicks]) => ({ source, clicks })).sort((a, b) => b.clicks - a.clicks);
   const queries = (g.search?.queries ?? []).map((x) => ({ query: x.keys[0], impressions: x.impressions, clicks: x.clicks, position: x.position }))
-    .sort((a, b) => b.impressions - a.impressions).slice(0, 10);
+    .sort((a, b) => b.impressions - a.impressions); // all of them: the panel table sorts, filters and pages them
   const pageRows = new Map<string, SearchRow[]>();
   for (const x of g.search?.pages ?? []) { const s = storeSlugOf(x.keys[0]); if (s) pageRows.set(s, [...(pageRows.get(s) ?? []), x]); }
   const clicksBy = cur.filter((x) => isClick(x.kind)).reduce((m, x) => m.set(x.store_id, (m.get(x.store_id) ?? 0) + x.n), new Map<number, number>());

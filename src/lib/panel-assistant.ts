@@ -23,7 +23,7 @@ const tools = {
       const s = await loadStats(rangeOf(dias));
       return {
         periodo: s.range, fuentes: s.sources, actual: { ...s.cur, position: round(s.cur.position) }, anterior: { ...s.prev, position: round(s.prev.position) },
-        busquedas: s.queries.map((q) => ({ ...q, position: round(q.position) })),
+        busquedas: s.queries.slice(0, 10).map((q) => ({ ...q, position: round(q.position) })),
         origenes: s.origins, tiendas: s.stores.map((t) => ({ ...t, position: round(t.position) })), guias: s.guides, costeIA: round(s.aiCost, 2),
       };
     },

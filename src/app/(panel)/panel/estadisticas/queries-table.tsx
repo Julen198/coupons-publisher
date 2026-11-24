@@ -4,7 +4,8 @@ import { useState } from "react";
 import type { QueryRow } from "@/lib/stats";
 
 // Google queries table: click a header to sort by it (a second click flips the order); the
-// legend chip toggles showing only the queries close to the first page.
+// legend chip toggles showing only the queries close to the first page. Sorting and the filter
+// work over every query of the period; the table shows PAGE rows at a time with "Ver más".
 const NEAR_LABEL = "Cerca de 1.ª página";
 const isNear = (position: number) => position >= 8 && position <= 30;
 const NEAR_ROW_CLS = "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100";
@@ -14,6 +15,7 @@ const pct = (v: number) => `${(v * 100).toLocaleString("es-ES", { maximumFractio
 const pos = (v: number) => v.toLocaleString("es-ES", { maximumFractionDigits: 1 });
 const th = "px-3 py-2 font-semibold";
 const td = "px-3 py-2 text-right tabular-nums";
+const PAGE = 25;
 
 type Key = "query" | "impressions" | "clicks" | "ctr" | "position";
 type Dir = "asc" | "desc";
@@ -36,10 +38,12 @@ function compare(a: QueryRow, b: QueryRow, key: Key) {
 export function QueriesTable({ queries }: { queries: QueryRow[] }) {
   const [sort, setSort] = useState<{ key: Key; dir: Dir }>({ key: "impressions", dir: "desc" });
   const [onlyNear, setOnlyNear] = useState(false);
+  const [shown, setShown] = useState(PAGE);
   const nearCount = queries.filter((q) => isNear(q.position)).length;
   const rows = queries
     .filter((q) => !onlyNear || isNear(q.position))
     .sort((a, b) => (sort.dir === "asc" ? 1 : -1) * compare(a, b, sort.key) || b.impressions - a.impressions);
+  const visible = rows.slice(0, shown);
   const by = (c: (typeof COLS)[number]) =>
     setSort((s) => (s.key === c.key ? { key: c.key, dir: s.dir === "asc" ? "desc" : "asc" } : { key: c.key, dir: c.first }));
 
@@ -80,7 +84,7 @@ export function QueriesTable({ queries }: { queries: QueryRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((q) => (
+            {visible.map((q) => (
               <tr key={q.query} className={`border-t border-neutral-100 dark:border-neutral-800 ${isNear(q.position) ? NEAR_ROW_CLS : ""}`} title={isNear(q.position) ? `${NEAR_LABEL}: posición 8–30, una guía puede subirla a la primera página` : undefined}>
                 <td className="px-3 py-2 pl-5 font-medium">{q.query}</td>
                 <td className={td}>{n(q.impressions)}</td><td className={td}>{n(q.clicks)}</td>
@@ -91,6 +95,20 @@ export function QueriesTable({ queries }: { queries: QueryRow[] }) {
           </tbody>
         </table>
       </div>
+      {rows.length > PAGE && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-200 px-5 py-2 text-xs text-neutral-600 dark:border-neutral-800 dark:text-neutral-400">
+          <span>Mostrando {Math.min(shown, rows.length)} de {rows.length} búsquedas</span>
+          <span className="flex gap-3">
+            {shown < rows.length && (
+              <>
+                <button type="button" onClick={() => setShown((v) => v + PAGE)} className="cursor-pointer font-semibold text-neutral-900 hover:underline dark:text-neutral-100">Ver {Math.min(PAGE, rows.length - shown)} más</button>
+                <button type="button" onClick={() => setShown(rows.length)} className="cursor-pointer font-semibold text-neutral-900 hover:underline dark:text-neutral-100">Ver todas</button>
+              </>
+            )}
+            {shown > PAGE && <button type="button" onClick={() => setShown(PAGE)} className="cursor-pointer hover:underline">Ver menos</button>}
+          </span>
+        </div>
+      )}
     </>
   );
 }
