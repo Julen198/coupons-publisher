@@ -5,11 +5,13 @@ import { hostRole, hostVerdict, panelOrigin } from "./hosts.ts";
 const PANEL = "https://cms.cuponlab.com";
 const SITE = "https://www.cuponlab.com";
 
-test("hostRole: only the two configured hosts are split", () => {
+test("hostRole: with PANEL_URL set, every host but the panel's is the public side", () => {
   assert.equal(hostRole("cms.cuponlab.com", PANEL, SITE), "panel");
+  assert.equal(hostRole("CMS.cuponlab.com", PANEL, SITE), "panel");
   assert.equal(hostRole("www.cuponlab.com", PANEL, SITE), "site");
-  assert.equal(hostRole("coupons-publisher-demo.vercel.app", PANEL, SITE), "any");
-  assert.equal(hostRole("localhost:3000", PANEL, SITE), "any");
+  assert.equal(hostRole("coupons-publisher-demo.vercel.app", PANEL, SITE), "site");
+  assert.equal(hostRole("cuponlab-abc123-julen198s-projects.vercel.app", PANEL, SITE), "site");
+  assert.equal(hostRole("localhost:3000", undefined, SITE), "any"); // local dev: no PANEL_URL
   assert.equal(hostRole("www.cuponlab.com", "", SITE), "any"); // PANEL_URL unset: no split
   assert.equal(hostRole("www.cuponlab.com", SITE, SITE), "any"); // same host: no split
   assert.equal(hostRole("www.cuponlab.com", "not a url", SITE), "any");
@@ -44,6 +46,6 @@ test("panel host: the public site moves to its own host, / opens the panel, robo
   }
 });
 
-test("any other host serves everything, as before", () => {
+test("without PANEL_URL (previews, local dev) every host serves everything", () => {
   for (const p of ["/", "/panel", "/login", "/chollos/1-x", "/robots.txt"]) assert.deepEqual(v("any", p), { kind: "ok" }, p);
 });

@@ -22,16 +22,13 @@ export function panelOrigin(raw = process.env.PANEL_URL): string {
   return v && URL.canParse(v) ? new URL(v).origin : "";
 }
 
-// Which side a request's Host is on. Only the two configured hosts are split: the vercel.app address and preview
-// deployments keep serving both, so a preview can still be tested end to end.
+// Which side a request's Host is on. With PANEL_URL set (production only), every host but the panel's is the public
+// side, vercel.app addresses included, so the panel answers on one host alone. Preview deployments and local dev have
+// no PANEL_URL and keep serving both.
 export function hostRole(host: string | null, panelUrl: string | undefined, siteUrl: string | undefined): HostRole {
   const panel = hostOf(panelUrl);
-  const site = hostOf(siteUrl);
-  if (!panel || panel === site || !host) return "any";
-  const h = host.toLowerCase();
-  if (h === panel) return "panel";
-  if (h === site) return "site";
-  return "any";
+  if (!panel || panel === hostOf(siteUrl) || !host) return "any";
+  return host.toLowerCase() === panel ? "panel" : "site";
 }
 
 export type HostVerdict = { kind: "ok" } | { kind: "redirect"; to: string } | { kind: "robots" };
