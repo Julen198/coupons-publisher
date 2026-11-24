@@ -5,7 +5,8 @@ import { sql, type Coupon, type Store } from "./db";
 import { generateStoreGuide } from "./ai-guide";
 import { GUIDE_DEFAULTS, nearFirstPage, guideProblems, guideSimilarity, lasts, MAX_SIMILARITY, pickCandidates, settingsOf, type Candidate, type GuideSettings, type StoreSignals } from "./guide-rules.ts";
 import { NEAR_PAGES_KEY, siteCoupons, siteStore, type SiteCoupon } from "./public-site";
-import { madridToday, siteUrl } from "./site-text";
+import { madridToday } from "./site-text";
+import { appUrl } from "./email";
 import { guideSlugs, storeGuide, type StoreGuide } from "./store-guides.ts";
 import { tg, telegramConfig } from "./telegram";
 import { categoryOf, missingFacts } from "./catalog";
@@ -167,7 +168,7 @@ async function notify(lines: string[]) {
   const cfg = telegramConfig();
   if (!cfg || !lines.length) return;
   try {
-    await tg(cfg, "sendMessage", { chat_id: cfg.adminChatId, text: [...lines, "", `Revisar o cancelar: ${siteUrl()}/panel/guias`].join("\n"), disable_web_page_preview: true });
+    await tg(cfg, "sendMessage", { chat_id: cfg.adminChatId, text: [...lines, "", `Revisar o cancelar: ${appUrl()}/panel/guias`].join("\n"), disable_web_page_preview: true });
   } catch (e) {
     console.error("guides telegram notice failed", e); // the guide is scheduled anyway; the panel shows it
   }

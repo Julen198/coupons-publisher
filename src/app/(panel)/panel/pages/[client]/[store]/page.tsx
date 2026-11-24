@@ -11,6 +11,7 @@ import { parseFaqs, pageTitle } from "@/lib/affiliate";
 import { coverageOf } from "@/lib/page-status";
 import { CoverageBadge } from "@/app/ui";
 import { PageGenerator } from "./page-generator";
+import { siteUrl } from "@/lib/site-text";
 
 // The links check, from the same gate as the public pages (trackedLinkOf): coupons without a tracked link stay out
 function linkCheck(network: string, tracked: number, untracked: TrackedLink[]) {
@@ -67,6 +68,7 @@ export default async function GeneratorPage({ params, searchParams }: PageProps<
         faqCount={parseFaqs(store.faqs).length}
         autoFaqs={sp.nueva === "1"}
         fromClient={sp.desde === "cliente"}
+        siteOrigin={siteUrl()}
       />
     </div>
   );

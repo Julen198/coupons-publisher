@@ -17,6 +17,7 @@ interface GeneratorProps {
   faqCount: number;
   autoFaqs: boolean; // just added to the client: write the store's FAQs if it has none
   fromClient: boolean; // keeps "← client" as the back link when ?nueva is dropped
+  siteOrigin: string; // the public site: the snippet a publisher pastes points there, not at the panel's host
 }
 
 const MODES: { id: Delivery; label: string; hint: (domain: string) => string }[] = [
@@ -27,7 +28,7 @@ const MODES: { id: Delivery; label: string; hint: (domain: string) => string }[]
 // window.location.origin without a hydration mismatch (server renders the placeholder)
 const useOrigin = () => useSyncExternalStore(() => () => {}, () => window.location.origin, () => "https://[NUESTRO-DOMINIO]");
 
-export function PageGenerator({ client, store, initialDelivery, published, exists, readOnly, checks, faqCount, autoFaqs, fromClient }: GeneratorProps) {
+export function PageGenerator({ client, store, initialDelivery, published, exists, readOnly, checks, faqCount, autoFaqs, fromClient, siteOrigin }: GeneratorProps) {
   const [delivery, setDelivery] = useState<Delivery>(initialDelivery);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [copied, setCopied] = useState(false);
@@ -67,7 +68,7 @@ export function PageGenerator({ client, store, initialDelivery, published, exist
 
   const output = {
     widget: {
-      code: `<script src="${origin}/widget.js"\n  data-client="${client.slug}" data-store="${store.slug}" async></script>`,
+      code: `<script src="${siteOrigin}/widget.js"\n  data-client="${client.slug}" data-store="${store.slug}" async></script>`,
       action: "Copiar snippet",
     },
     html: { code: `${client.slug}-${store.slug}.html\nTítulo y cupones congelados en la fecha de exportación.`, action: "" },

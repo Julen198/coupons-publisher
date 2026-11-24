@@ -3,7 +3,7 @@
 // Nothing is rewritten on its own: the editor checks the change in /panel/guias and fixes the facts by hand.
 import { sql } from "./db";
 import { fetchPublic } from "./og-image-fetch";
-import { siteUrl } from "./site-text";
+import { appUrl } from "./email";
 import { tg, telegramConfig } from "./telegram";
 import { isMissingSchema } from "./schema-guard.ts";
 import { factSources, nextCheck, readOutcome, sentenceDiff, type CheckState, type CheckStatus, type FetchOutcome } from "./store-facts-check.ts";
@@ -83,7 +83,7 @@ async function notify(lines: string[]) {
   const cfg = telegramConfig();
   if (!cfg || !lines.length) return;
   try {
-    const text = ["Datos de tienda:", ...lines, "", `Revisar y corregir: ${siteUrl()}/panel/guias#revision-datos`].join("\n").slice(0, 4000);
+    const text = ["Datos de tienda:", ...lines, "", `Revisar y corregir: ${appUrl()}/panel/guias#revision-datos`].join("\n").slice(0, 4000);
     await tg(cfg, "sendMessage", { chat_id: cfg.adminChatId, text, disable_web_page_preview: true });
   } catch (e) {
     console.error("store facts telegram notice failed", e); // the panel shows it anyway

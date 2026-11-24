@@ -3,6 +3,8 @@ import { SESSION_COOKIE, verifySession } from "@/lib/session";
 import { dealRoute, storeRoute } from "@/lib/route-lookup";
 import { fixedRouteVerdict, isDocumentRequest, needsSignIn, type RouteVerdict } from "@/lib/site-routes";
 import { orNullAfter } from "@/lib/with-timeout";
+import { hostRole, hostVerdict, PANEL_ROBOTS } from "@/lib/hosts";
+import { siteUrl } from "@/lib/site-text";
 
 // The public deals site: indexable, open to everyone
 const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/tiendas\/[^/]+\/opengraph-image/, /^\/categorias\/[^/]+$/, /^\/categorias\/[^/]+\/opengraph-image/, /^\/marcas(\/[^/]+)?$/, /^\/opengraph-image/, /^\/ofertas\/[^/]+(\/[^/]+)?$/, /^\/ofertas\/[^/]+\/opengraph-image/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado)$/, /^\/sitemap\.xml$/];
@@ -82,6 +84,13 @@ async function sitePageVerdict(req: NextRequest): Promise<RouteVerdict | null> {
 export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
+  // the panel on its own host (PANEL_URL) and the public site on SITE_URL: each sends the other's pages across
+  const panelUrl = process.env.PANEL_URL ?? "";
+  const role = hostRole(req.headers.get("host"), panelUrl, siteUrl());
+  const onHost = hostVerdict(role, pathname, search, panelUrl, siteUrl());
+  if (onHost.kind === "redirect") return NextResponse.redirect(onHost.to, 307);
+  if (onHost.kind === "robots") return new NextResponse(PANEL_ROBOTS, { headers: { "Content-Type": "text/plain" } });
+
   if (!PUBLIC.some((r) => r.test(pathname))) {
     // neither public nor private: no such page (a mistyped or made-up URL), answered with the site's 404
     if (!needsSignIn(pathname)) return NextResponse.rewrite(new URL(NOT_FOUND_PAGE, req.url));
@@ -105,7 +114,7 @@ export async function proxy(req: NextRequest) {
 
   const res = NextResponse.next();
   // private panel (and the rest): keep it out of search engines; the public site is meant to be found
-  if (!SITE.some((r) => r.test(pathname))) res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (role === "panel" || !SITE.some((r) => r.test(pathname))) res.headers.set("X-Robots-Tag", "noindex, nofollow");
   return res;
 }
 

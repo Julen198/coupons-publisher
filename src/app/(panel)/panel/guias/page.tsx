@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { siteUrl } from "@/lib/site-text";
 import { io } from "next/cache";
 import { publishGuideNow, rejectGuide, reviewFactCheck, saveGuideSettings, writeGuideNow } from "@/app/actions-guides";
 import { factCheckRows, type FactCheckRow } from "@/lib/store-facts-cron";
@@ -115,7 +116,7 @@ export default async function GuidesPage() {
             <tbody>
               {candidates.map((c) => (
                 <tr key={c.storeId} className="border-t border-neutral-200 dark:border-neutral-800">
-                  <td className="py-2"><Link href={`/tiendas/${c.slug}`} className="underline">{c.name}</Link></td>
+                  <td className="py-2"><a href={`${siteUrl()}/tiendas/${c.slug}`} className="underline">{c.name}</a></td>
                   <td>{c.codes} ({c.lastingCodes})</td><td>{c.deals} ({c.lastingDeals})</td><td>{c.clicks30}</td><td>{c.impressions ?? 0}</td><td>{c.position == null ? "—" : c.position.toFixed(1)}</td><td className="font-semibold">{c.score}</td>
                   <td className="py-1 text-right"><StoreButton action={writeGuideNow} id={c.storeId} label="Escribir ahora" secondary /></td>
                 </tr>
@@ -183,7 +184,7 @@ export default async function GuidesPage() {
           <div key={r.store_id} className={`${cardCls} space-y-3`}>
             <p className="text-sm text-neutral-500">
               {STATUS[r.status]}{r.published_at ? ` el ${fmtDateTime(r.published_at)}` : ""} ·{" "}
-              <Link href={`/tiendas/${r.slug}`} className="underline">{r.name}</Link> · «{r.content.keyword}»
+              <a href={`${siteUrl()}/tiendas/${r.slug}`} className="underline">{r.name}</a> · «{r.content.keyword}»
             </p>
             {r.status === "rejected" && r.signals.problems?.length ? (
               <p className="text-sm text-amber-700 dark:text-amber-400">La IA no consiguió una guía válida: {r.signals.problems.join("; ")}.</p>
