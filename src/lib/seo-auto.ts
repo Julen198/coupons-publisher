@@ -48,5 +48,9 @@ export function llmsTxt(base: string, guides: readonly GuideLink[], stores: read
     `- [Todas las tiendas](${base}/tiendas)`,
     `- [Calendario de ofertas](${base}/calendario)`,
     "",
+    "## Para asistentes de IA",
+    "",
+    `- Servidor MCP (Streamable HTTP, sin login, solo lectura): ${base}/mcp. Herramientas: search_coupons, top_deals, get_coupon, list_stores. [Cómo conectarlo](${base}/asistentes-ia)`,
+    "",
   ].join("\n");
 }

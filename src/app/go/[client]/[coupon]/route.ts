@@ -34,7 +34,7 @@ async function load(ctx: RouteContext<"/go/[client]/[coupon]">): Promise<Target 
 // Never block the reader over a lost count
 async function count(t: Target, kind: ClickKind, req: Request, ref: string, source: string) {
   const ua = req.headers.get("user-agent");
-  if (isBot(ua) || !countsAsReader(kind, req.headers.get("referer"))) return;
+  if (isBot(ua) || !countsAsReader(kind, req.headers.get("referer"), source)) return;
   try {
     await recordClick({ clientId: t.client.id, storeId: t.store.id, couponId: t.coupon.id, kind, ref, source, uaHash: uaHash(ua ?? "", madridToday().iso) });
   } catch (e) {

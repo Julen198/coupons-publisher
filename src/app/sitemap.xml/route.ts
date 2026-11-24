@@ -21,7 +21,7 @@ export async function GET() {
   const storeEvents = storeEventsInSeason(today).flatMap((e) => eventCouponsByStore(e, coupons, today).map((s) => storeEventPath(e.slug, s.slug)));
   // a store page with a guide says when its guide last changed (hand-written ones have no date)
   const lastmod = new Map(guides.filter((g) => g.updatedAt).map((g) => [`/tiendas/${g.slug}`, g.updatedAt!.toISOString().slice(0, 10)]));
-  const urls = ["/", ...CATEGORIES.filter((c) => indexableCategory(coupons.filter((x) => x.store_category === c.slug).length)).map((c) => categoryPath(c.slug)), ...EVENT_PAGES.map((e) => `/ofertas/${e.slug}`), "/tiendas", "/marcas", ...BRANDS.filter((b) => indexableBrand(coupons.filter((c) => c.brand_slugs.includes(b.slug)).length)).map((b) => brandPath(b.slug)), "/calendario", "/metodologia", "/aviso-de-afiliacion", ...(contactEmail() ? ["/contacto"] : []), ...stores.map((s) => `/tiendas/${s}`), ...storeEvents, ...coupons.map(dealPath)];
+  const urls = ["/", ...CATEGORIES.filter((c) => indexableCategory(coupons.filter((x) => x.store_category === c.slug).length)).map((c) => categoryPath(c.slug)), ...EVENT_PAGES.map((e) => `/ofertas/${e.slug}`), "/tiendas", "/marcas", ...BRANDS.filter((b) => indexableBrand(coupons.filter((c) => c.brand_slugs.includes(b.slug)).length)).map((b) => brandPath(b.slug)), "/calendario", "/metodologia", "/aviso-de-afiliacion", "/asistentes-ia", ...(contactEmail() ? ["/contacto"] : []), ...stores.map((s) => `/tiendas/${s}`), ...storeEvents, ...coupons.map(dealPath)];
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map((u) => `  <url><loc>${esc(base + u)}</loc>${lastmod.has(u) ? `<lastmod>${lastmod.get(u)}</lastmod>` : ""}</url>`).join("\n")}
