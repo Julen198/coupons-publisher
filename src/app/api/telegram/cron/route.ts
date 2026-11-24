@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       const report = weeklyReport({
         range: s.range, cur: s.cur, prev: s.prev, site: siteUrl(),
         guides: s.stores.filter((r) => r.guide === "published").map((r) => ({ name: r.name, impressions: r.impressions, position: r.position, clicks: r.clicks, earned: r.earned })),
-        nearQueries: s.queries.filter((q) => q.position >= 8 && q.position <= 30).slice(0, 5),
+        nearQueries: s.queries.slice(0, 10).filter((q) => q.position >= 8 && q.position <= 30).slice(0, 5),
       });
       await tg(cfg, "sendMessage", { chat_id: cfg.adminChatId, text: report, link_preview_options: { is_disabled: true } });
     }
