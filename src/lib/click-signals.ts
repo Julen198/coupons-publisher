@@ -14,7 +14,11 @@ export const isBot = (ua: string | null): boolean => !ua?.trim() || BOT_UA.test(
 // on /go with no Referer at all is a link checker or a crawler that doesn't say it's a bot (the 8-9 Nov 2026 test data:
 // one client, a click every hour or so, all day). ponytail: also drops the rare reader whose browser strips the
 // Referer entirely; count them apart if that ever matters. "Copiar código" posts its page in the beacon body.
-export const countsAsReader = (kind: ClickKind, referer: string | null): boolean => kind === "copy" || !!referer?.trim();
+// A link an AI assistant gave out (?o=claude, chatgpt, ia: see src/lib/mcp.ts) is opened from a chat app that often
+// strips the Referer: it counts without one when a real browser follows it (isBot has already dropped the fetchers).
+export const ASSISTANT_SOURCES: readonly string[] = ["claude", "chatgpt", "ia"];
+export const countsAsReader = (kind: ClickKind, referer: string | null, source = ""): boolean =>
+  kind === "copy" || !!referer?.trim() || ASSISTANT_SOURCES.includes(source);
 
 // sha256 of user agent + Madrid day, first 16 hex chars: enough to tell repeats apart within a day, useless to identify
 // anyone (no IP, nothing kept raw, changes every day)
@@ -99,6 +103,9 @@ export const SOURCE_LABEL: Record<string, string> = {
   widget: "Widget",
   telegram: "Telegram",
   externo: "Otra web",
+  claude: "Claude (MCP)",
+  chatgpt: "ChatGPT (MCP)",
+  ia: "Otros asistentes de IA (MCP)",
 };
 
 // The origin of the clicks on one of our pages: the campaign it was reached from (?utm_source=telegram, seo…) when

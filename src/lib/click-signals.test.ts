@@ -69,4 +69,8 @@ test("countsAsReader: a jump to a store needs the page it came from; copies carr
   assert.equal(countsAsReader("go", null), false); // straight hits on /go: link checkers and crawlers that hide
   assert.equal(countsAsReader("go", "  "), false);
   assert.equal(countsAsReader("copy", null), true);
+  // links an assistant gave out over MCP: the chat app strips the Referer
+  assert.equal(countsAsReader("go", null, "claude"), true);
+  assert.equal(countsAsReader("go", null, "chatgpt"), true);
+  assert.equal(countsAsReader("go", null, "portada"), false);
 });
