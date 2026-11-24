@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
-import { siteUrl } from "@/lib/site-text";
+import { contactEmail, siteUrl } from "@/lib/site-text";
 import { InfoPage } from "../info-page";
 
 export const metadata: Metadata = {
@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 export default async function AssistantsPage() {
   await connection(); // the server's address comes from SITE_URL, read per request
   const url = `${siteUrl()}/mcp`;
+  const email = contactEmail();
   return (
     <InfoPage name="Asistentes de IA" title="CuponLab en tu asistente de IA">
       <p>CuponLab tiene un servidor MCP. Con él, Claude, ChatGPT y otros asistentes encuentran los códigos descuento y chollos activos de tiendas online en España mientras te ayudan a comprar.</p>
@@ -44,7 +45,8 @@ export default async function AssistantsPage() {
         Qué datos se tratan está en la <Link href="/privacidad-asistentes">política de privacidad para asistentes</Link>.
       </p>
       <p>
-        ¿Dudas o un problema? Escríbenos desde <Link href="/contacto">contacto</Link>.
+        ¿Dudas o un problema? Escríbenos{" "}
+        {email ? <>a <a href={`mailto:${email}`}>{email}</a></> : <>desde <Link href="/contacto">contacto</Link></>}.
       </p>
     </InfoPage>
   );

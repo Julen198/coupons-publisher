@@ -31,4 +31,4 @@ Que el asistente lo use solo, sin que el usuario lo pida, pasa únicamente para 
 
 **ChatGPT** (developers.openai.com/apps-sdk/deploy/submission): ahora se publica como plugin desde el portal de OpenAI, con la organización verificada. Pide nombre, logo, descripción, web y política de privacidad, información del MCP y las herramientas, capturas y prompts de prueba con sus respuestas.
 
-Páginas para el formulario: documentación en `/asistentes-ia`, privacidad en `/privacidad-asistentes`, soporte en `/contacto` (necesita SITE_CONTACT_EMAIL), icono en `/icon.svg`.
+Páginas para el formulario: documentación en `/asistentes-ia`, privacidad en `/privacidad-asistentes`, soporte en `/contacto` y email de contacto hello@cuponlab.com (SITE_CONTACT_EMAIL, también en `/asistentes-ia`) y de privacidad privacidad@cuponlab.com (SITE_PRIVACY_EMAIL, en `/privacidad-asistentes`); SITE_PARTNERS_EMAIL (partners@cuponlab.com) sale en `/contacto`; las tres reenvían al Gmail de Julen. Icono en `/icon.svg`.
