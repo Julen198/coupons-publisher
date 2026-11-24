@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
+import { contactEmail } from "@/lib/site-text";
 import { InfoPage } from "../info-page";
 
 export const metadata: Metadata = {
@@ -10,7 +12,9 @@ export const metadata: Metadata = {
 
 // The privacy policy the Claude and ChatGPT directories ask for: what the MCP server (src/app/mcp/route.ts) and the
 // /go links it hands out actually keep. Keep it in step with clicks.ts and click-signals.ts.
-export default function AssistantsPrivacyPage() {
+export default async function AssistantsPrivacyPage() {
+  await connection(); // the address is read per request
+  const email = contactEmail();
   return (
     <InfoPage name="Privacidad para asistentes" title="Privacidad del conector para asistentes de IA">
       <p>Esta política cubre el servidor MCP de CuponLab (<Link href="/asistentes-ia">cómo funciona</Link>), el que usan Claude, ChatGPT y otros asistentes para buscar cupones.</p>
@@ -29,7 +33,8 @@ export default function AssistantsPrivacyPage() {
       </p>
       <h2>Contacto</h2>
       <p>
-        Para cualquier duda sobre tus datos, escríbenos desde <Link href="/contacto">contacto</Link>.
+        Para cualquier duda sobre tus datos, escríbenos{" "}
+        {email ? <>a <a href={`mailto:${email}`}>{email}</a></> : <>desde <Link href="/contacto">contacto</Link></>}.
       </p>
     </InfoPage>
   );
