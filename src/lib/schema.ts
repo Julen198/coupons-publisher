@@ -436,6 +436,26 @@ CREATE TABLE IF NOT EXISTS store_fact_checks (
   PRIMARY KEY (store_id, url)
 );
 ALTER TABLE store_fact_checks ENABLE ROW LEVEL SECURITY;
+-- Estadísticas, asistentes de IA: pages read by AI bots and search crawlers, one counter per Madrid day, bot and path
+-- (no IP, no user agent kept; see src/lib/ai-traffic.ts), and each tool call to the MCP server (which assistant, which
+-- tool, what it asked for). The click retention cron deletes both after 400 days.
+CREATE TABLE IF NOT EXISTS ai_bot_hits (
+  day date NOT NULL,
+  bot text NOT NULL,
+  path text NOT NULL,
+  hits int NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, bot, path)
+);
+ALTER TABLE ai_bot_hits ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS mcp_calls (
+  id bigserial PRIMARY KEY,
+  at timestamptz NOT NULL DEFAULT now(),
+  source text NOT NULL DEFAULT '',
+  tool text NOT NULL,
+  query text NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS mcp_calls_at_idx ON mcp_calls(at);
+ALTER TABLE mcp_calls ENABLE ROW LEVEL SECURITY;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes (anonymous ones go with coupons, CASCADE), comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay

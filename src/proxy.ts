@@ -1,10 +1,12 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 import { dealRoute, storeRoute } from "@/lib/route-lookup";
 import { fixedRouteVerdict, isDocumentRequest, needsSignIn, type RouteVerdict } from "@/lib/site-routes";
 import { orNullAfter } from "@/lib/with-timeout";
 import { hostRole, hostVerdict, PANEL_ROBOTS } from "@/lib/hosts";
 import { siteUrl } from "@/lib/site-text";
+import { aiBotOf, botPath } from "@/lib/ai-traffic";
+import { recordBotHit } from "@/lib/ai-stats";
 
 // The public deals site: indexable, open to everyone
 const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/tiendas\/[^/]+\/opengraph-image/, /^\/categorias\/[^/]+$/, /^\/categorias\/[^/]+\/opengraph-image/, /^\/marcas(\/[^/]+)?$/, /^\/opengraph-image/, /^\/ofertas\/[^/]+(\/[^/]+)?$/, /^\/ofertas\/[^/]+\/opengraph-image/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado|asistentes-ia|privacidad-asistentes|aviso-legal)$/, /^\/sitemap\.xml$/];
@@ -81,8 +83,12 @@ async function sitePageVerdict(req: NextRequest): Promise<RouteVerdict | null> {
 }
 
 // First gate only (signature check, no DB). Pages and actions re-check the user, role and session version.
-export async function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest, event: NextFetchEvent) {
   const { pathname, search } = req.nextUrl;
+
+  // AI bots and search crawlers reading the public site, counted per day for Estadísticas (after the answer is sent)
+  const bot = aiBotOf(req.headers.get("user-agent"));
+  if (bot) event.waitUntil(recordBotHit(bot.id, botPath(pathname)).catch((e) => console.warn("[proxy] bot hit not recorded", e instanceof Error ? e.message : e)));
 
   // the panel on its own host (PANEL_URL) and the public site on SITE_URL: each sends the other's pages across
   const panelUrl = process.env.PANEL_URL ?? "";

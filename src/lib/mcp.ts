@@ -39,6 +39,9 @@ export type McpData = {
   pageUrl(d: McpDeal, source: string): string;
   goUrl(d: McpDeal, source: string): string;
   storeUrl(slug: string, source: string): string;
+  // keeps a record of each tool call for Estadísticas (which assistant, which tool, what it asked); optional, so tests
+  // and a database without the table work without it
+  logCall?(tool: string, args: unknown, source: string): Promise<void>;
   today(): string; // Madrid date, YYYY-MM-DD
   siteUrl: string;
 };
@@ -337,7 +340,11 @@ export async function handleRpc(msg: unknown, data: McpData, source: string): Pr
     case "tools/call":
       if (typeof p.name !== "string") return rpcError(id, -32602, "Missing tool name");
       try {
-        return ok(await callTool(p.name, p.arguments, data, source));
+        const [result] = await Promise.all([
+          callTool(p.name, p.arguments, data, source),
+          data.logCall?.(p.name, p.arguments, source || "ia").catch((e) => console.warn("[mcp] call not recorded", e instanceof Error ? e.message : e)),
+        ]);
+        return ok(result);
       } catch (e) {
         // the database didn't answer: a message the model can pass on, never a bare protocol error
         console.error("[mcp] tool failed", p.name, e);

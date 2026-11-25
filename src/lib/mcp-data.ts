@@ -3,6 +3,8 @@ import { goHref, siteClient, siteCoupons, type SiteCoupon } from "./public-site"
 import { isPerk } from "./perks.ts";
 import type { Client } from "./db";
 import type { McpData, McpDeal } from "./mcp.ts";
+import { recordMcpCall } from "./ai-stats";
+import { mcpQueryOf } from "./ai-traffic.ts";
 
 // The live deals the MCP server answers from: the same coupons the public site shows, so an assistant never offers
 // one a reader couldn't find on cuponlab.com. One per request (the route builds it for each POST).
@@ -34,5 +36,6 @@ export function mcpData(): McpData {
       return href.startsWith("/") ? `${base}${href}` : href;
     },
     storeUrl: (slug, source) => utm(`/tiendas/${encodeURIComponent(slug)}`, source),
+    logCall: (tool, args, source) => recordMcpCall(source, tool, mcpQueryOf(args)),
   };
 }
