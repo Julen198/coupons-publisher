@@ -84,7 +84,13 @@ const KIND_CLS: Record<BotKind, string> = {
   training: "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300",
 };
 
+// What has come in since midnight: the periods end yesterday, so a source that counts live would look empty all day
+function Today({ text }: { text: string }) {
+  return <p className="border-b border-neutral-200 bg-neutral-50 px-5 py-2 text-xs text-neutral-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400"><span className="font-semibold text-neutral-900 dark:text-neutral-100">Hoy</span> (aún no entra en el periodo, que acaba ayer): {text}</p>;
+}
+
 export function Bots({ s }: { s: Stats }) {
+  const today = s.botsToday.reduce((t, b) => t + b.n, 0);
   return (
     <section aria-labelledby="bots" className="overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-neutral-200 px-5 py-3 dark:border-neutral-800">
@@ -96,10 +102,11 @@ export function Bots({ s }: { s: Stats }) {
           {(Object.keys(BOT_KIND_LABEL) as BotKind[]).map((k) => <span key={k} className={`rounded-full px-2 py-0.5 font-semibold ${KIND_CLS[k]}`}>{BOT_KIND_LABEL[k]}</span>)}
         </span>
       </div>
+      {s.sources.bots.ok && <Today text={today ? `${n(today)} páginas leídas · ${s.botsToday.map((b) => `${b.bot} ${n(b.n)}`).join(", ")}` : "ningún bot todavía"} />}
       {!s.sources.bots.ok ? (
         <p className="px-5 py-6 text-sm text-neutral-500">Aún no se cuentan: {s.sources.bots.note}.</p>
       ) : s.bots.length === 0 ? (
-        <p className="px-5 py-6 text-sm text-neutral-500">Ningún bot ha leído la web en este periodo (o se empezó a contar hace poco).</p>
+        <p className="px-5 py-6 text-sm text-neutral-500">Ningún bot ha leído la web en este periodo. Se empezaron a contar el 25 de noviembre: lo de cada día entra en el periodo al día siguiente.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
@@ -137,6 +144,7 @@ export function Mcp({ s }: { s: Stats }) {
         <p className="px-5 py-6 text-sm text-neutral-500">Aún no se cuentan las consultas: {s.sources.mcp.note}. Los clics que salen del MCP sí: {n(m.clicks)} en este periodo.</p>
       ) : (
         <>
+          <Today text={m.today ? `${n(m.today)} consultas` : "ninguna consulta todavía"} />
           <div className="grid grid-cols-3 gap-2 px-5 py-4">
             <div><p className="text-2xl font-bold tabular-nums">{n(m.calls)}</p><p className="text-xs text-neutral-500">Consultas · <Change cur={m.calls} prev={m.prevCalls} /></p></div>
             <div><p className="text-2xl font-bold tabular-nums">{n(m.clicks)}</p><p className="text-xs text-neutral-500">Clics a tienda</p></div>
