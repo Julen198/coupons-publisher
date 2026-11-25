@@ -121,3 +121,16 @@ test("JSON-RPC: initialize, notifications, unknown methods, tools/call", async (
   const down = await handleRpc({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "top_deals" } }, broken, "ia");
   assert.equal((down!.result as { isError: boolean }).isError, true);
 });
+
+test("JSON-RPC: each tool call is logged with its source; a failing log never breaks the answer", async () => {
+  const logged: unknown[][] = [];
+  const logging: McpData = { ...data, logCall: async (...a) => { logged.push(a); } };
+  await handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "search_coupons", arguments: { query: "nike" } } }, logging, "claude");
+  await handleRpc({ jsonrpc: "2.0", id: 2, method: "tools/list" }, logging, "claude");
+  await handleRpc({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "top_deals" } }, logging, "");
+  assert.deepEqual(logged, [["search_coupons", { query: "nike" }, "claude"], ["top_deals", undefined, "ia"]]);
+
+  const failing: McpData = { ...data, logCall: async () => { throw new Error("no table"); } };
+  const call = await handleRpc({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "top_deals", arguments: { limit: 1 } } }, failing, "chatgpt");
+  assert.ok(call!.result && !(call!.result as { isError?: boolean }).isError);
+});
