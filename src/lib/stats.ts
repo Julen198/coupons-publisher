@@ -34,7 +34,7 @@ export interface Stats {
   daily: DayPoint[]; origins: { source: string; clicks: number }[]; queries: QueryRow[]; stores: StoreStat[];
   guides: { published: number; scheduled: number; next: { name: string; at: Date } | null }; aiCost: number;
   bing: { position: number | null; prevPosition: number | null; better: number }; // better: searches where Bing ranks us higher than Google
-  assistants: { name: string; visits: number; prev: number }[]; bots: BotStats["bots"]; mcp: Omit<McpStats, "ready"> & { clicks: number };
+  assistants: { name: string; visits: number; prev: number }[]; bots: BotStats["bots"]; botsToday: BotStats["today"]; mcp: Omit<McpStats, "ready"> & { clicks: number };
 }
 
 const days = (start: string, end: string): string[] => {
@@ -229,6 +229,7 @@ export async function loadStats(d: StatsRange): Promise<Stats> {
     bing: { position: posOf(bingQ), prevPosition: posOf(bingPrevQ), better: bingBetter },
     assistants: g.ga4 ? [...g.ga4.ai.by].map(([name, visits]) => ({ name, visits, prev: g.ga4!.ai.prevBy.get(name) ?? 0 })).sort((a, b) => b.visits - a.visits) : [],
     bots: bots?.bots ?? [],
-    mcp: { calls: mcp?.calls ?? 0, prevCalls: mcp?.prevCalls ?? 0, top: mcp?.top ?? [], clicks: sum(origins.filter((o) => AI_SOURCES.includes(o.source)).map((o) => o.clicks)) },
+    botsToday: bots?.today ?? [],
+    mcp: { calls: mcp?.calls ?? 0, prevCalls: mcp?.prevCalls ?? 0, today: mcp?.today ?? 0, top: mcp?.top ?? [], clicks: sum(origins.filter((o) => AI_SOURCES.includes(o.source)).map((o) => o.clicks)) },
   };
 }

@@ -33,12 +33,13 @@ export async function purgeOldAiStats(): Promise<number> {
 }
 
 export interface BotStat { bot: string; who: string; kind: BotKind; hits: number; prev: number; top: string }
-export interface BotStats { ready: boolean; bots: BotStat[]; liveDaily: Map<string, number>; live: number; prevLive: number }
+// today: what has been counted since midnight (Madrid). The periods end yesterday, so today's reads are shown apart.
+export interface BotStats { ready: boolean; bots: BotStat[]; liveDaily: Map<string, number>; live: number; prevLive: number; today: { bot: string; n: number }[] }
 
 export async function botStats(start: string, end: string, prevStart: string, prevEnd: string): Promise<BotStats> {
   return botHitsTable.run(async (present) => {
-    if (!present) return { ready: false, bots: [], liveDaily: new Map(), live: 0, prevLive: 0 };
-    const [cur, prev, top, daily] = await Promise.all([
+    if (!present) return { ready: false, bots: [], liveDaily: new Map(), live: 0, prevLive: 0, today: [] };
+    const [cur, prev, top, daily, today] = await Promise.all([
       sql()<{ bot: string; n: number }[]>`SELECT bot, sum(hits)::int AS n FROM ai_bot_hits WHERE day BETWEEN ${start}::date AND ${end}::date GROUP BY bot`,
       sql()<{ bot: string; n: number }[]>`SELECT bot, sum(hits)::int AS n FROM ai_bot_hits WHERE day BETWEEN ${prevStart}::date AND ${prevEnd}::date GROUP BY bot`,
       sql()<{ bot: string; path: string }[]>`
@@ -48,6 +49,8 @@ export async function botStats(start: string, end: string, prevStart: string, pr
       sql()<{ day: string; bot: string; n: number }[]>`
         SELECT to_char(day, 'YYYY-MM-DD') AS day, bot, sum(hits)::int AS n FROM ai_bot_hits
         WHERE day BETWEEN ${start}::date AND ${end}::date GROUP BY 1, 2`,
+      sql()<{ bot: string; n: number }[]>`
+        SELECT bot, sum(hits)::int AS n FROM ai_bot_hits WHERE day = (now() AT TIME ZONE 'Europe/Madrid')::date GROUP BY bot ORDER BY n DESC`,
     ]);
     const prevBy = new Map(prev.map((r) => [r.bot, r.n]));
     const topBy = new Map(top.map((r) => [r.bot, r.path]));
@@ -59,16 +62,16 @@ export async function botStats(start: string, end: string, prevStart: string, pr
       return { bot: r.bot, who: info.who, kind: info.kind, hits: r.n, prev: prevBy.get(r.bot) ?? 0, top: topBy.get(r.bot) ?? "" };
     }).sort((a, b) => b.hits - a.hits);
     const sumLive = (rows: { bot: string; n: number }[]) => rows.filter((r) => isLive(r.bot)).reduce((n, r) => n + r.n, 0);
-    return { ready: true, bots, liveDaily, live: sumLive(cur), prevLive: sumLive(prev) };
+    return { ready: true, bots, liveDaily, live: sumLive(cur), prevLive: sumLive(prev), today };
   });
 }
 
-export interface McpStats { ready: boolean; calls: number; prevCalls: number; top: { query: string; source: string; n: number }[] }
+export interface McpStats { ready: boolean; calls: number; prevCalls: number; today: number; top: { query: string; source: string; n: number }[] }
 
 export async function mcpStats(start: string, end: string, prevStart: string, prevEnd: string): Promise<McpStats> {
   return mcpCallsTable.run(async (present) => {
-    if (!present) return { ready: false, calls: 0, prevCalls: 0, top: [] };
-    const [[cur], [prev], top] = await Promise.all([
+    if (!present) return { ready: false, calls: 0, prevCalls: 0, today: 0, top: [] };
+    const [[cur], [prev], top, [today]] = await Promise.all([
       sql()<{ n: number }[]>`SELECT count(*)::int AS n FROM mcp_calls WHERE (at AT TIME ZONE 'Europe/Madrid')::date BETWEEN ${start}::date AND ${end}::date`,
       sql()<{ n: number }[]>`SELECT count(*)::int AS n FROM mcp_calls WHERE (at AT TIME ZONE 'Europe/Madrid')::date BETWEEN ${prevStart}::date AND ${prevEnd}::date`,
       // each search with the assistant that asked it most
@@ -77,7 +80,8 @@ export async function mcpStats(start: string, end: string, prevStart: string, pr
           SELECT CASE WHEN query = '' THEN tool ELSE query END AS query, source, count(*) AS source_n FROM mcp_calls
           WHERE (at AT TIME ZONE 'Europe/Madrid')::date BETWEEN ${start}::date AND ${end}::date GROUP BY 1, 2
         ) t GROUP BY query ORDER BY n DESC LIMIT 10`,
+      sql()<{ n: number }[]>`SELECT count(*)::int AS n FROM mcp_calls WHERE (at AT TIME ZONE 'Europe/Madrid')::date = (now() AT TIME ZONE 'Europe/Madrid')::date`,
     ]);
-    return { ready: true, calls: cur?.n ?? 0, prevCalls: prev?.n ?? 0, top };
+    return { ready: true, calls: cur?.n ?? 0, prevCalls: prev?.n ?? 0, today: today?.n ?? 0, top };
   });
 }
