@@ -11,7 +11,7 @@ import { recordBotHit } from "@/lib/ai-stats";
 // The public deals site: indexable, open to everyone
 const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/tiendas\/[^/]+\/opengraph-image/, /^\/categorias\/[^/]+$/, /^\/categorias\/[^/]+\/opengraph-image/, /^\/marcas(\/[^/]+)?$/, /^\/opengraph-image/, /^\/ofertas\/[^/]+(\/[^/]+)?$/, /^\/ofertas\/[^/]+\/opengraph-image/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado|asistentes-ia|privacidad-asistentes|aviso-legal|condiciones-de-uso)$/, /^\/sitemap\.xml$/];
 // Reachable without signing in: the public site, login, accepting an invitation, and what publishers embed on their sites
-const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/llms\.txt$/, /^\/mcp$/, /^\/\.well-known\/openai-apps-challenge$/, /^\/indexnow\.txt$/, /^\/icon\.svg$/, /^\/store-logo\//,
+const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/llms\.txt$/, /^\/mcp$/, /^\/\.well-known\/openai-apps-challenge$/, /^\/indexnow\.txt$/, /^\/(icon\.svg|icon1\.png|apple-icon\.png|favicon\.ico)$/, /^\/store-logo\//,
   // Telegram webhook and its daily cron: each checks its own secret header instead of a session
   /^\/api\/telegram(\/cron)?$/,
   // date alerts: the cron checks CRON_SECRET, the unsubscribe link carries its own signed token

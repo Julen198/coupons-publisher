@@ -41,7 +41,7 @@ test("panel host: the public site moves to its own host, / opens the panel, robo
   assert.deepEqual(v("panel", "/mcp"), { kind: "redirect", to: `${SITE}/mcp` });
   assert.deepEqual(v("panel", "/sitemap.xml"), { kind: "redirect", to: `${SITE}/sitemap.xml` });
   assert.deepEqual(v("panel", "/robots.txt"), { kind: "robots" });
-  for (const p of ["/panel", "/panel/stores/nike", "/login", "/login/restablecer", "/invite/t", "/demo/medio", "/demo-preview", "/api/export/coupons", "/api/clicks/cron", "/p/medio/nike", "/go/medio/1", "/widget.js", "/icon.svg", "/store-logo/nike"]) {
+  for (const p of ["/panel", "/panel/stores/nike", "/login", "/login/restablecer", "/invite/t", "/demo/medio", "/demo-preview", "/api/export/coupons", "/api/clicks/cron", "/p/medio/nike", "/go/medio/1", "/widget.js", "/icon.svg", "/icon1.png", "/apple-icon.png", "/favicon.ico", "/store-logo/nike"]) {
     assert.deepEqual(v("panel", p), { kind: "ok" }, p);
   }
 });
