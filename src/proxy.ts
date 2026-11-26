@@ -10,8 +10,10 @@ import { recordBotHit } from "@/lib/ai-stats";
 
 // The public deals site: indexable, open to everyone
 const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/cuenta$/, /^\/chollos\/[^/]+$/, /^\/chollos\/[^/]+\/opengraph-image/, /^\/tiendas(\/[^/]+)?$/, /^\/tiendas\/[^/]+\/opengraph-image/, /^\/categorias\/[^/]+$/, /^\/categorias\/[^/]+\/opengraph-image/, /^\/marcas(\/[^/]+)?$/, /^\/opengraph-image/, /^\/ofertas\/[^/]+(\/[^/]+)?$/, /^\/ofertas\/[^/]+\/opengraph-image/, /^\/calendario$/, /^\/(metodologia|aviso-de-afiliacion|contacto|no-encontrado|asistentes-ia|privacidad-asistentes|aviso-legal|condiciones-de-uso)$/, /^\/sitemap\.xml$/];
+// The site's icons: Google fetches them for the favicon next to each search result, so they carry no noindex
+const ICONS = /^\/(icon\.svg|icon1\.png|apple-icon\.png|favicon\.ico)$/;
 // Reachable without signing in: the public site, login, accepting an invitation, and what publishers embed on their sites
-const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/llms\.txt$/, /^\/mcp$/, /^\/\.well-known\/openai-apps-challenge$/, /^\/indexnow\.txt$/, /^\/(icon\.svg|icon1\.png|apple-icon\.png|favicon\.ico)$/, /^\/store-logo\//,
+const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/llms\.txt$/, /^\/mcp$/, /^\/\.well-known\/openai-apps-challenge$/, /^\/indexnow\.txt$/, ICONS, /^\/store-logo\//,
   // Telegram webhook and its daily cron: each checks its own secret header instead of a session
   /^\/api\/telegram(\/cron)?$/,
   // date alerts: the cron checks CRON_SECRET, the unsubscribe link carries its own signed token
@@ -120,7 +122,7 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
 
   const res = NextResponse.next();
   // private panel (and the rest): keep it out of search engines; the public site is meant to be found
-  if (role === "panel" || !SITE.some((r) => r.test(pathname))) res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (role === "panel" || !(SITE.some((r) => r.test(pathname)) || ICONS.test(pathname))) res.headers.set("X-Robots-Tag", "noindex, nofollow");
   return res;
 }
 
