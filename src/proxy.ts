@@ -18,8 +18,8 @@ const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/
   /^\/api\/telegram(\/cron)?$/,
   // date alerts: the cron checks CRON_SECRET, the unsubscribe link carries its own signed token
   /^\/api\/date-alerts\/(cron|baja)$/,
-  // the network sync, click retention and SEO guide crons: each checks CRON_SECRET
-  /^\/api\/(networks|clicks|guides)\/cron$/];
+  // the network sync, click retention, SEO guide, IndexNow and store facts crons: each checks CRON_SECRET
+  /^\/api\/(networks|clicks|guides|indexnow|store-facts)\/cron$/];
 
 const DEAL_PAGE = /^\/chollos\/([^/]+)$/;
 const STORE_PAGE = /^\/tiendas\/([^/]+)$/;
