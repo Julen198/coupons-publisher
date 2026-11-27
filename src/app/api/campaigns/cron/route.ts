@@ -8,7 +8,10 @@ export const maxDuration = 300;
 export async function GET(req: Request) {
   if (!cronAuthorized(process.env.CRON_SECRET, req.headers.get("authorization"))) return new Response("Unauthorized", { status: 401 });
   try {
-    return Response.json(await runCampaignsCron());
+    const r = await runCampaignsCron();
+    // one line per run in the runtime logs: what went out, what was written, what failed
+    console.log("campaigns cron", JSON.stringify({ published: r.published, scheduled: r.scheduled.length, failed: r.failed, guides: r.guides, detected: r.detected, baselines: r.baselines, reviews: r.reviews, skipped: r.skipped }));
+    return Response.json(r);
   } catch (e) {
     console.error("campaigns cron failed", e);
     return Response.json({ error: "Falló el cron de campañas" }, { status: 500 });
