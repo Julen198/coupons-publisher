@@ -11,6 +11,9 @@ import { daysBetween, longDate, madridToday, siteUrl } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, crumbsLd, faqLd, offerLd } from "../../site-ui";
 import { withoutPerks } from "@/lib/perks";
 import { publishedCampaigns } from "@/lib/campaign-db";
+import { featuredEvent, titleDiscount } from "@/lib/campaign-rules";
+import { percentOf, shortDate } from "@/lib/site-text";
+import { EventStrip } from "../../event-strip";
 
 const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const when = (iso: string) => `${WEEKDAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()]} ${longDate(iso)}`;
@@ -22,10 +25,14 @@ export async function generateMetadata({ params }: PageProps<"/ofertas/[evento]"
   const e = eventPageOf((await params).evento);
   if (!e) return { title: "Página no encontrada", robots: { index: false } };
   await connection(); // the edition depends on today: read per request, not while prerendering (it threw there)
-  const { year, date } = eventEdition(e, madridToday().iso);
+  const today = madridToday().iso;
+  const { year, date } = eventEdition(e, today);
+  // the best discount of the date's deals and its day in the title: what makes the result worth a click
+  const { matched } = eventDeals(e, withoutPerks(await siteCoupons()), today);
+  const off = titleDiscount(Math.max(0, ...matched.map((c) => percentOf(c.discount))));
   return {
-    title: { absolute: `Ofertas ${e.name} ${year}: chollos y códigos descuento | CuponLab` },
-    description: `${e.name} ${year} es el ${longDate(date)}. Los chollos y códigos descuento de ${e.what} activos, con su fecha de caducidad y si están comprobados.`,
+    title: { absolute: off ? `Ofertas ${e.name} ${year}: hasta ${off} hoy · ${shortDate(date)} | CuponLab` : `Ofertas ${e.name} ${year}: chollos y códigos descuento | CuponLab` },
+    description: `${off ? `Hasta ${off} hoy. ` : ""}${e.name} ${year} es el ${longDate(date)}. Los chollos y códigos descuento de ${e.what} activos, con su fecha de caducidad y si están comprobados.`,
     alternates: { canonical: `/ofertas/${e.slug}` },
   };
 }
@@ -41,6 +48,12 @@ export default async function EventPage({ params, searchParams }: PageProps<"/of
   const { year, date, ends } = eventEdition(e, today);
   const left = daysBetween(today, date);
   const { matched, fallback } = eventDeals(e, all, today);
+  // the date that comes next, a week away or less (Cyber Monday on the Black Friday page): its store pages are linked
+  // above its deals (once this date has passed, it says so)
+  const next = (() => {
+    const f = featuredEvent(today);
+    return f && f.event.slug !== e.slug ? f : null;
+  })();
   const shown = matched.length ? sortDeals(matched, "destacados").slice(0, MAX_DEALS) : sortDeals(fallback, "ahorro").slice(0, MAX_FALLBACK);
   const source = pageSource(sp, "evento");
   const base = siteUrl();
@@ -103,6 +116,10 @@ export default async function EventPage({ params, searchParams }: PageProps<"/of
             )}
           </p>
         </section>
+
+        {next && (
+          <EventStrip ed={next} coupons={all} today={today} title={left < 0 ? `${e.name} ya pasó: ahora, ${next.event.name} ${next.year}` : `Después: ${next.event.name} ${next.year}`} />
+        )}
 
         <section id="chollos" aria-labelledby="eventDeals">
           <h2 id="eventDeals" className="feed-title">

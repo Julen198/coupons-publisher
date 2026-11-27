@@ -127,6 +127,8 @@ async function provenStores(): Promise<Map<string, Set<string>>> {
   return out;
 }
 
+const TOP_CLICKED = 5;
+
 export interface CampaignPlan { opportunities: Opportunity[]; targets: CampaignTarget[]; guides: GuideWork[]; detected: DetectedEvent[]; rows: QueryRow[]; coupons: SiteCoupon[] }
 
 // Where each store's guide stands, for guidesToImprove
@@ -152,6 +154,9 @@ export async function campaignPlan(settings?: CampaignSettings): Promise<Campaig
   const rows = queryRowsOf(sc);
   const stores = await campaignStores(coupons, rows, today);
   const opportunities = queryOpportunities(rows, stores);
+  // the stores readers click most right now (Samsung, the week this was written) count as proven on every date
+  const topClicked = [...stores].filter((x) => x.clicks30 >= 3).sort((a, b) => b.clicks30 - a.clicks30).slice(0, TOP_CLICKED).map((x) => x.slug);
+  for (const e of EVENT_PAGES) proven.set(e.slug, new Set([...(proven.get(e.slug) ?? []), ...topClicked]));
   const targets = planCampaigns({ today, settings: s, opportunities, stores, taken, proven });
   const guides = guidesToImprove(opportunities, await guideStates(stores), today);
   const detected = detectEvents([

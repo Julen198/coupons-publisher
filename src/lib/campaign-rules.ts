@@ -202,8 +202,10 @@ export function planCampaigns(input: {
     for (const { s, score } of ranked)
       add({ storeId: s.storeId, slug: s.slug, name: s.name, event: ed.event.slug, year: ed.year, date: ed.date, reason: "calendario", score, queries: [], impressions: s.impressions, position: null });
   }
-  // searches first (most seen), then by date (nearest first) and score
-  return out.sort((a, b) => Number(b.reason === "busqueda") - Number(a.reason === "busqueda") || a.date.localeCompare(b.date) || b.score - a.score);
+  // searches first (most seen), then by date (nearest first) and score. A proven store (it brought clicks or sales) on a
+  // date this week goes before the searches: it is where the money is.
+  const provenNow = (t: CampaignTarget) => t.reason === "calendario" && !!input.proven?.get(t.event)?.has(t.slug) && daysFrom(input.today, t.date) <= URGENT_DAYS;
+  return out.sort((a, b) => Number(provenNow(b)) - Number(provenNow(a)) || Number(b.reason === "busqueda") - Number(a.reason === "busqueda") || a.date.localeCompare(b.date) || b.score - a.score);
 }
 
 // ---- checks of a written store × event text
@@ -407,3 +409,32 @@ export function guidesToImprove(opps: readonly Opportunity[], states: ReadonlyMa
   }
   return out;
 }
+
+// ---- the date of the week, on the home page and on the date that just ended
+
+// The shopping date to put in front: the next one (today included) if it is a week away or less. The day after Black
+// Friday it is Cyber Monday: the site moves on by itself.
+export function featuredEvent(today: string, events: readonly EventPage[] = EVENT_PAGES): Edition | null {
+  return events
+    .map((e) => editionOf(e, today))
+    .filter((x) => x.date >= today && daysFrom(today, x.date) <= URGENT_DAYS)
+    .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
+}
+
+export interface EventStoreLink { slug: string; name: string; n: number; written: boolean; clicks: number }
+
+// The store pages of a date to link: stores with coupons for it, and stores with their own text for this edition (over
+// live coupons). The ones readers click most go first (Samsung, the week this was written), then the most coupons.
+export function eventStoreLinks(
+  e: EventPage, counted: readonly { slug: string; name: string; n: number }[], written: readonly { slug: string; name: string }[],
+  clicks: ReadonlyMap<string, number>, limit = 12,
+): EventStoreLink[] {
+  const by = new Map<string, EventStoreLink>();
+  for (const s of counted) by.set(s.slug, { ...s, written: false, clicks: clicks.get(s.slug) ?? 0 });
+  for (const s of written) by.set(s.slug, { slug: s.slug, name: s.name, n: by.get(s.slug)?.n ?? 0, written: true, clicks: clicks.get(s.slug) ?? 0 });
+  void e;
+  return [...by.values()].sort((a, b) => b.clicks - a.clicks || b.n - a.n || a.name.localeCompare(b.name, "es")).slice(0, limit);
+}
+
+// «-20 %» for a title, from the best discount on the page; "" when there is no percentage worth saying (or an absurd one)
+export const titleDiscount = (best: number) => (best >= 5 && best <= 90 ? `-${Math.round(best)} %` : "");
