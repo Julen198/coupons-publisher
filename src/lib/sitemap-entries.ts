@@ -7,7 +7,8 @@
 import { publishedGuides } from "./guide-index";
 import { siteCoupons, siteRecentlyExpired, type SiteCoupon } from "./public-site";
 import { CATEGORIES, categoryPath } from "./catalog";
-import { EVENT_PAGES, eventCouponsByStore, storeEventPath, storeEventsInSeason } from "./event-pages";
+import { EVENT_PAGES, eventCouponsByStore, eventEdition, eventPageOf, storeEventPath, storeEventsInSeason } from "./event-pages";
+import { publishedCampaigns } from "./campaign-db";
 import { indexableCategory } from "./category-pages";
 import { BRANDS, brandPath, indexableBrand } from "./brands";
 import { contactEmail, dealPath, madridToday } from "./site-text";
@@ -20,7 +21,7 @@ export interface SitemapEntry { path: string; lastmod?: string; sig: string }
 const dealSig = (c: SiteCoupon) => fingerprint([c.display_title, c.code, c.discount, c.description, c.expires_at, c.verified, c.about_status, c.about, c.store_slug]);
 
 export async function sitemapEntries(): Promise<SitemapEntry[]> {
-  const [coupons, expired, guides] = await Promise.all([siteCoupons(), siteRecentlyExpired(), publishedGuides()]);
+  const [coupons, expired, guides, campaigns] = await Promise.all([siteCoupons(), siteRecentlyExpired(), publishedGuides(), publishedCampaigns()]);
   const sigOf = new Map([...coupons, ...expired].map((c) => [c.id, dealSig(c)]));
   // a list page's fingerprint: the deals on it (sorted, so the order of the query doesn't matter)
   const listSig = (deals: readonly SiteCoupon[], ...extra: unknown[]) => fingerprint([...deals.map((c) => sigOf.get(c.id)!).sort(), ...extra]);
@@ -50,6 +51,12 @@ export async function sitemapEntries(): Promise<SitemapEntry[]> {
   // page is noindex (storeEventIndexable)
   for (const e of storeEventsInSeason(today)) {
     for (const s of eventCouponsByStore(e, coupons, today)) out.push({ path: storeEventPath(e.slug, s.slug), sig: listSig(byStore.get(s.slug)?.live ?? [], e.slug, s.n) });
+  }
+  // plus the ones with their own text for this year's edition (campaigns-cron.ts) over live coupons: indexable too
+  for (const c of campaigns) {
+    const e = eventPageOf(c.event);
+    const live = (byStore.get(c.slug)?.live ?? []).filter((x) => !isPerk(x));
+    if (e && live.length && c.year === eventEdition(e, today).year) out.push({ path: storeEventPath(c.event, c.slug), sig: listSig(live, c.event, "texto", c.year) });
   }
   for (const c of coupons) out.push({ path: dealPath(c), sig: sigOf.get(c.id)! });
   // one entry per URL (a deal path can't repeat a store path, but keep the sitemap clean whatever happens)

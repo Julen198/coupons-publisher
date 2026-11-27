@@ -7,6 +7,7 @@ import { sortDeals } from "@/lib/community";
 import { badgeInSentence } from "@/lib/deal-text";
 import { RETURNS, eventCouponsByStore, eventDeals, eventEdition, eventPageOf, storeEventIndexable, storeEventPath } from "@/lib/event-pages";
 import { isPerk } from "@/lib/perks";
+import { publishedCampaign } from "@/lib/campaign-db";
 import { currentVotes, nearFirstPageStores, siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { daysBetween, longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd, titleOf } from "../../../site-ui";
@@ -26,16 +27,18 @@ async function load(evento: string, tienda: string) {
   }
   const store = await siteStore(slug);
   if (!store) return undefined;
-  const all = await siteCoupons();
+  const [all, written] = await Promise.all([siteCoupons(), publishedCampaign(store.id, e.slug)]);
   const live = all.filter((c) => c.store_id === store.id);
-  return { e, store, all, live, regular: live.filter((c) => !isPerk(c)), perks: live.filter(isPerk) };
+  // the store's own text for the date (campaigns-cron.ts), only while it is about this year's edition
+  const campaign = written && written.year === eventEdition(e, madridToday().iso).year ? written : undefined;
+  return { e, store, all, live, regular: live.filter((c) => !isPerk(c)), perks: live.filter(isPerk), campaign };
 }
 
 export async function generateMetadata({ params }: PageProps<"/ofertas/[evento]/[tienda]">): Promise<Metadata> {
   const p = await params;
   const found = await load(p.evento, p.tienda);
   if (!found) return { title: "Página no encontrada", robots: { index: false } };
-  const { e, store, regular } = found;
+  const { e, store, regular, campaign } = found;
   const { iso: today } = madridToday();
   const { year, date } = eventEdition(e, today);
   // the figures are the store's coupons for the event, the same the page's text and list give
@@ -43,14 +46,17 @@ export async function generateMetadata({ params }: PageProps<"/ofertas/[evento]/
   const codes = matched.filter((c) => c.kind === "code" && c.code).length;
   return {
     title: { absolute: `${e.name} ${store.name} ${year}: código descuento y ofertas | CuponLab` },
-    description: matched.length
+    description: campaign
+      ? campaign.guide.description
+      : matched.length
       ? `Códigos descuento y ofertas de ${store.name} para ${e.name} ${year} (${longDate(date)}): ${matched.length === 1 ? "1 activo" : `${matched.length} activos`} hoy, ${codes} con código, con sus condiciones y su fecha de caducidad.`
       : regular.length
         ? `${e.name} ${year} es el ${longDate(date)}. Todavía no hay cupones de ${store.name} para ${e.name}; mientras tanto, sus ${regular.length === 1 ? "cupón activo" : `${regular.length} cupones activos`}.`
         : `${e.name} ${year} es el ${longDate(date)}. Hoy no hay cupones activos de ${store.name}: publicamos sus códigos en cuanto salen.`,
     alternates: { canonical: storeEventPath(e.slug, store.slug) },
-    // without coupons for the event the page shows the store's ordinary ones under the event's name: kept out of the index
-    robots: storeEventIndexable(matched.length) ? undefined : { index: false, follow: true },
+    // without coupons for the event the page shows the store's ordinary ones under the event's name: kept out of the
+    // index, unless it has its own text for the date (campaigns-cron.ts), written weeks ahead so Google has it in time
+    robots: storeEventIndexable(matched.length, !!campaign && (regular.length > 0 || matched.length > 0)) ? undefined : { index: false, follow: true },
   };
 }
 
@@ -60,7 +66,7 @@ export default async function StoreEventPage({ params, searchParams }: PageProps
   const p = await params;
   const found = await load(p.evento, p.tienda);
   if (!found) notFound();
-  const { e, store, all, regular, perks } = found;
+  const { e, store, all, regular, perks, campaign } = found;
   const sp = await searchParams;
   const [client, mine, near] = await Promise.all([siteClient(), currentVotes(), nearFirstPageStores()]);
   const now = new Date();
@@ -91,6 +97,7 @@ export default async function StoreEventPage({ params, searchParams }: PageProps
 
   const status = left > 0 ? `Faltan ${left === 1 ? "1 día" : `${left} días`}.` : today <= ends ? (left === 0 ? "Es hoy." : "Las ofertas siguen activas.") : "";
   const faqs = [
+    ...(campaign?.guide.faqs ?? []),
     {
       q: `¿Hay código descuento de ${store.name} para ${eventName}?`,
       a: matched.length
@@ -183,7 +190,28 @@ export default async function StoreEventPage({ params, searchParams }: PageProps
               <h2>{e.name} en {store.name}: lo que conviene saber</h2>
             </div>
             <div className="prose">
-              <p className="lead">{e.lead(when(date), year)}</p>
+              {campaign ? (
+                <>
+                  <p className="lead">{campaign.guide.lead}</p>
+                  {campaign.guide.sections.map((sec) => (
+                    <section key={sec.heading} className="prose">
+                      <h3>{sec.heading}</h3>
+                      {sec.paragraphs.map((x, i) => (
+                        <p key={i}>{x}</p>
+                      ))}
+                      {sec.steps && (
+                        <ol className="steps">
+                          {sec.steps.map((step, i) => (
+                            <li key={i}>{step}</li>
+                          ))}
+                        </ol>
+                      )}
+                    </section>
+                  ))}
+                </>
+              ) : (
+                <p className="lead">{e.lead(when(date), year)}</p>
+              )}
               {facts.length > 0 && (
                 <>
                   <h3>Datos de {store.name}</h3>

@@ -1,4 +1,5 @@
 // Postgres schema. Run with `npm run db:setup` (idempotent: CREATE ... IF NOT EXISTS).
+import { CAMPAIGN_SQL } from "./campaign-schema.ts";
 
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS clients (
@@ -463,7 +464,7 @@ CREATE TABLE IF NOT EXISTS indexnow_pages (
   sent_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE indexnow_pages ENABLE ROW LEVEL SECURITY;
-`;
+${CAMPAIGN_SQL}`;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes (anonymous ones go with coupons, CASCADE), comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
 export const WIPE_DATA_SQL = `DELETE FROM network_accounts WHERE client_id IS NOT NULL; TRUNCATE commissions, votes, comment_votes, comments, saved_deals, expiry_reports, date_alert_subs, date_alert_sends, readers, clicks, activity, pages, coupons, stores, clients RESTART IDENTITY CASCADE;`;

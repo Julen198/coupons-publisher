@@ -11,6 +11,7 @@ const MAIN = [
   { href: "/panel/coupons", label: "Cupones" },
   { href: "/panel/moderacion", label: "Revisión" },
   { href: "/panel/guias", label: "Guías SEO" },
+  { href: "/panel/campanas", label: "Campañas" },
   { href: "/panel/pages", label: "Páginas" },
 ];
 const SECONDARY = [

@@ -10,6 +10,7 @@ import { currentVotes, nearFirstPageStores, siteClient, siteCoupons } from "@/li
 import { daysBetween, longDate, madridToday, siteUrl } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, crumbsLd, faqLd, offerLd } from "../../site-ui";
 import { withoutPerks } from "@/lib/perks";
+import { publishedCampaigns } from "@/lib/campaign-db";
 
 const WEEKDAYS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const when = (iso: string) => `${WEEKDAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()]} ${longDate(iso)}`;
@@ -34,7 +35,7 @@ export default async function EventPage({ params, searchParams }: PageProps<"/of
   const e = eventPageOf((await params).evento);
   if (!e) notFound();
   const sp = await searchParams;
-  const [all, client, mine, near] = await Promise.all([siteCoupons().then(withoutPerks), siteClient(), currentVotes(), nearFirstPageStores()]);
+  const [all, client, mine, near, campaigns] = await Promise.all([siteCoupons().then(withoutPerks), siteClient(), currentVotes(), nearFirstPageStores(), publishedCampaigns()]);
   const now = new Date();
   const { iso: today } = madridToday(now);
   const { year, date, ends } = eventEdition(e, today);
@@ -51,7 +52,15 @@ export default async function EventPage({ params, searchParams }: PageProps<"/of
   // this date in each store that has coupons for it (/ofertas/<event>/<store>, counted as on that page): pages close to
   // Google's first page first, then the most coupons
   const nearRank = new Map(near.map((n, i) => [n.slug, i]));
-  const stores = eventCouponsByStore(e, all, today)
+  // plus the stores with their own text for this edition (campaigns-cron.ts) and live coupons, so those pages are linked
+  const counted = eventCouponsByStore(e, all, today);
+  const written = campaigns
+    .filter((c) => c.event === e.slug && c.year === year && !counted.some((s) => s.slug === c.slug))
+    .flatMap((c) => {
+      const first = all.find((x) => x.store_slug === c.slug);
+      return first ? [{ slug: c.slug, name: first.store_name, n: 0 }] : [];
+    });
+  const stores = [...counted, ...written]
     .sort((a, b) => (nearRank.get(a.slug) ?? 1e9) - (nearRank.get(b.slug) ?? 1e9) || b.n - a.n)
     .slice(0, MAX_STORES);
   const others = EVENT_PAGES.filter((x) => x.slug !== e.slug)
@@ -161,7 +170,7 @@ export default async function EventPage({ params, searchParams }: PageProps<"/of
                   <li key={st.slug}>
                     <Link href={storeEventPath(e.slug, st.slug)}>
                       {e.name} {st.name}
-                      <small>{st.n === 1 ? "1 cupón" : `${st.n} cupones`}</small>
+                      <small>{st.n === 0 ? "guía" : st.n === 1 ? "1 cupón" : `${st.n} cupones`}</small>
                     </Link>
                   </li>
                 ))}

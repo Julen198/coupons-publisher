@@ -95,14 +95,14 @@ async function otherGuides(slug: string): Promise<StoreGuide[]> {
 export type WriteResult = { guide: StoreGuide; problems: string[] } | { guide: null; problems: string[] };
 
 // Writes the guide of one store and checks it (two tries). problems = [] means it can be scheduled.
-export async function writeGuide(slug: string, coupons?: SiteCoupon[]): Promise<WriteResult> {
+export async function writeGuide(slug: string, coupons?: SiteCoupon[], searches: string[] = []): Promise<WriteResult> {
   const store = await siteStore(slug);
   if (!store) return { guide: null, problems: ["la tienda no está en la web"] };
   const mine = (coupons ?? (await siteCoupons())).filter((c) => c.store_id === store.id);
   const others = await otherGuides(slug);
   const input = {
     slug, name: store.name, website: store.website, category: categoryOf(store.category)?.label ?? "", facts: store.facts, intro: store.intro,
-    keyword: `código descuento ${store.name}`,
+    keyword: `código descuento ${store.name}`, searches,
     coupons: mine.map((c) => ({ kind: c.kind, title: c.display_title, discount: c.discount, description: c.description, expires_at: c.expires_at })),
   };
   const codes = mine.map((c) => c.code).filter(Boolean);
