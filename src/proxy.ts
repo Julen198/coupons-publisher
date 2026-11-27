@@ -13,7 +13,7 @@ const SITE = [/^\/$/, /^\/entrar(\/(confirmar|nombre))?$/, /^\/compartir$/, /^\/
 // The site's icons: Google fetches them for the favicon next to each search result, so they carry no noindex
 const ICONS = /^\/(icon\.svg|icon1\.png|apple-icon\.png|favicon\.ico)$/;
 // Reachable without signing in: the public site, login, accepting an invitation, and what publishers embed on their sites
-const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/llms\.txt$/, /^\/mcp$/, /^\/\.well-known\/openai-apps-challenge$/, /^\/indexnow\.txt$/, ICONS, /^\/store-logo\//,
+const PUBLIC = [...SITE, /^\/login$/, /^\/login\/(magic|recuperar|restablecer)$/, /^\/invite\//, /^\/p\//, /^\/go\//, /^\/widget\.js$/, /^\/robots\.txt$/, /^\/llms\.txt$/, /^\/mcp$/, /^\/\.well-known\/openai-apps-challenge$/, /^\/demo\/[a-z0-9-]+\.mp4$/, /^\/indexnow\.txt$/, ICONS, /^\/store-logo\//,
   // Telegram webhook and its daily cron: each checks its own secret header instead of a session
   /^\/api\/telegram(\/cron)?$/,
   // date alerts: the cron checks CRON_SECRET, the unsubscribe link carries its own signed token
