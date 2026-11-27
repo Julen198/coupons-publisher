@@ -18,7 +18,7 @@ function allowed(txt: string, path: string): boolean {
 const txt = robotsTxt("https://cuponlab.es");
 
 test("robotsTxt: every page the sitemap lists, and what those pages load, is crawlable", () => {
-  for (const p of ["/", "/tiendas", "/tiendas/nike", "/categorias/moda", "/categorias/moda?pagina=2", "/ofertas/black-friday", "/calendario", "/metodologia", "/aviso-de-afiliacion", "/aviso-legal", "/contacto", "/chollos/42-15-extra", "/chollos/42-x/opengraph-image", "/opengraph-image-1abc", "/categorias/moda/opengraph-image-2def", "/_next/static/chunks/a.js", "/_next/image?url=x", "/store-logo/nike", "/icon.svg", "/sitemap.xml", "/llms.txt", "/indexnow.txt"]) {
+  for (const p of ["/", "/tiendas", "/tiendas/nike", "/marcas", "/marcas/nike", "/categorias/moda", "/categorias/moda?pagina=2", "/ofertas/black-friday", "/calendario", "/metodologia", "/aviso-de-afiliacion", "/aviso-legal", "/contacto", "/chollos/42-15-extra", "/chollos/42-x/opengraph-image", "/opengraph-image-1abc", "/categorias/moda/opengraph-image-2def", "/_next/static/chunks/a.js", "/_next/image?url=x", "/store-logo/nike", "/icon.svg", "/icon1.png", "/apple-icon.png", "/favicon.ico", "/sitemap.xml", "/llms.txt", "/indexnow.txt"]) {
     assert.equal(allowed(txt, p), true, p);
   }
 });

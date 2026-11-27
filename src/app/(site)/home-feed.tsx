@@ -145,7 +145,8 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
           "@type": "Organization",
           name: "CuponLab",
           url: base,
-          logo: `${base}/icon.svg`,
+          // Google reads raster logos only (at least 112 px); the 192 px PNG is the same mark as icon.svg
+          logo: `${base}/icon1.png`,
           description: "Chollos y códigos descuento verificados de tiendas españolas, cada uno con su fecha de caducidad.",
         }}
       />

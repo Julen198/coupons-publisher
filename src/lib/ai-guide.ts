@@ -48,6 +48,7 @@ export interface GuideInput {
   keyword: string;
   coupons: { kind: string; title: string; discount: string; description: string; expires_at: string }[];
   fix?: string[]; // what the previous attempt got wrong (guideProblems), for a second try
+  searches?: string[]; // real Google searches that reach the page (Search Console), for a rewrite that answers them
 }
 
 const couponLine = (c: GuideInput["coupons"][number]) =>
@@ -62,6 +63,7 @@ export async function generateStoreGuide(input: GuideInput): Promise<StoreGuide>
     input.intro.trim() ? `Presentación: ${input.intro.trim()}` : "",
     `Cupones y ofertas activos ahora (${input.coupons.length}):`,
     ...input.coupons.slice(0, 40).map(couponLine),
+    input.searches?.length ? `\nBúsquedas reales de Google que llegan a esta página (sin estar aún en la primera página): ${input.searches.slice(0, 10).join("; ")}. Que la guía las responda.` : "",
     input.fix?.length ? `\nUn intento anterior no valía por esto, corrígelo: ${input.fix.join("; ")}.` : "",
     "",
     "Escribe la guía.",

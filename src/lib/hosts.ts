@@ -6,7 +6,7 @@
 const PANEL_ONLY = /^\/(panel|login|invite|demo|demo-preview)(\/|$)/;
 // Served on both hosts. /api: crons, webhooks and the panel's exports (each checks its own secret or session). /p, /go
 // and widget.js: embedded on publishers' sites with whichever host the snippet carried, so old snippets keep working.
-const SHARED = /^\/(api|p|go|store-logo)(\/|$)|^\/(widget\.js|icon\.svg|favicon\.ico)$/;
+const SHARED = /^\/(api|p|go|store-logo)(\/|$)|^\/(widget\.js|icon\.svg|icon1\.png|apple-icon\.png|favicon\.ico)$/;
 
 export type HostRole = "panel" | "site" | "any";
 
