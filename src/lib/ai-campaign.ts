@@ -7,6 +7,8 @@ import { assertWithinBudget } from "./ai-budget";
 import { GUIDE_MODEL } from "./ai-model.ts";
 import type { StoreGuide } from "./store-guides.ts";
 
+// No min/max here: the provider doesn't enforce array lengths, and a text with 5 sections or 6 FAQs threw
+// «response did not match schema» and lost the page. The ranges go in the descriptions and are applied after.
 const Schema = z.object({
   description: z.string().describe("Meta description de 140 a 160 caracteres que empieza por la keyword"),
   lead: z.string().describe("Entradilla de 2-3 frases que incluye la keyword literal"),
@@ -14,14 +16,25 @@ const Schema = z.object({
     .array(
       z.object({
         heading: z.string(),
-        paragraphs: z.array(z.string()).min(1).max(3),
-        steps: z.array(z.string()).max(6).optional(),
+        paragraphs: z.array(z.string()).describe("1 a 3 párrafos"),
+        steps: z.array(z.string()).nullish().describe("Opcional: hasta 6 pasos en orden"),
       }),
     )
-    .min(2)
-    .max(4),
-  faqs: z.array(z.object({ q: z.string(), a: z.string() })).min(3).max(5),
+    .describe("2 a 4 secciones"),
+  faqs: z.array(z.object({ q: z.string(), a: z.string() })).describe("3 a 5 preguntas frecuentes"),
 });
+
+type Raw = z.infer<typeof Schema>;
+
+// Keeps the shape the page expects whatever lengths came back
+export function shapeCampaign(o: Raw): Omit<StoreGuide, "slug" | "keyword"> {
+  const sections = o.sections
+    .map((s) => ({ heading: s.heading.trim(), paragraphs: s.paragraphs.map((p) => p.trim()).filter(Boolean).slice(0, 3), ...(s.steps?.length ? { steps: s.steps.slice(0, 6) } : {}) }))
+    .filter((s) => s.heading && s.paragraphs.length)
+    .slice(0, 4);
+  const faqs = o.faqs.filter((f) => f.q.trim() && f.a.trim()).slice(0, 5);
+  return { description: o.description.trim(), lead: o.lead.trim(), sections, faqs };
+}
 
 const SYSTEM = [
   "Escribes en español de España el texto de una página de CuponLab, una web de cupones verificados, sobre una tienda en una fecha de compras concreta (por ejemplo «Black Friday Shein»).",
@@ -68,5 +81,5 @@ export async function generateCampaignText(input: CampaignInput): Promise<StoreG
   const { output } = await track("guides", `${input.eventName} · ${input.storeName}`, () =>
     generateText({ model: GUIDE_MODEL, output: Output.object({ schema: Schema }), system: SYSTEM.replace("<keyword>", input.keyword), prompt }),
   );
-  return { slug: input.slug, keyword: input.keyword, ...output };
+  return { slug: input.slug, keyword: input.keyword, ...shapeCampaign(output) };
 }
