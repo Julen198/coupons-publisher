@@ -8,6 +8,8 @@ import { badgeInSentence } from "@/lib/deal-text";
 import { RETURNS, eventCouponsByStore, eventDeals, eventEdition, eventPageOf, storeEventIndexable, storeEventPath } from "@/lib/event-pages";
 import { isPerk } from "@/lib/perks";
 import { publishedCampaign } from "@/lib/campaign-db";
+import { titleDiscount } from "@/lib/campaign-rules";
+import { shortDate } from "@/lib/site-text";
 import { currentVotes, nearFirstPageStores, siteClient, siteCoupons, siteStore } from "@/lib/public-site";
 import { daysBetween, longDate, madridToday, percentOf, siteUrl } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd, titleOf } from "../../../site-ui";
@@ -44,8 +46,15 @@ export async function generateMetadata({ params }: PageProps<"/ofertas/[evento]/
   // the figures are the store's coupons for the event, the same the page's text and list give
   const { matched } = eventDeals(e, regular, today);
   const codes = matched.filter((c) => c.kind === "code" && c.code).length;
+  // the best discount on the page and the day in the title (what makes the result worth a click), else the plain one
+  const off = titleDiscount(Math.max(0, ...(matched.length ? matched : regular).map((c) => percentOf(c.discount))));
+  const anyCode = (matched.length ? matched : regular).some((c) => c.kind === "code" && c.code);
   return {
-    title: { absolute: `${e.name} ${store.name} ${year}: código descuento y ofertas | CuponLab` },
+    title: {
+      absolute: off
+        ? `${e.name} ${store.name} ${year}: ${anyCode ? "código y " : ""}hasta ${off} hoy · ${shortDate(date)} | CuponLab`
+        : `${e.name} ${store.name} ${year}: código descuento y ofertas | CuponLab`,
+    },
     description: campaign
       ? campaign.guide.description
       : matched.length

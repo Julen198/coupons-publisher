@@ -24,3 +24,14 @@ export const publishedCampaigns = cache(async (): Promise<{ event: string; slug:
     return [];
   }
 });
+
+// Clicks to each store in the last 30 days (by store slug): which store pages of a date go first
+export const storeClicks30 = cache(async (): Promise<Map<string, number>> => {
+  try {
+    const rows = await sql()<{ slug: string; n: number }[]>`
+      SELECT s.slug, count(*)::int AS n FROM clicks c JOIN stores s ON s.id = c.store_id WHERE c.at > now() - interval '30 days' GROUP BY s.slug`;
+    return new Map(rows.map((r) => [r.slug, r.n]));
+  } catch {
+    return new Map();
+  }
+});

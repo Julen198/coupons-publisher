@@ -13,6 +13,8 @@ import { badgeInSentence } from "@/lib/deal-text";
 import { blackFriday, daysBetween, longDate, madridToday, monthShort, percentOf, siteUrl, upcomingEvents } from "@/lib/site-text";
 import { Crumbs, DealCard, Faqs, JsonLd, StoreFacts, badgeOf, crumbsLd, faqLd, offerLd } from "./site-ui";
 import { withoutPerks } from "@/lib/perks";
+import { featuredEvent } from "@/lib/campaign-rules";
+import { EventStrip } from "./event-strip";
 
 // The home page and the category pages (/categorias/<slug>) share this feed. A category page has its own title and
 // canonical; a search page stays out of the index.
@@ -116,6 +118,8 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
   const empty = emptyFeedText(f, cat?.label ?? "");
 
   const bf = blackFriday(Number(today.slice(0, 4)));
+  // the shopping date of the week, with its store pages (Black Friday until the Friday, then Cyber Monday)
+  const featured = f.q || cat ? null : featuredEvent(today);
   const catText = cat && !f.q ? CATEGORY_CONTENT[cat.slug] : undefined;
   const faqs = catText ? catText.faqs : [
     { q: "¿Cómo sé si un código sigue activo?", a: "Cada cupón muestra su fecha de caducidad y si está comprobado. Los cupones caducados desaparecen de la portada en cuanto pasa su fecha." },
@@ -245,6 +249,7 @@ async function HomeContent({ searchParams, cat: pageCat }: { searchParams: Searc
           </section>
 
           <aside className="rail">
+            {featured && <EventStrip ed={featured} coupons={all} today={today} />}
             {seoGuides.length > 0 && (
               <section className="panel" data-seo="Enlazado interno a guías">
                 <h2>Guías de ahorro</h2>

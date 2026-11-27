@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  CAMPAIGN_DEFAULTS, baselineDue, fitsToday, isUrgent, calendarScore, campaignSettingsOf, delayFor, detectEvents, eventInQuery, eventsToPlan, formatReview, guidesToImprove,
+  CAMPAIGN_DEFAULTS, baselineDue, eventStoreLinks, featuredEvent, fitsToday, isUrgent, titleDiscount, calendarScore, campaignSettingsOf, delayFor, detectEvents, eventInQuery, eventsToPlan, formatReview, guidesToImprove,
   learnings, planCampaigns, queryOpportunities, reviewDue, reviewWindows, storeInQuery, takenKey, totalsOf, wrongYears,
   type CampaignStore, type GuideState, type ReviewInput,
 } from "./campaign-rules.ts";
@@ -184,4 +184,30 @@ test("guidesToImprove: a store search writes a missing guide or rewrites an old 
   const w = guidesToImprove(["nueva", "vieja", "reciente", "mano", "vacia"].map((s) => opp(s)), states, "2026-11-27", 5);
   assert.deepEqual(w.map((x) => [x.slug, x.rewrite]), [["nueva", false], ["vieja", true]]);
   assert.equal(guidesToImprove([opp("nueva", 5)], states, "2026-11-27").length, 0); // too few impressions
+});
+
+test("featuredEvent: Black Friday on the day, Cyber Monday from the next day, nothing far from any date", () => {
+  assert.equal(featuredEvent("2026-11-27")?.event.slug, "black-friday");
+  assert.equal(featuredEvent("2026-11-28")?.event.slug, "cyber-monday");
+  assert.equal(featuredEvent("2026-10-01"), null);
+});
+
+test("eventStoreLinks: most clicked first, written pages included once", () => {
+  const bf = eventPageOf("cyber-monday")!;
+  const l = eventStoreLinks(bf, [{ slug: "bstn", name: "BSTN", n: 3 }, { slug: "samsung", name: "Samsung", n: 1 }], [{ slug: "samsung", name: "Samsung" }, { slug: "shein", name: "Shein" }], new Map([["samsung", 40], ["shein", 2]]));
+  assert.deepEqual(l.map((x) => [x.slug, x.n, x.written]), [["samsung", 1, true], ["shein", 0, true], ["bstn", 3, false]]);
+});
+
+test("titleDiscount only says a believable percentage", () => {
+  assert.equal(titleDiscount(20), "-20 %");
+  assert.equal(titleDiscount(3), "");
+  assert.equal(titleDiscount(99), "");
+});
+
+test("a store that brings clicks goes first on this week's date, before the searches", () => {
+  const stores = [store({ storeId: 1, slug: "samsung", name: "Samsung", category: "tecnologia" }), store({ storeId: 2, slug: "shein", name: "Shein" })];
+  const opportunities = [{ kind: "store-event" as const, storeId: 2, slug: "shein", name: "Shein", event: "black-friday", impressions: 100, clicks: 1, position: 14, queries: ["black friday shein"] }];
+  const t = planCampaigns({ today: "2026-11-27", settings: CAMPAIGN_DEFAULTS, opportunities, stores, taken: new Set(), proven: new Map([["cyber-monday", new Set(["samsung"])]]) });
+  assert.deepEqual([t[0].slug, t[0].event], ["samsung", "cyber-monday"]);
+  assert.deepEqual([t[1].slug, t[1].event], ["shein", "black-friday"]);
 });
