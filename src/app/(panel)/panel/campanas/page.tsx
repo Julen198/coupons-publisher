@@ -67,9 +67,10 @@ export default async function CampaignsPage() {
     <div className="space-y-8">
       <PageHeader title="Campañas" eyebrow="Automáticas: solo hace falta entrar para cancelar">
         <p className="text-sm text-neutral-500">
-          Dos veces al día se escriben hasta {settings.perDay} páginas de tienda para cada fecha de compras (por ejemplo «Black Friday Shein»): primero las
+          Cada hora se escriben páginas de tienda para cada fecha de compras (por ejemplo «Black Friday Shein»): primero las
           que Google ya muestra entre la posición {NEAR_MIN} y la {NEAR_MAX}, después las {settings.storesPerEvent} mejores tiendas de cada fecha desde{" "}
-          {settings.leadDays} días antes. Se publican {settings.delayHours} h después (12 h si la fecha está a menos de una semana), salvo que las canceles.
+          {settings.leadDays} días antes ({settings.perDay} al día; sin límite práctico para las búsquedas y las fechas de esta semana).{" "}
+          {settings.delayHours ? `Se publican ${settings.delayHours} h después (al momento si la fecha está a menos de una semana), salvo que las canceles.` : "Se publican al momento y se avisa a IndexNow; «Quitar de la web» las retira."}
           También se buscan eventos nuevos en los cupones y en las búsquedas, y cada fecha tiene su informe de antes y después. Todo llega por Telegram.
         </p>
       </PageHeader>
