@@ -201,8 +201,18 @@ export async function writeCampaign(t: Pick<CampaignTarget, "storeId" | "slug" |
   const codes = mine.map((c) => c.code).filter(Boolean);
   let last: WriteResult = { guide: null, problems: [] };
   for (let attempt = 0; attempt < 2; attempt++) {
-    const guide = await generateCampaignText({ ...input, fix: last.problems });
+    let guide: StoreGuide;
+    try {
+      guide = await generateCampaignText({ ...input, fix: last.problems });
+    } catch (e) {
+      // a malformed answer gets the second try; the budget limit and the second failure stop here
+      if ((e instanceof Error && e.name === "AiBudgetError") || attempt === 1) throw e;
+      last = { guide: null, problems: ["la respuesta no seguía el formato pedido: 2 a 4 secciones con 1 a 3 párrafos y 3 a 5 preguntas"] };
+      continue;
+    }
     const problems = guideProblems(guide, { facts: store.facts, codes }, { min: CAMPAIGN_MIN_WORDS, max: CAMPAIGN_MAX_WORDS });
+    if (guide.sections.length < 2) problems.push("necesita al menos 2 secciones");
+    if (guide.faqs.length < 3) problems.push("necesita al menos 3 preguntas frecuentes");
     const years = wrongYears(guide, ed.year);
     if (years.length) problems.push(`menciona otro año (${years.join(", ")})`);
     const twin = others.find((o) => guideSimilarity(guide, o) > CAMPAIGN_MAX_SIMILARITY);
