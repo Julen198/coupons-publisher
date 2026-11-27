@@ -7,7 +7,9 @@ import type { StoreGuide } from "./store-guides.ts";
 // ---- settings (settings table, campaigns_* keys, edited in /panel/campanas)
 
 export interface CampaignSettings { enabled: boolean; perDay: number; delayHours: number; leadDays: number; storesPerEvent: number }
-export const CAMPAIGN_DEFAULTS: CampaignSettings = { enabled: true, perDay: 8, delayHours: 24, leadDays: 42, storesPerEvent: 12 };
+// delayHours 0: published as soon as written (Julen, 27 Nov: «publícalas ya»); the admin chat is told and «Quitar de
+// la web» in the panel takes one down
+export const CAMPAIGN_DEFAULTS: CampaignSettings = { enabled: true, perDay: 12, delayHours: 0, leadDays: 42, storesPerEvent: 12 };
 // ponytail: hard ceiling, the same scaled-content worry as the store guides (guide-rules.ts MAX_PER_DAY)
 const MAX_PER_DAY = 12;
 
@@ -28,7 +30,13 @@ export function campaignSettingsOf(v: Record<string, string | undefined>): Campa
 
 // An event this close gets its texts out sooner than the usual wait: Google needs the days more than the review does
 export const URGENT_DAYS = 7;
-export const URGENT_DELAY_HOURS = 12;
+export const URGENT_DELAY_HOURS = 0;
+// Pages for a date this close, or for searches Google already shows us for, don't wait for tomorrow's quota: up to this
+// many a day in all
+export const URGENT_PER_DAY = 30;
+export const isUrgent = (t: { reason: string; date: string }, today: string) => t.reason === "busqueda" || daysFrom(today, t.date) <= URGENT_DAYS;
+// Whether one more page fits today: `written` pages so far, the panel's perDay for the rest
+export const fitsToday = (urgent: boolean, written: number, perDay: number) => written < (urgent ? Math.max(perDay, URGENT_PER_DAY) : perDay);
 export const delayFor = (daysToEvent: number, settings: CampaignSettings): number =>
   daysToEvent <= URGENT_DAYS ? Math.min(settings.delayHours, URGENT_DELAY_HOURS) : settings.delayHours;
 

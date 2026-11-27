@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  CAMPAIGN_DEFAULTS, baselineDue, calendarScore, campaignSettingsOf, delayFor, detectEvents, eventInQuery, eventsToPlan, formatReview, guidesToImprove,
+  CAMPAIGN_DEFAULTS, baselineDue, fitsToday, isUrgent, calendarScore, campaignSettingsOf, delayFor, detectEvents, eventInQuery, eventsToPlan, formatReview, guidesToImprove,
   learnings, planCampaigns, queryOpportunities, reviewDue, reviewWindows, storeInQuery, takenKey, totalsOf, wrongYears,
   type CampaignStore, type GuideState, type ReviewInput,
 } from "./campaign-rules.ts";
@@ -25,10 +25,19 @@ test("campaignSettingsOf reads the panel and caps the daily number", () => {
   assert.equal(campaignSettingsOf({ campaigns_lead_days: "2" }).leadDays, CAMPAIGN_DEFAULTS.leadDays);
 });
 
-test("a date less than a week away publishes after 12 hours", () => {
-  assert.equal(delayFor(3, CAMPAIGN_DEFAULTS), 12);
-  assert.equal(delayFor(30, CAMPAIGN_DEFAULTS), 24);
-  assert.equal(delayFor(3, { ...CAMPAIGN_DEFAULTS, delayHours: 4 }), 4);
+test("pages go out at once by default; with a wait set, a date less than a week away still goes out at once", () => {
+  assert.equal(delayFor(30, CAMPAIGN_DEFAULTS), 0);
+  assert.equal(delayFor(30, { ...CAMPAIGN_DEFAULTS, delayHours: 24 }), 24);
+  assert.equal(delayFor(3, { ...CAMPAIGN_DEFAULTS, delayHours: 24 }), 0);
+});
+
+test("searches and this week's dates don't wait for tomorrow's quota", () => {
+  assert.equal(isUrgent({ reason: "busqueda", date: "2027-01-07" }, "2026-11-27"), true);
+  assert.equal(isUrgent({ reason: "calendario", date: "2026-11-30" }, "2026-11-27"), true);
+  assert.equal(isUrgent({ reason: "calendario", date: "2026-12-25" }, "2026-11-27"), false);
+  assert.equal(fitsToday(false, 12, 12), false);
+  assert.equal(fitsToday(true, 12, 12), true);
+  assert.equal(fitsToday(true, 30, 12), false);
 });
 
 test("storeInQuery finds the store a search names, longest name first", () => {

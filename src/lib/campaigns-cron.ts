@@ -9,7 +9,7 @@ import { generateCampaignText } from "./ai-campaign";
 import {
   CAMPAIGN_DEFAULTS, CAMPAIGN_MAX_SIMILARITY, CAMPAIGN_MAX_WORDS, CAMPAIGN_MIN_WORDS, NEAR_MAX, addDays, baselineDue, campaignKeyword,
   campaignSettingsOf, daysFrom, delayFor, detectEvents, editionOf, eventInQuery, eventsToPlan, formatBaseline, formatReview, isNear,
-  guidesToImprove, planCampaigns, queryOpportunities, type GuideState, type GuideWork, reviewDue, reviewWindows, takenKey, totalsOf, wrongYears,
+  fitsToday, guidesToImprove, isUrgent, planCampaigns, queryOpportunities, type GuideState, type GuideWork, reviewDue, reviewWindows, takenKey, totalsOf, wrongYears,
   type CampaignSettings, type CampaignStore, type CampaignTarget, type DetectedEvent, type EventMetrics, type Opportunity, type QueryRow,
   type ReviewInput, type StoreResult,
 } from "./campaign-rules.ts";
@@ -17,7 +17,7 @@ import { EVENT_PAGES, eventCouponsByStore, eventDeals, eventPageOf, storeEventPa
 import { guideProblems, guideSimilarity, MAX_SIMILARITY } from "./guide-rules.ts";
 import { categoryOf } from "./catalog";
 import { siteCoupons, siteStore, type SiteCoupon } from "./public-site";
-import { eventsOf, longDate, madridToday } from "./site-text";
+import { eventsOf, longDate, madridToday, siteUrl } from "./site-text";
 import { dateRange, googleConfigured, searchAnalytics, storeSlugOf, type SearchRow } from "./google-api.ts";
 import { pingIndexNow } from "./guide-index";
 import { publishedGuide } from "./store-guides-db";
@@ -223,6 +223,12 @@ export async function scheduleCampaign(storeId: number, event: string, year: num
 
 // ---- the run
 
+// Out right away (delay 0): published, and IndexNow told about the page and its event page
+export async function publishCampaignNow(storeId: number, event: string, slug: string): Promise<void> {
+  await sql()`UPDATE campaign_guides SET status = 'published', published_at = now(), publish_at = now() WHERE store_id = ${storeId} AND event = ${event} AND status = 'scheduled'`;
+  await pingIndexNow([storeEventPath(event, slug), `/ofertas/${event}`]);
+}
+
 async function publishDue(): Promise<{ name: string; slug: string; event: string }[]> {
   const rows = await sql()<{ name: string; slug: string; event: string }[]>`
     UPDATE campaign_guides g SET status = 'published', published_at = now() FROM stores s
@@ -258,11 +264,10 @@ export interface CampaignCronResult {
   guides: string[]; detected: string[]; baselines: string[]; reviews: string[]; skipped?: string;
 }
 
-// The store guides the searches ask for (guidesToImprove): written with those searches in the prompt, then the usual
-// wait of the store guides (a rewrite waits in draft; the live guide stays meanwhile)
+// The store guides the searches ask for (guidesToImprove): written with those searches in the prompt and published at once
 async function improveGuides(plan: CampaignPlan, started: number): Promise<string[]> {
   if (!plan.guides.length) return [];
-  const settings = await guideSettings();
+  const settings = await guideSettings(); // only its on/off switch: these go out at once
   if (!settings.enabled) return [];
   const done: string[] = [];
   const lines: string[] = [];
@@ -274,8 +279,14 @@ async function improveGuides(plan: CampaignPlan, started: number): Promise<strin
         lines.push(`⚠️ Guía de ${w.name}: ${out.problems.join("; ")}`);
         continue;
       }
-      const at = await scheduleGuide(w.storeId, out.guide, { storeId: w.storeId, slug: w.slug, name: w.name, impressions: w.impressions, position: w.position }, settings.delayHours);
-      lines.push(`📝 ${w.rewrite ? "Reescrita" : "Escrita"} la guía de ${w.name} para «${w.queries.slice(0, 3).join("», «")}» (posición ${w.position}). Se publica el ${fmtWhen(at)}.`);
+      // the searches are there now: out right away, like the campaign pages («Quitar de la web» in Guías SEO)
+      await scheduleGuide(w.storeId, out.guide, { storeId: w.storeId, slug: w.slug, name: w.name, impressions: w.impressions, position: w.position }, 0);
+      await sql()`
+        UPDATE store_guides SET status = 'published', published_at = now(), publish_at = now(), content = COALESCE(draft, content), draft = NULL,
+          rewritten_at = CASE WHEN draft IS NOT NULL THEN now() ELSE rewritten_at END
+        WHERE store_id = ${w.storeId} AND (status = 'scheduled' OR draft IS NOT NULL)`;
+      await pingIndexNow([`/tiendas/${w.slug}`]);
+      lines.push(`🚀 ${w.rewrite ? "Reescrita" : "Escrita"} y publicada la guía de ${w.name} para «${w.queries.slice(0, 3).join("», «")}» (posición ${w.position}): ${siteUrl()}/tiendas/${w.slug}`);
       done.push(w.name);
     } catch (e) {
       console.error("campaigns: store guide failed", w.slug, e);
@@ -292,21 +303,29 @@ export async function runCampaignsCron(started = Date.now()): Promise<CampaignCr
   const published = await publishDue();
   if (published.length) await notify(`✅ Publicadas ${published.length} páginas de campaña: ${published.map((p) => `${eventName(p.event)} ${p.name}`).join(", ")}.`);
   const result: CampaignCronResult = { published: published.map((p) => `${eventName(p.event)} ${p.name}`), scheduled: [], failed: [], guides: [], detected: [], baselines: [], reviews: [] };
+  const livePaths: string[] = [];
   if (!settings.enabled) return { ...result, skipped: "desactivado en el panel" };
 
   const plan = await campaignPlan(settings);
   const today = madridToday().iso;
   // the «before» snapshot of the dates entering the plan, then the texts, then the reviews of the dates that ended
   result.baselines = await takeBaselines(settings, plan, today);
-  const room = settings.perDay - (await writtenToday());
-  for (const t of plan.targets.slice(0, Math.max(0, room))) {
+  let written = await writtenToday();
+  for (const t of plan.targets) {
     if (Date.now() - started > TIME_BUDGET_MS) break;
+    if (!fitsToday(isUrgent(t, today), written, settings.perDay)) continue;
+    written++;
     try {
       const out = await writeCampaign(t, plan.coupons);
       const signals: CampaignSignals = { reason: t.reason, queries: t.queries, impressions: t.impressions, position: t.position, score: t.score };
       if (out.guide && !out.problems.length) {
-        const publishAt = await scheduleCampaign(t.storeId, t.event, out.year, out.guide, signals, delayFor(daysFrom(today, t.date), settings));
-        result.scheduled.push({ name: t.name, event: t.event, publishAt });
+        const delay = delayFor(daysFrom(today, t.date), settings);
+        const publishAt = await scheduleCampaign(t.storeId, t.event, out.year, out.guide, signals, delay);
+        if (delay === 0) {
+          await publishCampaignNow(t.storeId, t.event, t.slug);
+          result.published.push(`${eventName(t.event)} ${t.name}`);
+          livePaths.push(storeEventPath(t.event, t.slug));
+        } else result.scheduled.push({ name: t.name, event: t.event, publishAt });
         continue;
       }
       // kept as cancelled so it isn't retried (and billed) every run; «Reescribir» in the panel tries again
@@ -318,6 +337,8 @@ export async function runCampaignsCron(started = Date.now()): Promise<CampaignCr
       if (e instanceof Error && e.name === "AiBudgetError") break;
     }
   }
+  if (livePaths.length)
+    await notify([`🚀 ${livePaths.length} páginas de campaña publicadas ya (IndexNow avisado):`, ...livePaths.map((p) => `• ${siteUrl()}${p}`), "", "Si alguna no te gusta: «Quitar de la web» en el panel."].join("\n"));
   if (result.scheduled.length)
     await notify([`📝 ${result.scheduled.length} páginas de campaña escritas:`, ...result.scheduled.map((s) => `• ${eventName(s.event)} ${s.name}: se publica el ${fmtWhen(s.publishAt)}`)].join("\n"));
   if (result.failed.length)

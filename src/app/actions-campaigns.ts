@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { sql } from "@/lib/db";
 import { logActivity } from "@/lib/activity";
 import { requireAdmin, requireEditor } from "@/lib/auth";
-import { campaignSettings, ensureCampaignTables, runCampaignsCron, scheduleCampaign, writeCampaign } from "@/lib/campaigns-cron";
+import { campaignSettings, ensureCampaignTables, publishCampaignNow as publishNow, runCampaignsCron, scheduleCampaign, writeCampaign } from "@/lib/campaigns-cron";
 import { daysFrom, delayFor } from "@/lib/campaign-rules";
 import { eventEdition, eventPageOf, storeEventPath } from "@/lib/event-pages";
 import { pingIndexNow } from "@/lib/guide-index";
@@ -55,7 +55,12 @@ export async function writeCampaignNow(f: FormData) {
   const settings = await campaignSettings();
   const today = madridToday().iso;
   const days = daysFrom(today, eventEdition(eventPageOf(event)!, today).date);
-  await scheduleCampaign(id, event, out.year, out.guide, { reason: "a mano", queries }, delayFor(days, settings));
+  const delay = delayFor(days, settings);
+  await scheduleCampaign(id, event, out.year, out.guide, { reason: "a mano", queries }, delay);
+  if (delay === 0) {
+    await publishNow(id, event, store.slug);
+    revalidatePath(storeEventPath(event, store.slug));
+  }
   await done(`Página de campaña escrita: ${eventPageOf(event)?.name} ${store.name}`);
 }
 
