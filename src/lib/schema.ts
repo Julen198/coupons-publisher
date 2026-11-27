@@ -456,6 +456,13 @@ CREATE TABLE IF NOT EXISTS mcp_calls (
 );
 CREATE INDEX IF NOT EXISTS mcp_calls_at_idx ON mcp_calls(at);
 ALTER TABLE mcp_calls ENABLE ROW LEVEL SECURITY;
+-- IndexNow: each sitemap page's fingerprint as last sent, so the hourly cron only pings what changed (indexnow-cron.ts)
+CREATE TABLE IF NOT EXISTS indexnow_pages (
+  path text PRIMARY KEY,
+  sig text NOT NULL,
+  sent_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE indexnow_pages ENABLE ROW LEVEL SECURITY;
 `;
 
 // "Borrar todos los datos" in Administración: business data only (reader accounts, votes (anonymous ones go with coupons, CASCADE), comments and their useful marks, saved deals, expiry reports and date alerts go too); panel users, settings and our own network accounts stay
