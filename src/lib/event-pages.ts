@@ -376,9 +376,10 @@ export const storeEventsInSeason = (todayIso: string): EventPage[] =>
   EVENT_PAGES.filter((e) => storeEventSeason(e, todayIso)).sort((a, b) => eventEdition(a, todayIso).date.localeCompare(eventEdition(b, todayIso).date));
 
 // A store × event page is worth indexing only with something of its own to show: live coupons of the store that name
-// the event. With none it shows the store's ordinary coupons under the event's text with another name (thin, and the
-// same as its store page), so it stays out of the index and the sitemap, but its links are followed.
-export const storeEventIndexable = (eventCouponsOfStore: number): boolean => eventCouponsOfStore > 0;
+// the event, or its own text for the date (campaigns-cron.ts, written weeks ahead) over coupons of the store. With
+// neither it shows the store's ordinary coupons under the event's text with another name (thin, and the same as its
+// store page), so it stays out of the index and the sitemap, but its links are followed.
+export const storeEventIndexable = (eventCouponsOfStore: number, ownText = false): boolean => eventCouponsOfStore > 0 || ownText;
 
 type StoreDeal = DealText & { store_slug: string; store_name: string; perk?: string | null };
 

@@ -100,11 +100,12 @@ const FACTS_POLICY_RE = /env[ií]o|devoluc/i;
 const CODE_RE = /\b(?=[A-Z0-9]*[A-Z])(?=[A-Z0-9]*\d)[A-Z0-9]{4,}\b/g;
 
 // Why a written guide can't be scheduled ([] = it can)
-export function guideProblems(g: StoreGuide, store: { facts: string; codes: readonly string[] }): string[] {
+// (`words` changes the length limits: the store × event texts of campaign-rules.ts are shorter)
+export function guideProblems(g: StoreGuide, store: { facts: string; codes: readonly string[] }, words_ = { min: MIN_WORDS, max: MAX_WORDS }): string[] {
   const problems: string[] = [];
   const words = guideWords(g);
-  if (words < MIN_WORDS) problems.push(`demasiado corta (${words} palabras)`);
-  if (words > MAX_WORDS) problems.push(`demasiado larga (${words} palabras)`);
+  if (words < words_.min) problems.push(`demasiado corta (${words} palabras)`);
+  if (words > words_.max) problems.push(`demasiado larga (${words} palabras)`);
   if (!g.lead.toLowerCase().includes(g.keyword.toLowerCase())) problems.push("la keyword no está en la entradilla");
   const text = textsOf(g).join("\n");
   if (POLICY_RE.test(text) && !FACTS_POLICY_RE.test(store.facts)) problems.push("habla de envío o devoluciones sin datos de la tienda");

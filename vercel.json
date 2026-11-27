@@ -6,6 +6,7 @@
     { "path": "/api/networks/cron", "schedule": "15 */6 * * *" },
     { "path": "/api/clicks/cron", "schedule": "30 3 * * *" },
     { "path": "/api/guides/cron", "schedule": "0 9 * * *" },
+    { "path": "/api/campaigns/cron", "schedule": "0 5,14 * * *" },
     { "path": "/api/store-facts/cron", "schedule": "30 6 * * *" }
   ]
 }
